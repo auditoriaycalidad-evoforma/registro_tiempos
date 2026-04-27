@@ -12,20 +12,20 @@ export default function Navbar() {
   if (!session) return null;
 
   return (
-    <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+    <nav className="bg-white border-b border-brand-dark/10 shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex px-2 lg:px-0">
             <div className="flex-shrink-0 flex items-center">
-              <Clock className="h-8 w-8 text-blue-600 mr-2" />
-              <span className="font-bold text-xl text-gray-900 tracking-tight">Minutas</span>
+              <Clock className="h-8 w-8 text-brand-primary mr-2" />
+              <span className="font-bold text-xl text-brand-dark tracking-tight">Minutas</span>
             </div>
             <div className="hidden lg:ml-8 lg:flex lg:space-x-4">
               <Link
                 href="/dashboard"
                 className={`${pathname.startsWith("/dashboard")
-                    ? "border-blue-500 text-gray-900"
-                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                    ? "border-brand-primary text-brand-dark"
+                    : "border-transparent text-brand-dark/70 hover:border-brand-primary/50 hover:text-brand-dark"
                   } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
               >
                 <LayoutDashboard className="h-4 w-4 mr-1.5" />
@@ -36,11 +36,11 @@ export default function Navbar() {
                 <Link
                   href="/admin"
                   className={`${pathname.startsWith("/admin")
-                      ? "border-amber-500 text-gray-900"
-                      : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                      ? "border-brand-accent text-brand-dark"
+                      : "border-transparent text-brand-dark/70 hover:border-brand-accent/50 hover:text-brand-dark"
                     } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                 >
-                  <Shield className="h-4 w-4 mr-1.5 text-amber-500" />
+                  <Shield className="h-4 w-4 mr-1.5 text-brand-accent" />
                   Administración
                 </Link>
               )}
@@ -49,14 +49,14 @@ export default function Navbar() {
           <div className="flex items-center">
             <div className="flex items-center gap-4">
               <div className="text-sm">
-                <p className="text-gray-900 font-medium">{session.user.nombre}</p>
-                <p className="text-gray-500 text-xs hidden sm:block">
-                  {session.user.email} • <span className={session.user.rol === "ADMIN" ? "text-amber-600 font-semibold" : "text-blue-600"}>{session.user.rol}</span>
+                <p className="text-brand-dark font-medium">{session.user.nombre}</p>
+                <p className="text-brand-dark/70 text-xs hidden sm:block">
+                  {session.user.email} • <span className={session.user.rol === "ADMIN" ? "text-brand-accent font-semibold" : "text-brand-primary font-semibold"}>{session.user.rol}</span>
                 </p>
               </div>
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-slate-800 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-colors shadow-sm"
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-brand-dark hover:bg-brand-dark/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-dark transition-colors shadow-sm"
               >
                 <LogOut className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Salir</span>
