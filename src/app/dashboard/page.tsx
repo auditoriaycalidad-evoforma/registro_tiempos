@@ -55,9 +55,9 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Mi Panel</h1>
-          <p className="mt-1 text-gray-500">Registra y visualiza tus horas trabajadas.</p>
+        <div className="color-white">
+          <h1 className="text-3xl font-bold tracking-tight">Mi Panel</h1>
+          <p className="mt-1">Registra tu minuta.</p>
         </div>
       </div>
 
@@ -67,19 +67,19 @@ export default async function DashboardPage() {
         </div>
 
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-gray-800">Historial de Minutas</h2>
+          <div className="bg-white rounded-xl shadow-sm border border-brand-dark/10 overflow-hidden">
+            <div className="p-6 border-b border-brand-dark/10">
+              <h2 className="text-xl font-bold text-brand-dark">Historial de Minutas</h2>
             </div>
-            
+
             {minutas.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
+              <div className="p-8 text-center text-brand-dark/60">
                 <p>No tienes actividades registradas aún.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-gray-600">
-                  <thead className="bg-gray-50 text-gray-700">
+                <table className="w-full text-left text-sm text-brand-dark/80">
+                  <thead className="bg-brand-dark/5 text-brand-dark">
                     <tr>
                       <th className="px-4 py-3 font-semibold">Fecha</th>
                       <th className="px-4 py-3 font-semibold">Horario</th>
@@ -89,23 +89,23 @@ export default async function DashboardPage() {
                       <th className="px-4 py-3 font-semibold text-center">Estado</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-brand-dark/10">
                     {minutas.map((m) => (
-                      <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                      <tr key={m.id} className="hover:bg-brand-dark/5 transition-colors">
                         <td className="px-4 py-3 whitespace-nowrap">
                           {format(new Date(m.fecha), 'MMM dd, yyyy', { locale: es })}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-gray-900 font-medium">
+                        <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-medium">
                           {format(new Date(m.hora_inicio), 'HHmm')} - {format(new Date(m.hora_fin), 'HHmm')}
                         </td>
-                        <td className="px-4 py-3 font-medium text-gray-800">
+                        <td className="px-4 py-3 font-medium text-brand-dark/90">
                           {m.minuta_proyecto?.code || m.proyecto || '-'}
                         </td>
                         <td className="px-4 py-3">
                           {m.minuta_actividad?.nombre || '-'}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-1 text-xs font-bold rounded-md ${m.tipo_minuta === 'A' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
+                          <span className={`px-2 py-1 text-xs font-bold rounded-md ${m.tipo_minuta === 'A' ? 'bg-brand-primary/10 text-brand-primary' : 'bg-brand-accent/10 text-brand-accent'}`}>
                             Tipo {m.tipo_minuta}
                           </span>
                         </td>

@@ -4,8 +4,10 @@
 
 :root {
   --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --background-start-rgb: #7A969B;
+  --color-primary: #E87C1E;
+  --color-secondary: #575756;
+  --background-end-rgb: #E87C1E;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -16,15 +18,15 @@
   }
 }
 
+.color-white {
+  color: white !important;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: var(--background-start-rgb) !important;
 }
+
 
 @layer utilities {
   .text-balance {
