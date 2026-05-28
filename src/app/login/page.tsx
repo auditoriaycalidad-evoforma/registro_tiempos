@@ -45,13 +45,13 @@ export default function LoginPage() {
             </div>
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-brand-dark tracking-tight">
-            Evoforma Minutas
+            TIME TRACKING SYSTEM
           </h2>
           <p className="mt-2 text-center text-sm text-brand-dark/70">
             Ingresa al sistema de registro de actividades
           </p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex items-start">

@@ -7,6 +7,7 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedProyecto, setSelectedProyecto] = useState<string>("");
   const formRef = useRef<HTMLFormElement>(null);
 
   async function action(formData: FormData) {
@@ -21,6 +22,7 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
     } else {
       setSuccess(true);
       formRef.current?.reset();
+      setSelectedProyecto("");
     }
     setLoading(false);
   }
@@ -51,7 +53,13 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-brand-dark/90 mb-1">Cédula del Proyecto</label>
-            <select name="proyecto" required className="w-full rounded-md border border-brand-dark/20 px-3 py-2 text-brand-dark focus:outline-none focus:ring-brand-primary focus:border-brand-primary">
+            <select 
+              name="proyecto" 
+              required 
+              className="w-full rounded-md border border-brand-dark/20 px-3 py-2 text-brand-dark focus:outline-none focus:ring-brand-primary focus:border-brand-primary"
+              value={selectedProyecto}
+              onChange={(e) => setSelectedProyecto(e.target.value)}
+            >
               <option value="">Seleccione una cédula</option>
               {proyectos.map((p) => (
                 <option key={p.code} value={p.code}>{p.code}</option>
@@ -59,14 +67,25 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-brand-dark/90 mb-1">Actividad</label>
-            <select name="actividad" required className="w-full rounded-md border border-brand-dark/20 px-3 py-2 text-brand-dark focus:outline-none focus:ring-brand-primary focus:border-brand-primary">
-              <option value="">Seleccione una actividad</option>
-              {actividades.map((a) => (
-                <option key={a.code} value={a.code}>{a.nombre} {a.area ? `(${a.area})` : ''}</option>
-              ))}
-            </select>
+            <label className="block text-sm font-medium text-brand-dark/90 mb-1">Nombre del Proyecto</label>
+            <input 
+              type="text" 
+              readOnly 
+              className="w-full rounded-md border border-brand-dark/20 bg-brand-dark/5 px-3 py-2 text-brand-dark/70 focus:outline-none cursor-not-allowed"
+              value={proyectos.find(p => p.code === selectedProyecto)?.nombre || ""}
+              placeholder="Nombre de la cédula"
+            />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-brand-dark/90 mb-1">Actividad</label>
+          <select name="actividad" required className="w-full rounded-md border border-brand-dark/20 px-3 py-2 text-brand-dark focus:outline-none focus:ring-brand-primary focus:border-brand-primary">
+            <option value="">Seleccione una actividad</option>
+            {actividades.map((a) => (
+              <option key={a.code} value={a.code}>{a.nombre} {a.area ? `(${a.area})` : ''}</option>
+            ))}
+          </select>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
