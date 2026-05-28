@@ -10,9 +10,12 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          primary: '#7A969B',
+          primary: '#E87C1E',
+          secundary: '#7A969B',
+          third: '#3f5458',
           accent: '#E87C1E',
           dark: '#575756',
+          light: '#FDFDFD',
         }
       },
       backgroundImage: {
