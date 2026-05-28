@@ -7,6 +7,7 @@
   --background-start-rgb: #7A969B;
   --color-primary: #E87C1E;
   --color-secondary: #575756;
+  --color-third: #3f5458;
   --background-end-rgb: #E87C1E;
 }
 
@@ -27,6 +28,9 @@ body {
   background: var(--background-start-rgb) !important;
 }
 
+nav {
+  background: var(--color-third) !important;
+}
 
 @layer utilities {
   .text-balance {
