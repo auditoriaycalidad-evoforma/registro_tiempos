@@ -37,7 +37,7 @@ export const authOptions: NextAuthOptions = {
         return {
           id: empleado.id,
           email: empleado.email,
-          nombre: empleado.apellido_nombre,
+          name: empleado.apellido_nombre,
           rol: rol,
         };
       },

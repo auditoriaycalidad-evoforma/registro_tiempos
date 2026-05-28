@@ -49,7 +49,7 @@ export default function Navbar() {
           <div className="flex items-center">
             <div className="flex items-center gap-4">
               <div className="text-sm">
-                <p className="text-brand-light font-medium">{session.user.nombre}</p>
+                <p className="text-brand-light font-medium">{session.user.name}</p>
                 <p className="text-brand-light/70 text-xs hidden sm:block">
                   {session.user.email} • <span className={session.user.rol === "ADMIN" ? "text-brand-accent font-semibold" : "text-brand-primary font-semibold"}>{session.user.rol}</span>
                 </p>
