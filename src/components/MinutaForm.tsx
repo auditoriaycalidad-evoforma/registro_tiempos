@@ -28,7 +28,7 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-brand-dark/10 p-6">
+    <div className="w-full bg-white rounded-xl shadow-sm border border-brand-dark/10 p-6">
       <h2 className="text-xl font-bold text-brand-dark mb-6 border-b pb-2">Nueva Actividad</h2>
       
       {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">{error}</div>}
@@ -90,7 +90,7 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
           <div className="flex flex-col">
-            <label className="block text-sm font-medium text-brand-dark/90 mb-1">Hora de Inicio (24 horas)</label>
+            <label className="block min-h-10 sm:min-h-5 text-sm font-medium leading-5 text-brand-dark/90 mb-1">Hora de Inicio (24 horas)</label>
             <input
               type="text"
               name="horaInicio"
@@ -103,7 +103,7 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
             />
           </div>
           <div className="flex flex-col">
-            <label className="block text-sm font-medium text-brand-dark/90 mb-1">Hora de Fin (24 horas)</label>
+            <label className="block min-h-10 sm:min-h-5 text-sm font-medium leading-5 text-brand-dark/90 mb-1">Hora de Fin (24 horas)</label>
             <input
               type="text"
               name="horaFin"

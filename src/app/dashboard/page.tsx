@@ -12,10 +12,20 @@ export default async function DashboardPage() {
 
   if (!session?.user?.id) return null;
 
+  type ProyectoOption = {
+    code: string;
+    nombre: string;
+  };
+
   // Cargar catálogos
-  const proyectos = await prisma.minuta_proyecto.findMany({
-    orderBy: { nombre: 'asc' }
-  });
+  const proyectos = await prisma.$queryRaw<ProyectoOption[]>`
+    SELECT DISTINCT
+      cedula AS code,
+      nombre_proyecto AS nombre
+    FROM briefing_2026
+    WHERE cedula IS NOT NULL
+    ORDER BY cedula ASC
+  `;
 
   const actividades = await prisma.minuta_actividad.findMany({
     orderBy: { nombre: 'asc' }
@@ -62,12 +72,12 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(30rem,0.95fr)_minmax(0,1.25fr)] gap-6 2xl:gap-8">
+        <div className="w-full">
           <MinutaForm proyectos={proyectos} actividades={actividades} />
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="min-w-0">
           <div className="bg-white rounded-xl shadow-sm border border-brand-dark/10 overflow-hidden">
             <div className="p-6 border-b border-brand-dark/10">
               <h2 className="text-xl font-bold text-brand-dark">Historial de Minutas</h2>
