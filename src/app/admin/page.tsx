@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { AdminActionButtons } from "@/components/AdminActionButtons";
 import { Clock, CheckCircle2, XCircle } from "lucide-react";
+import { formatTime24 } from "@/lib/formatTime";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -63,7 +64,7 @@ export default async function AdminPage() {
                     <td className="px-4 py-3 font-medium text-brand-dark">{m.minuta_empleado?.apellido_nombre || m.empleado}</td>
                     <td className="px-4 py-3">
                       <div>{format(new Date(m.fecha), 'MMM dd, yyyy', { locale: es })}</div>
-                      <div className="text-xs text-brand-dark/60 mt-0.5">{format(new Date(m.hora_inicio), 'HHmm')} - {format(new Date(m.hora_fin), 'HHmm')}</div>
+                      <div className="text-xs text-brand-dark/60 mt-0.5">{formatTime24(m.hora_inicio)} - {formatTime24(m.hora_fin)}</div>
                     </td>
                     <td className="px-4 py-3">{m.minuta_proyecto?.code || m.proyecto || '-'}</td>
                     <td className="px-4 py-3">{m.minuta_actividad?.nombre || '-'}</td>

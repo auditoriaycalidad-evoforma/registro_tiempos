@@ -88,14 +88,32 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
           </select>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-brand-dark/90 mb-1">Hora de Inicio (Franja Militar)</label>
-            <input type="text" name="horaInicio" placeholder="Ej: 0800" pattern="^([01]\d|2[0-3])[0-5]\d$" maxLength={4} required className="w-full rounded-md border border-brand-dark/20 px-3 py-2 text-brand-dark focus:outline-none focus:ring-brand-primary focus:border-brand-primary" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+          <div className="flex flex-col">
+            <label className="block text-sm font-medium text-brand-dark/90 mb-1">Hora de Inicio (24 horas)</label>
+            <input
+              type="text"
+              name="horaInicio"
+              placeholder="Ej: 08:00"
+              pattern="^([01]\d|2[0-3]):[0-5]\d$"
+              maxLength={5}
+              inputMode="numeric"
+              required
+              className="h-10 w-full rounded-md border border-brand-dark/20 px-3 py-2 text-brand-dark focus:outline-none focus:ring-brand-primary focus:border-brand-primary"
+            />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-brand-dark/90 mb-1">Hora de Fin (Franja Militar)</label>
-            <input type="text" name="horaFin" placeholder="Ej: 1730" pattern="^([01]\d|2[0-3])[0-5]\d$" maxLength={4} required className="w-full rounded-md border border-brand-dark/20 px-3 py-2 text-brand-dark focus:outline-none focus:ring-brand-primary focus:border-brand-primary" />
+          <div className="flex flex-col">
+            <label className="block text-sm font-medium text-brand-dark/90 mb-1">Hora de Fin (24 horas)</label>
+            <input
+              type="text"
+              name="horaFin"
+              placeholder="Ej: 17:30"
+              pattern="^([01]\d|2[0-3]):[0-5]\d$"
+              maxLength={5}
+              inputMode="numeric"
+              required
+              className="h-10 w-full rounded-md border border-brand-dark/20 px-3 py-2 text-brand-dark focus:outline-none focus:ring-brand-primary focus:border-brand-primary"
+            />
           </div>
         </div>
 

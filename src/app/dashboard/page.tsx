@@ -5,6 +5,7 @@ import { MinutaForm } from "@/components/MinutaForm";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { formatTime24 } from "@/lib/formatTime";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -96,7 +97,7 @@ export default async function DashboardPage() {
                           {format(new Date(m.fecha), 'MMM dd, yyyy', { locale: es })}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-medium">
-                          {format(new Date(m.hora_inicio), 'HHmm')} - {format(new Date(m.hora_fin), 'HHmm')}
+                          {formatTime24(m.hora_inicio)} - {formatTime24(m.hora_fin)}
                         </td>
                         <td className="px-4 py-3 font-medium text-brand-dark/90">
                           {m.minuta_proyecto?.code || m.proyecto || '-'}

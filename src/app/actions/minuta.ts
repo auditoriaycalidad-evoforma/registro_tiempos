@@ -26,6 +26,12 @@ export async function createMinuta(formData: FormData) {
     return { error: "Todos los campos son obligatorios" };
   }
 
+  const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+  if (!timePattern.test(data.horaInicio) || !timePattern.test(data.horaFin)) {
+    return { error: "Las horas deben estar en formato 24 horas" };
+  }
+
   if (data.horaFin <= data.horaInicio) {
     return { error: "La hora de fin debe ser posterior a la hora de inicio" };
   }
@@ -34,12 +40,8 @@ export async function createMinuta(formData: FormData) {
     // Formatear fechas para Prisma
     const fechaDate = new Date(`${data.fecha}T00:00:00.000Z`);
     
-    // Parsear Franja Militar (ej: "0830") a HH:mm
-    const inicioStr = data.horaInicio.slice(0, 2) + ":" + data.horaInicio.slice(2);
-    const finStr = data.horaFin.slice(0, 2) + ":" + data.horaFin.slice(2);
-
-    const horaInicioDate = new Date(`1970-01-01T${inicioStr}:00.000Z`);
-    const horaFinDate = new Date(`1970-01-01T${finStr}:00.000Z`);
+    const horaInicioDate = new Date(`1970-01-01T${data.horaInicio}:00.000Z`);
+    const horaFinDate = new Date(`1970-01-01T${data.horaFin}:00.000Z`);
 
     // Validar solapamiento
     const solapamientos = await prisma.minuta_registro_actividad.findMany({
