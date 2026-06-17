@@ -2,7 +2,12 @@
 
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { getOrCreateSpreadsheet, replaceSpreadsheetValues } from "@/lib/googleSheets";
+import {
+  getOrCreateSpreadsheet,
+  replaceSpreadsheetValues,
+  ensureSheetExists,
+  replaceSheetValues,
+} from "@/lib/googleSheets";
 import { formatTime24 } from "@/lib/formatTime";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
@@ -19,6 +24,17 @@ const HEADERS = [
   "TOTAL HORAS",
   "apellido-nombre",
   "ACTIVIDAD",
+  "ESTADO",
+];
+
+const DAYS_OF_WEEK = [
+  "DOMINGO",
+  "LUNES",
+  "MARTES",
+  "MIÉRCOLES",
+  "JUEVES",
+  "VIERNES",
+  "SÁBADO",
 ];
 
 const MONTHS = [
@@ -55,9 +71,9 @@ function formatDate(date: Date) {
   return `${day}/${month}/${year}`;
 }
 
-function calculateHours(start: Date, end: Date) {
+function calculateHours(start: Date, end: Date): number {
   const diff = end.getTime() - start.getTime();
-  return (diff / 36e5).toFixed(2).replace(".", ",");
+  return Math.round((diff / 36e5) * 100) / 100;
 }
 
 function getCurrentYearRange() {
@@ -110,34 +126,73 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
   }
 
   const results: SyncResult[] = [];
+  const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
 
-  for (const [cargo, rows] of Array.from(grouped)) {
-    const fileName = `Minutas ${year} - ${sanitizeFilePart(cargo)}`;
-    const spreadsheet = await getOrCreateSpreadsheet(fileName);
-    const values = [
-      HEADERS,
-      ...rows.map((minuta) => [
-        minuta.fecha.getUTCDate().toString(),
-        `Tipo ${minuta.tipo_minuta}`,
-        MONTHS[minuta.fecha.getUTCMonth()],
-        formatDate(minuta.fecha),
-        minuta.minuta_proyecto?.code ?? minuta.proyecto ?? "",
-        minuta.minuta_proyecto?.nombre ?? "",
-        formatTime24(minuta.hora_inicio),
-        formatTime24(minuta.hora_fin),
-        calculateHours(minuta.hora_inicio, minuta.hora_fin),
-        minuta.minuta_empleado.apellido_nombre,
-        minuta.minuta_actividad?.nombre ?? "",
-      ]),
-    ];
+  if (spreadsheetId) {
+    // Modo de hoja única: se exporta cada cargo en una pestaña (sheet) del documento común
+    for (const [cargo, rows] of Array.from(grouped)) {
+      const sheetTitle = sanitizeFilePart(cargo);
+      
+      // Aseguramos que la pestaña exista antes de escribir los datos
+      await ensureSheetExists(spreadsheetId, sheetTitle);
 
-    await replaceSpreadsheetValues(spreadsheet.id, values);
-    results.push({
-      cargo,
-      rows: rows.length,
-      fileName: spreadsheet.name,
-      url: spreadsheet.url,
-    });
+      const values = [
+        HEADERS,
+        ...rows.map((minuta) => [
+          DAYS_OF_WEEK[minuta.fecha.getUTCDay()],
+          `Tipo ${minuta.tipo_minuta}`,
+          MONTHS[minuta.fecha.getUTCMonth()],
+          formatDate(minuta.fecha),
+          minuta.minuta_proyecto?.code ?? minuta.proyecto ?? "",
+          minuta.minuta_proyecto?.nombre ?? "",
+          formatTime24(minuta.hora_inicio),
+          formatTime24(minuta.hora_fin),
+          calculateHours(minuta.hora_inicio, minuta.hora_fin),
+          minuta.minuta_empleado.apellido_nombre,
+          minuta.minuta_actividad?.nombre ?? "",
+          minuta.aprobado ?? "NO",
+        ]),
+      ];
+
+      await replaceSheetValues(spreadsheetId, sheetTitle, values);
+      results.push({
+        cargo,
+        rows: rows.length,
+        fileName: `Pestaña: ${sheetTitle}`,
+        url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+      });
+    }
+  } else {
+    // Modo multi-archivo: se crea un archivo de Google Sheets independiente por cargo
+    for (const [cargo, rows] of Array.from(grouped)) {
+      const fileName = `Minutas ${year} - ${sanitizeFilePart(cargo)}`;
+      const spreadsheet = await getOrCreateSpreadsheet(fileName);
+      const values = [
+        HEADERS,
+        ...rows.map((minuta) => [
+          DAYS_OF_WEEK[minuta.fecha.getUTCDay()],
+          `Tipo ${minuta.tipo_minuta}`,
+          MONTHS[minuta.fecha.getUTCMonth()],
+          formatDate(minuta.fecha),
+          minuta.minuta_proyecto?.code ?? minuta.proyecto ?? "",
+          minuta.minuta_proyecto?.nombre ?? "",
+          formatTime24(minuta.hora_inicio),
+          formatTime24(minuta.hora_fin),
+          calculateHours(minuta.hora_inicio, minuta.hora_fin),
+          minuta.minuta_empleado.apellido_nombre,
+          minuta.minuta_actividad?.nombre ?? "",
+          minuta.aprobado ?? "NO",
+        ]),
+      ];
+
+      await replaceSpreadsheetValues(spreadsheet.id, values);
+      results.push({
+        cargo,
+        rows: rows.length,
+        fileName: spreadsheet.name,
+        url: spreadsheet.url,
+      });
+    }
   }
 
   revalidatePath("/exportar");

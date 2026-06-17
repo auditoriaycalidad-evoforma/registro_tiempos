@@ -173,23 +173,92 @@ export async function getOrCreateSpreadsheet(fileName: string): Promise<Spreadsh
     url: created.webViewLink ?? `https://docs.google.com/spreadsheets/d/${created.id}/edit`,
   };
 }
-
-export async function replaceSpreadsheetValues(spreadsheetId: string, values: string[][]) {
+export async function replaceSpreadsheetValues(
+  spreadsheetId: string,
+  values: (string | number)[][]
+) {
   const config = getGoogleConfig();
   const accessToken = await requestAccessToken(config);
 
   await googleFetch(
-    `${SHEETS_URL}/${spreadsheetId}/values/A%3AK:clear`,
+    `${SHEETS_URL}/${spreadsheetId}/values/A%3AZ:clear`,
     accessToken,
     { method: "POST", body: JSON.stringify({}) }
   );
 
   await googleFetch(
-    `${SHEETS_URL}/${spreadsheetId}/values/A1%3AK${Math.max(values.length, 1)}?valueInputOption=USER_ENTERED`,
+    `${SHEETS_URL}/${spreadsheetId}/values/A1%3AZ${Math.max(values.length, 1)}?valueInputOption=USER_ENTERED`,
     accessToken,
     {
       method: "PUT",
-      body: JSON.stringify({ range: "A1:K", majorDimension: "ROWS", values }),
+      body: JSON.stringify({ range: "A1:Z", majorDimension: "ROWS", values }),
     }
   );
 }
+export async function ensureSheetExists(spreadsheetId: string, sheetTitle: string) {
+  const config = getGoogleConfig();
+  const accessToken = await requestAccessToken(config);
+
+  const metadata = await googleFetch<{ sheets?: { properties: { title: string } }[] }>(
+    `${SHEETS_URL}/${spreadsheetId}?fields=sheets.properties(title)`,
+    accessToken
+  );
+
+  const sheetTitles = metadata.sheets?.map((s) => s.properties.title) ?? [];
+
+  if (!sheetTitles.includes(sheetTitle)) {
+    await googleFetch(
+      `${SHEETS_URL}/${spreadsheetId}:batchUpdate`,
+      accessToken,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: sheetTitle,
+                },
+              },
+            },
+          ],
+        }),
+      }
+    );
+  }
+}
+
+export async function replaceSheetValues(
+  spreadsheetId: string,
+  sheetTitle: string,
+  values: (string | number)[][]
+) {
+  const config = getGoogleConfig();
+  const accessToken = await requestAccessToken(config);
+
+  const range = `'${sheetTitle}'!A:Z`;
+  const encodedRange = encodeURIComponent(range);
+
+  await googleFetch(
+    `${SHEETS_URL}/${spreadsheetId}/values/${encodedRange}:clear`,
+    accessToken,
+    { method: "POST", body: JSON.stringify({}) }
+  );
+
+  const updateRange = `'${sheetTitle}'!A1:Z${Math.max(values.length, 1)}`;
+  const encodedUpdateRange = encodeURIComponent(updateRange);
+
+  await googleFetch(
+    `${SHEETS_URL}/${spreadsheetId}/values/${encodedUpdateRange}?valueInputOption=USER_ENTERED`,
+    accessToken,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        range: updateRange,
+        majorDimension: "ROWS",
+        values,
+      }),
+    }
+  );
+}
+
