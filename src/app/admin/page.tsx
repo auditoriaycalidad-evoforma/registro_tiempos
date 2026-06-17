@@ -11,7 +11,9 @@ import { formatTime24 } from "@/lib/formatTime";
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
 
-  if (session?.user?.rol !== "ADMIN") {
+  const canApprove = session?.user?.rol === "ADMIN" || session?.user?.rol === "LIDER";
+
+  if (!canApprove) {
     redirect("/dashboard");
   }
 

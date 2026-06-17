@@ -28,6 +28,7 @@ model minuta_empleado {
   cargo                     String?                     @db.VarChar(255)
   email                     String?                     @unique @db.VarChar(255)
   telefono                  String?                     @db.VarChar(50)
+  es_lider                  String?                     @db.VarChar(1)
   hora_inicio_lv            DateTime?                   @db.Time(6)
   hora_fin_lv               DateTime?                   @db.Time(6)
   hora_inicio_sabado        DateTime?                   @db.Time(6)

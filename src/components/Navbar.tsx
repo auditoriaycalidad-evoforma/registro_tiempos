@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const canApprove = session?.user.rol === "ADMIN" || session?.user.rol === "LIDER";
 
   if (!session) return null;
 
@@ -32,7 +33,7 @@ export default function Navbar() {
                 Mi Panel
               </Link>
 
-              {session.user.rol === "ADMIN" && (
+              {canApprove && (
                 <Link
                   href="/admin"
                   className={`${pathname.startsWith("/admin")
@@ -41,7 +42,7 @@ export default function Navbar() {
                     } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                 >
                   <Shield className="h-4 w-4 mr-1.5 text-brand-accent" />
-                  Administración
+                  Aprobaciones
                 </Link>
               )}
             </div>
@@ -51,7 +52,7 @@ export default function Navbar() {
               <div className="text-sm">
                 <p className="text-brand-light font-medium">{session.user.name}</p>
                 <p className="text-brand-light/70 text-xs hidden sm:block">
-                  {session.user.email} • <span className={session.user.rol === "ADMIN" ? "text-brand-accent font-semibold" : "text-brand-primary font-semibold"}>{session.user.rol}</span>
+                  {session.user.email} • <span className={canApprove ? "text-brand-accent font-semibold" : "text-brand-primary font-semibold"}>{session.user.rol}</span>
                 </p>
               </div>
               <button

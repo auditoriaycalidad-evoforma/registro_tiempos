@@ -7,8 +7,9 @@ import { revalidatePath } from "next/cache";
 
 export async function approveMinuta(id: number, decision: "SI" | "RE") {
   const session = await getServerSession(authOptions);
+  const canApprove = session?.user?.rol === "ADMIN" || session?.user?.rol === "LIDER";
   
-  if (session?.user?.rol !== "ADMIN") {
+  if (!canApprove) {
     return { error: "No autorizado" };
   }
 

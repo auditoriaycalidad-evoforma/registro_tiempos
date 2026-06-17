@@ -4,11 +4,10 @@ import { NextResponse } from "next/server";
 export default withAuth(
   function middleware(req) {
     const { token } = req.nextauth;
-    const isAuth = !!token;
-    const isAdmin = token?.rol === "ADMIN";
+    const canApprove = token?.rol === "ADMIN" || token?.rol === "LIDER";
 
-    // Si intenta acceder a rutas de admin sin ser admin
-    if (req.nextUrl.pathname.startsWith("/admin") && !isAdmin) {
+    // Si intenta acceder a rutas de aprobacion sin permisos
+    if (req.nextUrl.pathname.startsWith("/admin") && !canApprove) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
   },

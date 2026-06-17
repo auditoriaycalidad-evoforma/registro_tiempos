@@ -2,12 +2,15 @@ import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import prisma from "@/lib/prisma";
 
-const getRoleForEmail = (email: string | null | undefined) => {
+const getRoleForEmployee = (email: string | null | undefined, esLider: string | null | undefined) => {
   const adminEmails = process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((adminEmail) => adminEmail.trim().toLowerCase())
     : ["admin@minutas.local"];
 
-  return email && adminEmails.includes(email.toLowerCase()) ? "ADMIN" : "EMPLEADO";
+  if (email && adminEmails.includes(email.toLowerCase())) return "ADMIN";
+  if (esLider?.toUpperCase() === "S") return "LIDER";
+
+  return "EMPLEADO";
 };
 
 export const authOptions: NextAuthOptions = {
@@ -45,7 +48,7 @@ export const authOptions: NextAuthOptions = {
       user.id = empleado.id;
       user.email = empleado.email;
       user.name = empleado.apellido_nombre;
-      user.rol = getRoleForEmail(empleado.email);
+      user.rol = getRoleForEmployee(empleado.email, empleado.es_lider);
 
       return true;
     },
