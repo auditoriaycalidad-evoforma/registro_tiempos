@@ -88,7 +88,7 @@ function getCurrentYearRange() {
 
 async function ensureCanExport() {
   const session = await getServerSession(authOptions);
-  const canExport = session?.user?.rol === "ADMIN" || session?.user?.rol === "LIDER";
+  const canExport = session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
 
   if (!canExport) {
     throw new Error("No autorizado");

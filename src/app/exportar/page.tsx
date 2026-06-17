@@ -17,7 +17,7 @@ function getCurrentYearRange() {
 
 export default async function ExportarPage() {
   const session = await getServerSession(authOptions);
-  const canExport = session?.user?.rol === "ADMIN" || session?.user?.rol === "LIDER";
+  const canExport = session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
 
   if (!canExport) {
     redirect("/dashboard");
