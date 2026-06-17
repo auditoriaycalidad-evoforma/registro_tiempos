@@ -61,6 +61,30 @@ export async function createMinuta(formData: FormData) {
       return { error: "Ya existe una actividad registrada en este rango de horas" };
     }
 
+    const proyectoExistente = await prisma.minuta_proyecto.findUnique({
+      where: { code: data.proyecto },
+    });
+
+    if (!proyectoExistente) {
+      const proyectoRaw = await prisma.$queryRaw<{ nombre: string }[]>`
+        SELECT nombre_proyecto AS nombre
+        FROM briefing_2026
+        WHERE cedula = ${data.proyecto}
+        LIMIT 1
+      `;
+
+      if (!proyectoRaw.length) {
+        return { error: "El proyecto seleccionado no existe en el catálogo de proyectos" };
+      }
+
+      await prisma.minuta_proyecto.create({
+        data: {
+          code: data.proyecto,
+          nombre: proyectoRaw[0].nombre,
+        },
+      });
+    }
+
     await prisma.minuta_registro_actividad.create({
       data: {
         empleado: session.user.id,
