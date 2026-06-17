@@ -45,11 +45,11 @@ export default async function DashboardPage() {
   });
 
   const getStatusIcon = (tipo: string, aprobado: string | null) => {
-    if (tipo === "A") return <CheckCircle2 className="h-5 w-5 text-green-500" title="Horario Habitual" />;
+    if (tipo === "A") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Horario Habitual" />;
     if (tipo === "B") {
-      if (aprobado === "SI") return <CheckCircle2 className="h-5 w-5 text-green-500" title="Aprobada" />;
-      if (aprobado === "NO" || aprobado === "RE") return <XCircle className="h-5 w-5 text-red-500" title="Rechazada" />;
-      return <Clock className="h-5 w-5 text-amber-500" title="Pendiente de Aprobación" />;
+      if (aprobado === "SI") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Aprobada" />;
+      if (aprobado === "NO" || aprobado === "RE") return <XCircle className="h-5 w-5 text-red-500" aria-label="Rechazada" />;
+      return <Clock className="h-5 w-5 text-amber-500" aria-label="Pendiente de Aprobación" />;
     }
     return null;
   };

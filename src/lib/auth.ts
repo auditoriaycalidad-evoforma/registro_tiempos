@@ -1,6 +1,14 @@
 import { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import prisma from "@/lib/prisma";
+
+const getRoleForEmail = (email: string | null | undefined) => {
+  const adminEmails = process.env.ADMIN_EMAILS
+    ? process.env.ADMIN_EMAILS.split(",").map((adminEmail) => adminEmail.trim().toLowerCase())
+    : ["admin@minutas.local"];
+
+  return email && adminEmails.includes(email.toLowerCase()) ? "ADMIN" : "EMPLEADO";
+};
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -10,40 +18,37 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   providers: [
-    CredentialsProvider({
-      name: "Email",
-      credentials: {
-        email: { label: "Ingresa tu Email Corporativo", type: "email", placeholder: "tu@email.com" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email) {
-          throw new Error("Por favor ingresa un correo");
-        }
-
-        const empleado = await prisma.minuta_empleado.findUnique({
-          where: {
-            email: credentials.email,
-          },
-        });
-
-        if (!empleado) {
-          throw new Error("El empleado no se encuentra registrado en el sistema");
-        }
-
-        // Definir si es administrador (esto puede configurarse con variable de entorno)
-        const adminEmails = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : ['admin@minutas.local'];
-        const rol = adminEmails.includes(empleado.email!) ? "ADMIN" : "EMPLEADO";
-
-        return {
-          id: empleado.id,
-          email: empleado.email,
-          name: empleado.apellido_nombre,
-          rol: rol,
-        };
-      },
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== "google") return false;
+      if (!user.email) return false;
+
+      const googleProfile = profile as { email_verified?: boolean } | undefined;
+      if (googleProfile?.email_verified === false) return false;
+
+      const empleado = await prisma.minuta_empleado.findFirst({
+        where: {
+          email: {
+            equals: user.email,
+            mode: "insensitive",
+          },
+        },
+      });
+
+      if (!empleado?.email) return false;
+
+      user.id = empleado.id;
+      user.email = empleado.email;
+      user.name = empleado.apellido_nombre;
+      user.rol = getRoleForEmail(empleado.email);
+
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;

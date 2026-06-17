@@ -7,26 +7,68 @@
   - Environments: .env
 
  ✓ Starting...
- ✓ Ready in 2.6s
+ ✓ Ready in 1832ms
  ○ Compiling /login ...
- ✓ Compiled /login in 1782ms (652 modules)
- HEAD /login 200 in 2009ms
- ✓ Compiled in 316ms (320 modules)
- ✓ Compiled /src/middleware in 500ms (175 modules)
- GET /login?callbackUrl=%2Fdashboard 200 in 66ms
- ○ Compiling /api/auth/[...nextauth] ...
- ✓ Compiled /api/auth/[...nextauth] in 605ms (362 modules)
- ✓ Compiled (595 modules)
- GET /favicon.ico 200 in 1685ms
- GET /api/auth/session 200 in 2332ms
- GET /api/auth/session 200 in 30ms
- GET /api/auth/providers 200 in 51ms
- GET /api/auth/csrf 200 in 26ms
-prisma:query SELECT "public"."minuta_empleado"."id", "public"."minuta_empleado"."apellido_nombre", "public"."minuta_empleado"."cargo", "public"."minuta_empleado"."email", "public"."minuta_empleado"."telefono", "public"."minuta_empleado"."hora_inicio_lv", "public"."minuta_empleado"."hora_fin_lv", "public"."minuta_empleado"."hora_inicio_sabado", "public"."minuta_empleado"."hora_fin_sabado" FROM "public"."minuta_empleado" WHERE ("public"."minuta_empleado"."email" = $1 AND 1=1) LIMIT $2 OFFSET $3
- POST /api/auth/callback/credentials 200 in 1408ms
- GET /api/auth/session 200 in 39ms
+ ✓ Compiled /login in 1191ms (660 modules)
+ HEAD /login 200 in 1327ms
+ ✓ Compiled in 131ms (319 modules)
+ ✓ Compiled /api/auth/[...nextauth] in 476ms (576 modules)
+ GET /api/auth/providers 200 in 888ms
+ GET /api/auth/session 200 in 41ms
+ GET /api/auth/csrf 200 in 24ms
+ POST /api/auth/signout 200 in 18ms
+ GET /login 200 in 132ms
+ GET /api/auth/session 200 in 21ms
+ GET /api/auth/session 200 in 11ms
+ GET /api/auth/providers 200 in 22ms
+ GET /api/auth/csrf 200 in 13ms
+ POST /api/auth/signin/google 200 in 249ms
+ GET /api/auth/callback/google 302 in 242ms
+ GET /api/auth/error?error=OAuthCallback 302 in 11ms
+ GET /api/auth/signin?error=OAuthCallback 302 in 9ms
+ GET /login?callbackUrl=http%3A%2F%2Flocalhost%3A3000%2Fdashboard&error=OAuthCallback 200 in 43ms
+ GET /api/auth/session 200 in 14ms
+ GET /api/auth/session 200 in 10ms
+ GET /api/auth/providers 200 in 20ms
+ GET /api/auth/csrf 200 in 12ms
+ POST /api/auth/signin/google 200 in 247ms
+ ○ Compiling / ...
+ ✓ Compiled / in 564ms (890 modules)
+ GET / 307 in 802ms
+ ✓ Compiled /src/middleware in 293ms (175 modules)
+ GET /login?callbackUrl=%2Fdashboard 200 in 111ms
+ GET /api/auth/session 200 in 69ms
+ GET /api/auth/session 200 in 9ms
+ GET /login?callbackUrl=%2Fdashboard 200 in 52ms
+ ✓ Compiled /favicon.ico in 228ms (612 modules)
+ GET /api/auth/session 200 in 463ms
+ GET /favicon.ico 200 in 487ms
+ GET /api/auth/session 200 in 26ms
+ GET /api/auth/callback/google 302 in 264ms
+ GET /api/auth/error?error=OAuthCallback 302 in 8ms
+ GET /api/auth/signin?error=OAuthCallback 302 in 9ms
+ GET /login?callbackUrl=http%3A%2F%2Flocalhost%3A3000%2Fdashboard&error=OAuthCallback 200 in 74ms
+ GET /api/auth/session 200 in 19ms
+ GET /api/auth/session 200 in 8ms
+ GET /api/auth/providers 200 in 24ms
+ GET /api/auth/csrf 200 in 9ms
+ POST /api/auth/signin/google 200 in 89ms
+ GET /login 200 in 60ms
+ GET /api/auth/session 200 in 11ms
+ GET /api/auth/session 200 in 5ms
+ GET /api/auth/callback/google 302 in 237ms
+ GET /api/auth/error?error=OAuthCallback 302 in 13ms
+ GET /api/auth/signin?error=OAuthCallback 302 in 14ms
+ GET /login?callbackUrl=http%3A%2F%2Flocalhost%3A3000%2Fdashboard&error=OAuthCallback 200 in 44ms
+ GET /api/auth/session 200 in 14ms
+ GET /api/auth/session 200 in 13ms
+ GET /api/auth/providers 200 in 20ms
+ GET /api/auth/csrf 200 in 10ms
+ POST /api/auth/signin/google 200 in 83ms
+prisma:query SELECT "public"."minuta_empleado"."id", "public"."minuta_empleado"."apellido_nombre", "public"."minuta_empleado"."cargo", "public"."minuta_empleado"."email", "public"."minuta_empleado"."telefono", "public"."minuta_empleado"."hora_inicio_lv", "public"."minuta_empleado"."hora_fin_lv", "public"."minuta_empleado"."hora_inicio_sabado", "public"."minuta_empleado"."hora_fin_sabado" FROM "public"."minuta_empleado" WHERE "public"."minuta_empleado"."email" ILIKE $1 LIMIT $2 OFFSET $3
+ GET /api/auth/callback/google?state=OCQMKoZ-psgKxfWyU_Hr6IDd5vSQWmg-2Xz8avKsNg0&iss=https%3A%2F%2Faccounts.google.com&code=4%2F0AdkVLPxDp7fzORPYN-QRXnfod1Z1CtuoRX_PGW4veAvxa0lL4r1VXUAVhO_uFU-W6m_B7Q&scope=email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+openid&authuser=0&hd=evoforma.net&prompt=consent 302 in 1708ms
  ○ Compiling /dashboard ...
- ✓ Compiled /dashboard in 2.4s (1735 modules)
+ ✓ Compiled /dashboard in 1327ms (1723 modules)
 prisma:query 
     SELECT DISTINCT
       cedula AS code,
@@ -37,6 +79,23 @@ prisma:query
   
 prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE 1=1 ORDER BY "public"."minuta_actividad"."nombre" ASC OFFSET $1
 prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE "public"."minuta_registro_actividad"."empleado" = $1 ORDER BY "public"."minuta_registro_actividad"."fecha" DESC, "public"."minuta_registro_actividad"."hora_inicio" DESC OFFSET $2
+prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2,$3,$4,$5) OFFSET $6
+ GET /dashboard 200 in 2746ms
+ GET /api/auth/session 200 in 23ms
+ GET /api/auth/session 200 in 11ms
+ GET /api/auth/session 200 in 27ms
+ GET /api/auth/session 200 in 26ms
+ GET /api/auth/csrf 200 in 24ms
+ POST /api/auth/signout 200 in 14ms
+ GET /login 200 in 58ms
+ GET /api/auth/session 200 in 18ms
+ GET /api/auth/session 200 in 10ms
+ GET /api/auth/providers 200 in 18ms
+ GET /api/auth/csrf 200 in 10ms
+ POST /api/auth/signin/google 200 in 233ms
+prisma:query SELECT "public"."minuta_empleado"."id", "public"."minuta_empleado"."apellido_nombre", "public"."minuta_empleado"."cargo", "public"."minuta_empleado"."email", "public"."minuta_empleado"."telefono", "public"."minuta_empleado"."hora_inicio_lv", "public"."minuta_empleado"."hora_fin_lv", "public"."minuta_empleado"."hora_inicio_sabado", "public"."minuta_empleado"."hora_fin_sabado" FROM "public"."minuta_empleado" WHERE "public"."minuta_empleado"."email" ILIKE $1 LIMIT $2 OFFSET $3
+ GET /api/auth/callback/google?state=9GhVVDWcbORTsRGhUbwIWNPGsZYgvHzoZyuanbo-lSI&iss=https%3A%2F%2Faccounts.google.com&code=4%2F0AdkVLPyMMYINPKOk81jESKva0XExLN5HhSnOGL9AsnSx0xwCtLWmjGUPX9XkcYyQfKl_kA&scope=email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+openid&authuser=0&hd=evoforma.net&prompt=none 302 in 1680ms
 prisma:query 
     SELECT DISTINCT
       cedula AS code,
@@ -45,6 +104,31 @@ prisma:query
     WHERE cedula IS NOT NULL
     ORDER BY cedula ASC
   
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE 1=1 ORDER BY "public"."minuta_actividad"."nombre" ASC OFFSET $1
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE "public"."minuta_registro_actividad"."empleado" = $1 ORDER BY "public"."minuta_registro_actividad"."fecha" DESC, "public"."minuta_registro_actividad"."hora_inicio" DESC OFFSET $2
+prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2,$3,$4,$5) OFFSET $6
+ GET /dashboard 200 in 1211ms
+ GET /api/auth/session 200 in 17ms
+ GET /api/auth/session 200 in 15ms
+ GET /api/auth/csrf 200 in 24ms
+ POST /api/auth/signout 200 in 10ms
+ GET /login 200 in 47ms
+ GET /api/auth/session 200 in 14ms
+ GET /api/auth/session 200 in 11ms
+ GET /api/auth/callback/google 302 in 222ms
+ GET /api/auth/error?error=OAuthCallback 302 in 10ms
+ GET /api/auth/signin?error=OAuthCallback 302 in 11ms
+ GET /login?callbackUrl=http%3A%2F%2Flocalhost%3A3000%2Flogin&error=OAuthCallback 200 in 29ms
+ GET /api/auth/session 200 in 23ms
+ GET /api/auth/session 200 in 11ms
+ GET /api/auth/session 200 in 10ms
+ GET /api/auth/providers 200 in 18ms
+ GET /api/auth/csrf 200 in 10ms
+ POST /api/auth/signin/google 200 in 83ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."minuta_empleado"."id", "public"."minuta_empleado"."apellido_nombre", "public"."minuta_empleado"."cargo", "public"."minuta_empleado"."email", "public"."minuta_empleado"."telefono", "public"."minuta_empleado"."hora_inicio_lv", "public"."minuta_empleado"."hora_fin_lv", "public"."minuta_empleado"."hora_inicio_sabado", "public"."minuta_empleado"."hora_fin_sabado" FROM "public"."minuta_empleado" WHERE "public"."minuta_empleado"."email" ILIKE $1 LIMIT $2 OFFSET $3
+ GET /api/auth/callback/google?state=_nyQYmdT8SjdkMd7NXfgM4VXuS-EChiBo9ULefiHdXE&iss=https%3A%2F%2Faccounts.google.com&code=4%2F0AdkVLPykZ1Fv2z_msFrYF-8tOabjQyEMKx1JrOQusr2LDickxZzCJnxP9Cr23yp3wmN2zA&scope=email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+openid+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email&authuser=0&hd=evoforma.net&prompt=none 302 in 683ms
 prisma:query 
     SELECT DISTINCT
       cedula AS code,
@@ -53,18 +137,14 @@ prisma:query
     WHERE cedula IS NOT NULL
     ORDER BY cedula ASC
   
-prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2,$3,$4) OFFSET $5
 prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE 1=1 ORDER BY "public"."minuta_actividad"."nombre" ASC OFFSET $1
-prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE 1=1 ORDER BY "public"."minuta_actividad"."nombre" ASC OFFSET $1
-prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2,$3,$4,$5) OFFSET $6
-prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE "public"."minuta_registro_actividad"."empleado" = $1 ORDER BY "public"."minuta_registro_actividad"."fecha" DESC, "public"."minuta_registro_actividad"."hora_inicio" DESC OFFSET $2
- GET /dashboard?_rsc=1jqx0 200 in 1743ms
 prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE "public"."minuta_registro_actividad"."empleado" = $1 ORDER BY "public"."minuta_registro_actividad"."fecha" DESC, "public"."minuta_registro_actividad"."hora_inicio" DESC OFFSET $2
 prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2,$3,$4) OFFSET $5
-prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2,$3,$4) OFFSET $5
 prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2,$3,$4,$5) OFFSET $6
- GET /dashboard?_rsc=1jqx0 200 in 1988ms
-prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2,$3,$4,$5) OFFSET $6
- GET /dashboard?_rsc=1jqx0 200 in 2043ms
- GET /api/auth/session 200 in 83ms
- GET /api/auth/session 200 in 40ms
+ GET /dashboard 200 in 702ms
+ GET /api/auth/session 200 in 19ms
+ GET /api/auth/session 200 in 12ms
+ GET /api/auth/session 200 in 31ms
+ GET /api/auth/session 200 in 23ms
+ GET /api/auth/session 200 in 23ms
+ GET /api/auth/session 200 in 24ms
