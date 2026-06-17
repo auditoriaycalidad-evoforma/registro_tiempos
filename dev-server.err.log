@@ -1,0 +1,177 @@
+(node:4312) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Error creating minuta: PrismaClientKnownRequestError: 
+Invalid `prisma.minuta_registro_actividad.create()` invocation:
+
+
+Foreign key constraint violated: `fk_registro_proyecto (index)`
+    at $n.handleRequestError (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async createMinuta (webpack-internal:///(action-browser)/./src/app/actions/minuta.ts:84:9)
+    at async C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:39:418
+    at async rS (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:38:7978)
+    at async r2 (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:41:1251)
+    at async doRender (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1438:30)
+    at async cacheEntry.responseCache.get.routeKind (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1599:28)
+    at async DevServer.renderToResponseWithComponentsImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1507:28)
+    at async DevServer.renderPageComponent (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1924:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1962:32)
+    at async DevServer.pipeImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:920:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\next-server.js:272:17)
+    at async DevServer.handleRequestImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:816:17)
+    at async C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\dev\next-dev-server.js:339:20
+    at async Span.traceAsyncFn (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\trace\trace.js:154:20)
+    at async DevServer.handleRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\dev\next-dev-server.js:336:24)
+    at async invokeRender (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:174:21)
+    at async handleRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:353:24)
+    at async requestHandlerImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:377:13)
+    at async Server.requestListener (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\start-server.js:141:13) {
+  code: 'P2003',
+  clientVersion: '5.22.0',
+  meta: {
+    modelName: 'minuta_registro_actividad',
+    field_name: 'fk_registro_proyecto (index)'
+  }
+}
+Error creating minuta: PrismaClientKnownRequestError: 
+Invalid `prisma.minuta_registro_actividad.create()` invocation:
+
+
+Foreign key constraint violated: `fk_registro_proyecto (index)`
+    at $n.handleRequestError (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async createMinuta (webpack-internal:///(action-browser)/./src/app/actions/minuta.ts:84:9)
+    at async C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:39:418
+    at async rS (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:38:7978)
+    at async r2 (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:41:1251)
+    at async doRender (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1438:30)
+    at async cacheEntry.responseCache.get.routeKind (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1599:28)
+    at async DevServer.renderToResponseWithComponentsImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1507:28)
+    at async DevServer.renderPageComponent (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1924:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1962:32)
+    at async DevServer.pipeImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:920:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\next-server.js:272:17)
+    at async DevServer.handleRequestImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:816:17)
+    at async C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\dev\next-dev-server.js:339:20
+    at async Span.traceAsyncFn (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\trace\trace.js:154:20)
+    at async DevServer.handleRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\dev\next-dev-server.js:336:24)
+    at async invokeRender (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:174:21)
+    at async handleRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:353:24)
+    at async requestHandlerImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:377:13)
+    at async Server.requestListener (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\start-server.js:141:13) {
+  code: 'P2003',
+  clientVersion: '5.22.0',
+  meta: {
+    modelName: 'minuta_registro_actividad',
+    field_name: 'fk_registro_proyecto (index)'
+  }
+}
+Error creating minuta: PrismaClientKnownRequestError: 
+Invalid `prisma.minuta_registro_actividad.create()` invocation:
+
+
+Foreign key constraint violated: `fk_registro_proyecto (index)`
+    at $n.handleRequestError (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async createMinuta (webpack-internal:///(action-browser)/./src/app/actions/minuta.ts:84:9)
+    at async C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:39:418
+    at async rS (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:38:7978)
+    at async r2 (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:41:1251)
+    at async doRender (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1438:30)
+    at async cacheEntry.responseCache.get.routeKind (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1599:28)
+    at async DevServer.renderToResponseWithComponentsImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1507:28)
+    at async DevServer.renderPageComponent (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1924:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1962:32)
+    at async DevServer.pipeImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:920:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\next-server.js:272:17)
+    at async DevServer.handleRequestImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:816:17)
+    at async C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\dev\next-dev-server.js:339:20
+    at async Span.traceAsyncFn (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\trace\trace.js:154:20)
+    at async DevServer.handleRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\dev\next-dev-server.js:336:24)
+    at async invokeRender (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:174:21)
+    at async handleRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:353:24)
+    at async requestHandlerImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:377:13)
+    at async Server.requestListener (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\start-server.js:141:13) {
+  code: 'P2003',
+  clientVersion: '5.22.0',
+  meta: {
+    modelName: 'minuta_registro_actividad',
+    field_name: 'fk_registro_proyecto (index)'
+  }
+}
+Error creating minuta: PrismaClientKnownRequestError: 
+Invalid `prisma.minuta_registro_actividad.create()` invocation:
+
+
+Foreign key constraint violated: `fk_registro_proyecto (index)`
+    at $n.handleRequestError (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async createMinuta (webpack-internal:///(action-browser)/./src/app/actions/minuta.ts:84:9)
+    at async C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:39:418
+    at async rS (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:38:7978)
+    at async r2 (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:41:1251)
+    at async doRender (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1438:30)
+    at async cacheEntry.responseCache.get.routeKind (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1599:28)
+    at async DevServer.renderToResponseWithComponentsImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1507:28)
+    at async DevServer.renderPageComponent (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1924:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1962:32)
+    at async DevServer.pipeImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:920:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\next-server.js:272:17)
+    at async DevServer.handleRequestImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:816:17)
+    at async C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\dev\next-dev-server.js:339:20
+    at async Span.traceAsyncFn (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\trace\trace.js:154:20)
+    at async DevServer.handleRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\dev\next-dev-server.js:336:24)
+    at async invokeRender (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:174:21)
+    at async handleRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:353:24)
+    at async requestHandlerImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:377:13)
+    at async Server.requestListener (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\start-server.js:141:13) {
+  code: 'P2003',
+  clientVersion: '5.22.0',
+  meta: {
+    modelName: 'minuta_registro_actividad',
+    field_name: 'fk_registro_proyecto (index)'
+  }
+}
+Error creating minuta: PrismaClientKnownRequestError: 
+Invalid `prisma.minuta_registro_actividad.create()` invocation:
+
+
+Foreign key constraint violated: `fk_registro_proyecto (index)`
+    at $n.handleRequestError (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\Auditoría\proyectos\minuta\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async createMinuta (webpack-internal:///(action-browser)/./src/app/actions/minuta.ts:84:9)
+    at async C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:39:418
+    at async rS (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:38:7978)
+    at async r2 (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:41:1251)
+    at async doRender (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1438:30)
+    at async cacheEntry.responseCache.get.routeKind (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1599:28)
+    at async DevServer.renderToResponseWithComponentsImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1507:28)
+    at async DevServer.renderPageComponent (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1924:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:1962:32)
+    at async DevServer.pipeImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:920:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\next-server.js:272:17)
+    at async DevServer.handleRequestImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\base-server.js:816:17)
+    at async C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\dev\next-dev-server.js:339:20
+    at async Span.traceAsyncFn (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\trace\trace.js:154:20)
+    at async DevServer.handleRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\dev\next-dev-server.js:336:24)
+    at async invokeRender (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:174:21)
+    at async handleRequest (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:353:24)
+    at async requestHandlerImpl (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\router-server.js:377:13)
+    at async Server.requestListener (C:\Users\Auditoría\proyectos\minuta\node_modules\next\dist\server\lib\start-server.js:141:13) {
+  code: 'P2003',
+  clientVersion: '5.22.0',
+  meta: {
+    modelName: 'minuta_registro_actividad',
+    field_name: 'fk_registro_proyecto (index)'
+  }
+}

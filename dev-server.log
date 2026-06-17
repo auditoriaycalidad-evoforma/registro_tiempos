@@ -17,3 +17,122 @@
  ✓ Compiled /src/middleware in 149ms (175 modules)
  GET /login?callbackUrl=%2Fdashboard 200 in 89ms
  ✓ Compiled /api/auth/[...nextauth] in 307ms (584 modules)
+ GET /api/auth/session 200 in 699ms
+ GET /api/auth/session 200 in 13ms
+ GET /api/auth/session 200 in 39ms
+ GET / 307 in 174ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1401ms (1745 modules)
+ ✓ Compiled in 400ms (324 modules)
+prisma:query 
+    SELECT DISTINCT
+      cedula AS code,
+      nombre_proyecto AS nombre
+    FROM briefing_2026
+    WHERE cedula IS NOT NULL
+    ORDER BY cedula ASC
+  
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE 1=1 ORDER BY "public"."minuta_actividad"."nombre" ASC OFFSET $1
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE "public"."minuta_registro_actividad"."empleado" = $1 ORDER BY "public"."minuta_registro_actividad"."fecha" DESC, "public"."minuta_registro_actividad"."hora_inicio" DESC OFFSET $2
+prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2,$3,$4,$5) OFFSET $6
+ GET /dashboard 200 in 3938ms
+ GET /api/auth/session 200 in 48ms
+ GET /api/auth/session 200 in 13ms
+ GET /api/auth/session 200 in 27ms
+ GET / 307 in 81ms
+prisma:query SELECT 1
+prisma:query 
+    SELECT DISTINCT
+      cedula AS code,
+      nombre_proyecto AS nombre
+    FROM briefing_2026
+    WHERE cedula IS NOT NULL
+    ORDER BY cedula ASC
+  
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE 1=1 ORDER BY "public"."minuta_actividad"."nombre" ASC OFFSET $1
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE "public"."minuta_registro_actividad"."empleado" = $1 ORDER BY "public"."minuta_registro_actividad"."fecha" DESC, "public"."minuta_registro_actividad"."hora_inicio" DESC OFFSET $2
+prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2,$3,$4,$5) OFFSET $6
+ GET /dashboard 200 in 926ms
+ GET /api/auth/session 200 in 23ms
+ GET /api/auth/session 200 in 11ms
+ GET /api/auth/csrf 200 in 25ms
+ POST /api/auth/signout 200 in 12ms
+ GET /login 200 in 51ms
+ GET /api/auth/session 200 in 19ms
+ GET /api/auth/session 200 in 9ms
+ GET /api/auth/providers 200 in 22ms
+ GET /api/auth/csrf 200 in 8ms
+ POST /api/auth/signin/google 200 in 231ms
+prisma:query SELECT "public"."minuta_empleado"."id", "public"."minuta_empleado"."apellido_nombre", "public"."minuta_empleado"."cargo", "public"."minuta_empleado"."email", "public"."minuta_empleado"."telefono", "public"."minuta_empleado"."es_lider", "public"."minuta_empleado"."hora_inicio_lv", "public"."minuta_empleado"."hora_fin_lv", "public"."minuta_empleado"."hora_inicio_sabado", "public"."minuta_empleado"."hora_fin_sabado" FROM "public"."minuta_empleado" WHERE "public"."minuta_empleado"."email" ILIKE $1 LIMIT $2 OFFSET $3
+ GET /api/auth/callback/google?state=hiYJ6u443HpRAAkI8UAVHzAjqzyXQkzHLPZLqO96-yM&iss=https%3A%2F%2Faccounts.google.com&code=4%2F0AdkVLPyvfxUxcjb5XngyExP1FmLUZ70q9gkxy2TxsduDAolDdTaewWVVDxHjZAyFIXt9AA&scope=email+profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+openid&authuser=0&hd=evoforma.net&prompt=none 302 in 978ms
+prisma:query 
+    SELECT DISTINCT
+      cedula AS code,
+      nombre_proyecto AS nombre
+    FROM briefing_2026
+    WHERE cedula IS NOT NULL
+    ORDER BY cedula ASC
+  
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE 1=1 ORDER BY "public"."minuta_actividad"."nombre" ASC OFFSET $1
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE "public"."minuta_registro_actividad"."empleado" = $1 ORDER BY "public"."minuta_registro_actividad"."fecha" DESC, "public"."minuta_registro_actividad"."hora_inicio" DESC OFFSET $2
+prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2,$3,$4,$5) OFFSET $6
+ GET /dashboard 200 in 776ms
+ GET /api/auth/session 200 in 24ms
+ GET /api/auth/session 200 in 11ms
+ ○ Compiling /admin ...
+ ✓ Compiled /admin in 1175ms (1748 modules)
+prisma:query SELECT 1
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE "public"."minuta_registro_actividad"."tipo_minuta" = $1 ORDER BY "public"."minuta_registro_actividad"."fecha" DESC OFFSET $2
+prisma:query SELECT "public"."minuta_empleado"."id", "public"."minuta_empleado"."apellido_nombre", "public"."minuta_empleado"."cargo", "public"."minuta_empleado"."email", "public"."minuta_empleado"."telefono", "public"."minuta_empleado"."es_lider", "public"."minuta_empleado"."hora_inicio_lv", "public"."minuta_empleado"."hora_fin_lv", "public"."minuta_empleado"."hora_inicio_sabado", "public"."minuta_empleado"."hora_fin_sabado" FROM "public"."minuta_empleado" WHERE "public"."minuta_empleado"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2) OFFSET $3
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2) OFFSET $3
+ GET /admin?_rsc=d43c0 200 in 1137ms
+prisma:query UPDATE "public"."minuta_registro_actividad" SET "aprobado" = $1 WHERE ("public"."minuta_registro_actividad"."id" = $2 AND 1=1) RETURNING "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado"
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE "public"."minuta_registro_actividad"."tipo_minuta" = $1 ORDER BY "public"."minuta_registro_actividad"."fecha" DESC OFFSET $2
+prisma:query SELECT "public"."minuta_empleado"."id", "public"."minuta_empleado"."apellido_nombre", "public"."minuta_empleado"."cargo", "public"."minuta_empleado"."email", "public"."minuta_empleado"."telefono", "public"."minuta_empleado"."es_lider", "public"."minuta_empleado"."hora_inicio_lv", "public"."minuta_empleado"."hora_fin_lv", "public"."minuta_empleado"."hora_inicio_sabado", "public"."minuta_empleado"."hora_fin_sabado" FROM "public"."minuta_empleado" WHERE "public"."minuta_empleado"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2) OFFSET $3
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2) OFFSET $3
+ POST /admin 200 in 1007ms
+prisma:query SELECT 1
+prisma:query UPDATE "public"."minuta_registro_actividad" SET "aprobado" = $1 WHERE ("public"."minuta_registro_actividad"."id" = $2 AND 1=1) RETURNING "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado"
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE "public"."minuta_registro_actividad"."tipo_minuta" = $1 ORDER BY "public"."minuta_registro_actividad"."fecha" DESC OFFSET $2
+prisma:query SELECT "public"."minuta_empleado"."id", "public"."minuta_empleado"."apellido_nombre", "public"."minuta_empleado"."cargo", "public"."minuta_empleado"."email", "public"."minuta_empleado"."telefono", "public"."minuta_empleado"."es_lider", "public"."minuta_empleado"."hora_inicio_lv", "public"."minuta_empleado"."hora_fin_lv", "public"."minuta_empleado"."hora_inicio_sabado", "public"."minuta_empleado"."hora_fin_sabado" FROM "public"."minuta_empleado" WHERE "public"."minuta_empleado"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2) OFFSET $3
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2) OFFSET $3
+ POST /admin 200 in 655ms
+ GET /api/auth/session 200 in 29ms
+prisma:query SELECT 1
+prisma:query 
+    SELECT DISTINCT
+      cedula AS code,
+      nombre_proyecto AS nombre
+    FROM briefing_2026
+    WHERE cedula IS NOT NULL
+    ORDER BY cedula ASC
+  
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE 1=1 ORDER BY "public"."minuta_actividad"."nombre" ASC OFFSET $1
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE "public"."minuta_registro_actividad"."empleado" = $1 ORDER BY "public"."minuta_registro_actividad"."fecha" DESC, "public"."minuta_registro_actividad"."hora_inicio" DESC OFFSET $2
+prisma:query SELECT "public"."minuta_proyecto"."code", "public"."minuta_proyecto"."nombre" FROM "public"."minuta_proyecto" WHERE "public"."minuta_proyecto"."code" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."minuta_actividad"."code", "public"."minuta_actividad"."nombre", "public"."minuta_actividad"."area", "public"."minuta_actividad"."descripcion" FROM "public"."minuta_actividad" WHERE "public"."minuta_actividad"."code" IN ($1,$2,$3,$4,$5) OFFSET $6
+ GET /dashboard?_rsc=3y0gy 200 in 901ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE ("public"."minuta_registro_actividad"."empleado" = $1 AND "public"."minuta_registro_actividad"."fecha" = $2 AND (NOT ("public"."minuta_registro_actividad"."hora_fin" <= $3 OR "public"."minuta_registro_actividad"."hora_inicio" >= $4))) OFFSET $5
+prisma:query INSERT INTO "public"."minuta_registro_actividad" ("empleado","fecha","hora_inicio","hora_fin","actividad","proyecto","tipo_minuta","aprobado") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado"
+ POST /dashboard 200 in 836ms
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE ("public"."minuta_registro_actividad"."empleado" = $1 AND "public"."minuta_registro_actividad"."fecha" = $2 AND (NOT ("public"."minuta_registro_actividad"."hora_fin" <= $3 OR "public"."minuta_registro_actividad"."hora_inicio" >= $4))) OFFSET $5
+prisma:query INSERT INTO "public"."minuta_registro_actividad" ("empleado","fecha","hora_inicio","hora_fin","actividad","proyecto","tipo_minuta","aprobado") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado"
+ POST /dashboard 200 in 248ms
+prisma:query SELECT 1
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE ("public"."minuta_registro_actividad"."empleado" = $1 AND "public"."minuta_registro_actividad"."fecha" = $2 AND (NOT ("public"."minuta_registro_actividad"."hora_fin" <= $3 OR "public"."minuta_registro_actividad"."hora_inicio" >= $4))) OFFSET $5
+prisma:query INSERT INTO "public"."minuta_registro_actividad" ("empleado","fecha","hora_inicio","hora_fin","actividad","proyecto","tipo_minuta","aprobado") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado"
+ POST /dashboard 200 in 351ms
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE ("public"."minuta_registro_actividad"."empleado" = $1 AND "public"."minuta_registro_actividad"."fecha" = $2 AND (NOT ("public"."minuta_registro_actividad"."hora_fin" <= $3 OR "public"."minuta_registro_actividad"."hora_inicio" >= $4))) OFFSET $5
+prisma:query INSERT INTO "public"."minuta_registro_actividad" ("empleado","fecha","hora_inicio","hora_fin","actividad","proyecto","tipo_minuta","aprobado") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado"
+ POST /dashboard 200 in 308ms
+prisma:query SELECT "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado" FROM "public"."minuta_registro_actividad" WHERE ("public"."minuta_registro_actividad"."empleado" = $1 AND "public"."minuta_registro_actividad"."fecha" = $2 AND (NOT ("public"."minuta_registro_actividad"."hora_fin" <= $3 OR "public"."minuta_registro_actividad"."hora_inicio" >= $4))) OFFSET $5
+prisma:query INSERT INTO "public"."minuta_registro_actividad" ("empleado","fecha","hora_inicio","hora_fin","actividad","proyecto","tipo_minuta","aprobado") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING "public"."minuta_registro_actividad"."id", "public"."minuta_registro_actividad"."empleado", "public"."minuta_registro_actividad"."fecha", "public"."minuta_registro_actividad"."hora_inicio", "public"."minuta_registro_actividad"."hora_fin", "public"."minuta_registro_actividad"."actividad", "public"."minuta_registro_actividad"."proyecto", "public"."minuta_registro_actividad"."tipo_minuta", "public"."minuta_registro_actividad"."aprobado"
+ POST /dashboard 200 in 238ms
+ GET /api/auth/session 200 in 28ms
