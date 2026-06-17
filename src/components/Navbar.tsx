@@ -2,7 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
-import { LogOut, LayoutDashboard, Clock, Shield } from "lucide-react";
+import { LogOut, LayoutDashboard, Clock, Shield, FileSpreadsheet } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 export default function Navbar() {
@@ -34,16 +34,29 @@ export default function Navbar() {
               </Link>
 
               {canApprove && (
-                <Link
-                  href="/admin"
-                  className={`${pathname.startsWith("/admin")
-                    ? "border-brand-accent text-brand-light"
-                    : "border-transparent text-brand-light/70 hover:border-brand-accent/50 hover:text-brand-dark"
-                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
-                >
-                  <Shield className="h-4 w-4 mr-1.5 text-brand-accent" />
-                  Aprobaciones
-                </Link>
+                <>
+                  <Link
+                    href="/admin"
+                    className={`${pathname.startsWith("/admin")
+                      ? "border-brand-accent text-brand-light"
+                      : "border-transparent text-brand-light/70 hover:border-brand-accent/50 hover:text-brand-dark"
+                      } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                  >
+                    <Shield className="h-4 w-4 mr-1.5 text-brand-accent" />
+                    Aprobaciones
+                  </Link>
+
+                  <Link
+                    href="/exportar"
+                    className={`${pathname.startsWith("/exportar")
+                      ? "border-brand-primary text-brand-light"
+                      : "border-transparent text-brand-light/70 hover:border-brand-primary/50 hover:text-brand-dark"
+                      } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-1.5 text-brand-primary" />
+                    Exportar
+                  </Link>
+                </>
               )}
             </div>
           </div>

@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { syncMinutasToSheets } from "./exportar";
 
 export async function createMinuta(formData: FormData) {
   const session = await getServerSession(authOptions);
@@ -101,6 +102,14 @@ export async function createMinuta(formData: FormData) {
 
     revalidatePath("/dashboard");
     revalidatePath("/admin");
+
+    // Sync to Google Sheets in background
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
+      syncMinutasToSheets({ skipAuth: true }).catch((err) => {
+        console.error("Error updating Google Sheets in background:", err);
+      });
+    }
+
     return { success: true };
 
   } catch (error) {
