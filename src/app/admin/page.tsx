@@ -35,7 +35,7 @@ export default async function AdminPage() {
     <div className="space-y-8">
       <div className="color-white">
         <h1 className="text-3xl font-bold tracking-tight">Panel de Administración</h1>
-        <p className="mt-1 text-brand-light/75">Aprobación de Minutas Tipo B (Horas Extra)</p>
+        <p className="mt-1 text-brand-light/75">Aprobación de Tiempos Tipo B (Horas Extra)</p>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-brand-dark/10 overflow-hidden">
@@ -47,7 +47,7 @@ export default async function AdminPage() {
         </div>
 
         {pendientes.length === 0 ? (
-          <div className="p-8 text-center text-brand-dark/60">No hay minutas B pendientes de aprobación en este momento.</div>
+          <div className="p-8 text-center text-brand-dark/60">No hay tiempos B pendientes de aprobación en este momento.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-brand-dark/80">
@@ -56,6 +56,7 @@ export default async function AdminPage() {
                   <th className="px-4 py-3 font-semibold">Empleado</th>
                   <th className="px-4 py-3 font-semibold">Fecha / Hora</th>
                   <th className="px-4 py-3 font-semibold">Cédula Proyecto</th>
+                  <th className="px-4 py-3 font-semibold">Nombre Proyecto</th>
                   <th className="px-4 py-3 font-semibold">Actividad</th>
                   <th className="px-4 py-3 font-semibold text-center">Acciones</th>
                 </tr>
@@ -69,6 +70,7 @@ export default async function AdminPage() {
                       <div className="text-xs text-brand-dark/60 mt-0.5">{formatTime24(m.hora_inicio)} - {formatTime24(m.hora_fin)}</div>
                     </td>
                     <td className="px-4 py-3">{m.minuta_proyecto?.code || m.proyecto || '-'}</td>
+                    <td className="px-4 py-3 text-xs text-brand-dark/70 font-medium">{m.minuta_proyecto?.nombre || '-'}</td>
                     <td className="px-4 py-3">{m.minuta_actividad?.nombre || '-'}</td>
                     <td className="px-4 py-3 w-32">
                       <AdminActionButtons id={m.id} />
@@ -92,6 +94,7 @@ export default async function AdminPage() {
                 <th className="px-4 py-3 font-semibold">Empleado</th>
                 <th className="px-4 py-3 font-semibold">Fecha</th>
                 <th className="px-4 py-3 font-semibold">Proyecto</th>
+                <th className="px-4 py-3 font-semibold">Nombre del Proyecto</th>
                 <th className="px-4 py-3 font-semibold text-center">Estado</th>
               </tr>
             </thead>
@@ -101,11 +104,12 @@ export default async function AdminPage() {
                   <td className="px-4 py-2">{m.minuta_empleado?.apellido_nombre}</td>
                   <td className="px-4 py-2">{format(new Date(m.fecha), 'dd/MM/yyyy')}</td>
                   <td className="px-4 py-2 text-xs truncate max-w-xs">{m.minuta_proyecto?.code || m.proyecto}</td>
+                  <td className="px-4 py-2 text-xs truncate max-w-xs">{m.minuta_proyecto?.nombre || '-'}</td>
                   <td className="px-4 py-2 text-center">
                     {m.aprobado === "SI" ? (
-                      <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800"><CheckCircle2 className="w-3 h-3 mr-1" />Aprobada</span>
+                      <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-800"><CheckCircle2 className="w-3 h-3 mr-1" />Aprobado</span>
                     ) : (
-                      <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Rechazada</span>
+                      <span className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Rechazado</span>
                     )}
                   </td>
                 </tr>

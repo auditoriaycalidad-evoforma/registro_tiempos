@@ -19,7 +19,7 @@ export default function Navbar() {
           <div className="flex px-2 lg:px-0">
             <div className="flex-shrink-0 flex items-center">
               <Clock className="h-8 w-8 text-brand-primary mr-2" />
-              <span className="font-bold text-xl text-brand-light tracking-tight">Minutas</span>
+              <span className="font-bold text-xl text-brand-light tracking-tight">Tiempos</span>
             </div>
             <div className="hidden lg:ml-8 lg:flex lg:space-x-4">
               <Link

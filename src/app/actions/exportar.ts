@@ -14,7 +14,7 @@ import { revalidatePath } from "next/cache";
 
 const HEADERS = [
   "DÍA",
-  "TIPO DE MINUTA",
+  "TIPO DE TIEMPO",
   "MES",
   "FECHA",
   "CÉDULA DEL PROYECTO",
@@ -165,7 +165,7 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
   } else {
     // Modo multi-archivo: se crea un archivo de Google Sheets independiente por cargo
     for (const [cargo, rows] of Array.from(grouped)) {
-      const fileName = `Minutas ${year} - ${sanitizeFilePart(cargo)}`;
+      const fileName = `Tiempos ${year} - ${sanitizeFilePart(cargo)}`;
       const spreadsheet = await getOrCreateSpreadsheet(fileName);
       const values = [
         HEADERS,

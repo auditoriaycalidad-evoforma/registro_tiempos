@@ -31,6 +31,6 @@ export async function approveMinuta(id: number, decision: "SI" | "RE") {
 
     return { success: true };
   } catch (error) {
-    return { error: "Error de servidor al aprobar minuta" };
+    return { error: "Error de servidor al aprobar el registro de tiempo" };
   }
 }

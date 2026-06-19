@@ -2,10 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { MinutaForm } from "@/components/MinutaForm";
-import { CheckCircle2, Clock, XCircle } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { formatTime24 } from "@/lib/formatTime";
+import { HistorialTiempos } from "@/components/HistorialTiempos";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -31,7 +28,7 @@ export default async function DashboardPage() {
     orderBy: { nombre: 'asc' }
   });
 
-  // Cargar registro de minutas del usuario logueado
+  // Cargar registro de tiempos del usuario logueado
   const minutas = await prisma.minuta_registro_actividad.findMany({
     where: { empleado: session.user.id },
     orderBy: [
@@ -44,31 +41,12 @@ export default async function DashboardPage() {
     }
   });
 
-  const getStatusIcon = (tipo: string, aprobado: string | null) => {
-    if (tipo === "A") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Horario Habitual" />;
-    if (tipo === "B") {
-      if (aprobado === "SI") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Aprobada" />;
-      if (aprobado === "NO" || aprobado === "RE") return <XCircle className="h-5 w-5 text-red-500" aria-label="Rechazada" />;
-      return <Clock className="h-5 w-5 text-amber-500" aria-label="Pendiente de Aprobación" />;
-    }
-    return null;
-  };
-
-  const getStatusBadge = (tipo: string, aprobado: string | null) => {
-    if (tipo === "A") return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Regular</span>;
-    if (tipo === "B") {
-      if (aprobado === "SI") return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Aprobada</span>;
-      if (aprobado === "NO" || aprobado === "RE") return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rechazada</span>;
-      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">Pendiente</span>;
-    }
-  };
-
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-end">
         <div className="color-white">
           <h1 className="text-3xl font-bold tracking-tight">Mi Panel</h1>
-          <p className="mt-1">Registra tu minuta.</p>
+          <p className="mt-1">Registra tu tiempo.</p>
         </div>
       </div>
 
@@ -78,61 +56,7 @@ export default async function DashboardPage() {
         </div>
 
         <div className="min-w-0">
-          <div className="bg-white rounded-xl shadow-sm border border-brand-dark/10 overflow-hidden">
-            <div className="p-6 border-b border-brand-dark/10">
-              <h2 className="text-xl font-bold text-brand-dark">Historial de Minutas</h2>
-            </div>
-
-            {minutas.length === 0 ? (
-              <div className="p-8 text-center text-brand-dark/60">
-                <p>No tienes actividades registradas aún.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-brand-dark/80">
-                  <thead className="bg-brand-dark/5 text-brand-dark">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Fecha</th>
-                      <th className="px-4 py-3 font-semibold">Horario</th>
-                      <th className="px-4 py-3 font-semibold">Cédula del Proyecto</th>
-                      <th className="px-4 py-3 font-semibold">Actividad</th>
-                      <th className="px-4 py-3 font-semibold text-center">Tipo</th>
-                      <th className="px-4 py-3 font-semibold text-center">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-brand-dark/10">
-                    {minutas.map((m) => (
-                      <tr key={m.id} className="hover:bg-brand-dark/5 transition-colors">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          {format(new Date(m.fecha), 'MMM dd, yyyy', { locale: es })}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-medium">
-                          {formatTime24(m.hora_inicio)} - {formatTime24(m.hora_fin)}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-brand-dark/90">
-                          {m.minuta_proyecto?.code || m.proyecto || '-'}
-                        </td>
-                        <td className="px-4 py-3">
-                          {m.minuta_actividad?.nombre || '-'}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-2 py-1 text-xs font-bold rounded-md ${m.tipo_minuta === 'A' ? 'bg-brand-primary/10 text-brand-primary' : 'bg-brand-accent/10 text-brand-accent'}`}>
-                            Tipo {m.tipo_minuta}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {getStatusIcon(m.tipo_minuta, m.aprobado)}
-                            {getStatusBadge(m.tipo_minuta, m.aprobado)}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <HistorialTiempos tiempos={minutas} />
         </div>
       </div>
     </div>
