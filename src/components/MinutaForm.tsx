@@ -4,19 +4,34 @@ import { useRef, useState } from "react";
 import { createMinuta } from "@/app/actions/minuta";
 import { Plus, Trash2, Calendar, Folder, BookOpen, Clock, AlertCircle } from "lucide-react";
 
+interface TimeRange {
+  id: string;
+  proyecto: string;
+  actividad: string;
+  horaInicio: string;
+  horaFin: string;
+  observacion: string;
+}
+
 export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; actividades: any[] }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedProyecto, setSelectedProyecto] = useState<string>("");
-  const [ranges, setRanges] = useState([
-    { id: "initial", horaInicio: "", horaFin: "" }
+  const [ranges, setRanges] = useState<TimeRange[]>([
+    { id: "initial", proyecto: "", actividad: "", horaInicio: "", horaFin: "", observacion: "" }
   ]);
   const formRef = useRef<HTMLFormElement>(null);
 
   const addRange = () => {
     if (ranges.length < 7) {
-      setRanges([...ranges, { id: Math.random().toString(), horaInicio: "", horaFin: "" }]);
+      setRanges([...ranges, { 
+        id: Math.random().toString(), 
+        proyecto: "", 
+        actividad: "", 
+        horaInicio: "", 
+        horaFin: "", 
+        observacion: "" 
+      }]);
     }
   };
 
@@ -26,17 +41,24 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
     }
   };
 
-  const handleRangeChange = (id: string, field: "horaInicio" | "horaFin", value: string) => {
-    // Basic formatting: auto-insert colon for ease of typing
-    let cleanVal = value.replace(/[^0-9:]/g, "");
-    if (cleanVal.length === 2 && !cleanVal.includes(":")) {
-      cleanVal = cleanVal + ":";
-    }
-    if (cleanVal.length > 5) {
-      cleanVal = cleanVal.slice(0, 5);
-    }
-    
-    setRanges(prev => prev.map(r => r.id === id ? { ...r, [field]: cleanVal } : r));
+  const handleRangeFieldChange = (id: string, field: keyof TimeRange, value: string) => {
+    setRanges(prev => prev.map(r => {
+      if (r.id === id) {
+        let finalVal = value;
+        if (field === "horaInicio" || field === "horaFin") {
+          let cleanVal = value.replace(/[^0-9:]/g, "");
+          if (cleanVal.length === 2 && !cleanVal.includes(":")) {
+            cleanVal = cleanVal + ":";
+          }
+          if (cleanVal.length > 5) {
+            cleanVal = cleanVal.slice(0, 5);
+          }
+          finalVal = cleanVal;
+        }
+        return { ...r, [field]: finalVal };
+      }
+      return r;
+    }));
   };
 
   // Validation function
@@ -55,6 +77,31 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
 
   const getOverlapError = () => {
     const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+    
+    // Validar formato y consistencia interna por rango
+    for (let i = 0; i < ranges.length; i++) {
+      const r = ranges[i];
+      if (r.proyecto || r.actividad || r.horaInicio || r.horaFin || r.observacion) {
+        if (!r.proyecto || !r.actividad || !r.horaInicio || !r.horaFin) {
+          return `Debe completar Cédula, Actividad, Hora de Inicio y Hora de Fin en el rango #${i + 1}.`;
+        }
+        
+        if (!timePattern.test(r.horaInicio) || !timePattern.test(r.horaFin)) {
+          return `Las horas en el rango #${i + 1} deben tener un formato de 24 horas válido (Ej: 08:30).`;
+        }
+        
+        const [sh, sm] = r.horaInicio.split(":").map(Number);
+        const [eh, em] = r.horaFin.split(":").map(Number);
+        const startMin = sh * 60 + sm;
+        const endMin = eh * 60 + em;
+        
+        if (endMin <= startMin) {
+          return `En el rango #${i + 1}, la hora de fin debe ser posterior a la de inicio.`;
+        }
+      }
+    }
+
+    // Validar solapamientos
     const validRanges = ranges
       .map((r, index) => {
         const startValid = timePattern.test(r.horaInicio);
@@ -74,9 +121,6 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
 
     for (let i = 0; i < validRanges.length; i++) {
       const rangeI = validRanges[i];
-      if (rangeI.end <= rangeI.start) {
-        return `En el rango #${rangeI.index + 1}, la hora de fin debe ser posterior a la de inicio.`;
-      }
       for (let j = i + 1; j < validRanges.length; j++) {
         const rangeJ = validRanges[j];
         if (rangeI.start < rangeJ.end && rangeJ.start < rangeI.end) {
@@ -105,8 +149,7 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
     } else {
       setSuccess(true);
       formRef.current?.reset();
-      setSelectedProyecto("");
-      setRanges([{ id: "initial", horaInicio: "", horaFin: "" }]);
+      setRanges([{ id: "initial", proyecto: "", actividad: "", horaInicio: "", horaFin: "", observacion: "" }]);
     }
     setLoading(false);
   }
@@ -141,7 +184,7 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
             <select 
               name="tipo" 
               required 
-              className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50"
+              className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50 text-sm"
             >
               <option value="">Seleccione un tipo</option>
               <option value="A">Tipo A (Horario Habitual)</option>
@@ -157,60 +200,9 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
               type="date" 
               name="fecha" 
               required 
-              className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50" 
+              className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50 text-sm" 
             />
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-sm font-semibold text-brand-dark/90 mb-1.5 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand-primary"></span>
-              Cédula del Proyecto
-            </label>
-            <select 
-              name="proyecto" 
-              required 
-              className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50"
-              value={selectedProyecto}
-              onChange={(e) => setSelectedProyecto(e.target.value)}
-            >
-              <option value="">Seleccione una cédula</option>
-              {proyectos.map((p) => (
-                <option key={p.code} value={p.code}>{p.code}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-brand-dark/90 mb-1.5 flex items-center gap-1.5">
-              <Folder className="w-4 h-4 text-brand-primary" />
-              Nombre del Proyecto
-            </label>
-            <input 
-              type="text" 
-              readOnly 
-              className="w-full rounded-lg border border-brand-dark/20 bg-slate-100 px-3.5 py-2.5 text-brand-dark/60 focus:outline-none cursor-not-allowed font-medium"
-              value={proyectos.find(p => p.code === selectedProyecto)?.nombre || ""}
-              placeholder="Nombre de la cédula"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-brand-dark/90 mb-1.5 flex items-center gap-1.5">
-            <BookOpen className="w-4 h-4 text-brand-primary" />
-            Actividad
-          </label>
-          <select 
-            name="actividad" 
-            required 
-            className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50"
-          >
-            <option value="">Seleccione una actividad</option>
-            {actividades.map((a) => (
-              <option key={a.code} value={a.code}>{a.nombre} {a.area ? `(${a.area})` : ''}</option>
-            ))}
-          </select>
         </div>
 
         {/* Sección agrupada de Rangos de Tiempo */}
@@ -222,56 +214,121 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
             </span>
           </div>
 
-          <div className="space-y-3.5">
+          <div className="space-y-4">
             {ranges.map((r, index) => (
               <div 
                 key={r.id} 
-                className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end p-3 bg-white rounded-lg border border-brand-dark/5 shadow-sm hover:border-brand-primary/20 transition-all duration-200"
+                className="p-4 bg-white rounded-xl border border-brand-dark/10 shadow-sm space-y-4 relative hover:border-brand-primary/20 transition-all duration-200"
               >
-                <div className="flex flex-col">
-                  <label className="text-xs font-semibold text-brand-dark/70 mb-1">
-                    Hora Inicio #{index + 1}
-                  </label>
-                  <input
-                    type="text"
-                    name={`horaInicio_${index}`}
-                    placeholder="Ej: 08:00"
-                    value={r.horaInicio}
-                    onChange={(e) => handleRangeChange(r.id, "horaInicio", e.target.value)}
-                    pattern="^([01]\d|2[0-3]):[0-5]\d$"
-                    maxLength={5}
-                    inputMode="numeric"
-                    required
-                    className="w-full h-10 rounded-md border border-brand-dark/20 px-3 py-2 text-sm text-brand-dark focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary"
-                  />
+                <div className="flex justify-between items-center border-b border-brand-dark/5 pb-2">
+                  <span className="text-xs font-bold text-brand-primary uppercase">Rango #{index + 1}</span>
+                  {ranges.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeRange(r.id)}
+                      className="text-red-500 hover:text-red-700 transition-colors p-1"
+                      title="Eliminar rango"
+                    >
+                      <Trash2 className="w-4.5 h-4.5" />
+                    </button>
+                  )}
                 </div>
-                <div className="flex flex-col">
-                  <label className="text-xs font-semibold text-brand-dark/70 mb-1">
-                    Hora Fin #{index + 1}
-                  </label>
-                  <input
-                    type="text"
-                    name={`horaFin_${index}`}
-                    placeholder="Ej: 17:30"
-                    value={r.horaFin}
-                    onChange={(e) => handleRangeChange(r.id, "horaFin", e.target.value)}
-                    pattern="^([01]\d|2[0-3]):[0-5]\d$"
-                    maxLength={5}
-                    inputMode="numeric"
-                    required
-                    className="w-full h-10 rounded-md border border-brand-dark/20 px-3 py-2 text-sm text-brand-dark focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary"
-                  />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Cédula del Proyecto */}
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Cédula del Proyecto</label>
+                    <select 
+                      name={`proyecto_${index}`} 
+                      required 
+                      value={r.proyecto}
+                      onChange={(e) => handleRangeFieldChange(r.id, "proyecto", e.target.value)}
+                      className="w-full rounded-md border border-brand-dark/20 px-3 py-2 text-xs text-brand-dark focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-brand-light/50"
+                    >
+                      <option value="">Seleccione una cédula</option>
+                      {proyectos.map((p) => (
+                        <option key={p.code} value={p.code}>{p.code}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Nombre del Proyecto */}
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Nombre del Proyecto</label>
+                    <input 
+                      type="text" 
+                      readOnly 
+                      className="w-full rounded-md border border-brand-dark/20 bg-slate-100 px-3 py-2 text-xs text-brand-dark/60 focus:outline-none cursor-not-allowed font-medium"
+                      value={proyectos.find(p => p.code === r.proyecto)?.nombre || ""}
+                      placeholder="Nombre de la cédula"
+                    />
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Actividad */}
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Actividad</label>
+                    <select 
+                      name={`actividad_${index}`} 
+                      required 
+                      value={r.actividad}
+                      onChange={(e) => handleRangeFieldChange(r.id, "actividad", e.target.value)}
+                      className="w-full rounded-md border border-brand-dark/20 px-3 py-2 text-xs text-brand-dark focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-brand-light/50"
+                    >
+                      <option value="">Seleccione una actividad</option>
+                      {actividades.map((a) => (
+                        <option key={a.code} value={a.code}>{a.nombre} {a.area ? `(${a.area})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Horario */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Inicio</label>
+                      <input
+                        type="text"
+                        name={`horaInicio_${index}`}
+                        placeholder="Ej: 08:00"
+                        value={r.horaInicio}
+                        onChange={(e) => handleRangeFieldChange(r.id, "horaInicio", e.target.value)}
+                        pattern="^([01]\d|2[0-3]):[0-5]\d$"
+                        maxLength={5}
+                        inputMode="numeric"
+                        required
+                        className="w-full h-9 rounded-md border border-brand-dark/20 px-2.5 py-1 text-xs text-brand-dark focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Fin</label>
+                      <input
+                        type="text"
+                        name={`horaFin_${index}`}
+                        placeholder="Ej: 17:30"
+                        value={r.horaFin}
+                        onChange={(e) => handleRangeFieldChange(r.id, "horaFin", e.target.value)}
+                        pattern="^([01]\d|2[0-3]):[0-5]\d$"
+                        maxLength={5}
+                        inputMode="numeric"
+                        required
+                        className="w-full h-9 rounded-md border border-brand-dark/20 px-2.5 py-1 text-xs text-brand-dark focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Observación */}
                 <div>
-                  <button
-                    type="button"
-                    onClick={() => removeRange(r.id)}
-                    disabled={ranges.length === 1}
-                    className="h-10 w-10 flex items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    title="Eliminar rango"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Observación</label>
+                  <input
+                    type="text"
+                    name={`observacion_${index}`}
+                    placeholder="Observaciones o detalles sobre este rango de tiempo"
+                    value={r.observacion}
+                    onChange={(e) => handleRangeFieldChange(r.id, "observacion", e.target.value)}
+                    className="w-full rounded-md border border-brand-dark/20 px-3 py-2 text-xs text-brand-dark focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary"
+                  />
                 </div>
               </div>
             ))}

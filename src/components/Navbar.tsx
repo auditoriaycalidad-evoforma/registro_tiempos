@@ -9,6 +9,7 @@ export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const canApprove = session?.user.rol === "ADMIN" || session?.user.rol === "LIDER";
+  const isAdmin = session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
 
   if (!session) return null;
 
@@ -34,29 +35,29 @@ export default function Navbar() {
               </Link>
 
               {canApprove && (
-                <>
-                  <Link
-                    href="/admin"
-                    className={`${pathname.startsWith("/admin")
-                      ? "border-brand-accent text-brand-light"
-                      : "border-transparent text-brand-light/70 hover:border-brand-accent/50 hover:text-brand-dark"
-                      } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
-                  >
-                    <Shield className="h-4 w-4 mr-1.5 text-brand-accent" />
-                    Aprobaciones
-                  </Link>
+                <Link
+                  href="/admin"
+                  className={`${pathname.startsWith("/admin")
+                    ? "border-brand-accent text-brand-light"
+                    : "border-transparent text-brand-light/70 hover:border-brand-accent/50 hover:text-brand-dark"
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                >
+                  <Shield className="h-4 w-4 mr-1.5 text-brand-accent" />
+                  Aprobaciones
+                </Link>
+              )}
 
-                  <Link
-                    href="/exportar"
-                    className={`${pathname.startsWith("/exportar")
-                      ? "border-brand-primary text-brand-light"
-                      : "border-transparent text-brand-light/70 hover:border-brand-primary/50 hover:text-brand-dark"
-                      } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
-                  >
-                    <FileSpreadsheet className="h-4 w-4 mr-1.5 text-brand-primary" />
-                    Exportar
-                  </Link>
-                </>
+              {isAdmin && (
+                <Link
+                  href="/exportar"
+                  className={`${pathname.startsWith("/exportar")
+                    ? "border-brand-primary text-brand-light"
+                    : "border-transparent text-brand-light/70 hover:border-brand-primary/50 hover:text-brand-dark"
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-1.5 text-brand-primary" />
+                  Exportar
+                </Link>
               )}
             </div>
           </div>

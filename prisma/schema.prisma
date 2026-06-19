@@ -52,6 +52,7 @@ model minuta_registro_actividad {
   proyecto         String?           @db.VarChar(32)
   tipo_minuta      String            @db.VarChar(1)
   aprobado         String?           @default("NO") @db.VarChar(2)
+  observacion      String?           @db.VarChar(2048)
   minuta_actividad minuta_actividad? @relation(fields: [actividad], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "fk_registro_actividad")
   minuta_empleado  minuta_empleado   @relation(fields: [empleado], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_registro_empleado")
   minuta_proyecto  minuta_proyecto?  @relation(fields: [proyecto], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "fk_registro_proyecto")

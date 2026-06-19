@@ -17,18 +17,23 @@ export async function createMinuta(formData: FormData) {
 
   const data = {
     fecha: formData.get("fecha") as string,
-    proyecto: formData.get("proyecto") as string,
-    actividad: formData.get("actividad") as string,
     tipo: formData.get("tipo") as string, // "A" o "B"
   };
 
   // Validaciones básicas de campos principales
-  if (!data.fecha || !data.proyecto || !data.actividad || !data.tipo) {
+  if (!data.fecha || !data.tipo) {
     return { error: "Todos los campos principales son obligatorios" };
   }
 
   // Extraer y procesar múltiples rangos de horario
-  const intervals: { horaInicio: string; horaFin: string }[] = [];
+  const intervals: { 
+    proyecto: string; 
+    actividad: string; 
+    horaInicio: string; 
+    horaFin: string; 
+    observacion: string; 
+  }[] = [];
+  
   const keys = Array.from(formData.keys());
   const startKeys = keys.filter(k => k.startsWith("horaInicio_")).sort();
   
@@ -38,11 +43,15 @@ export async function createMinuta(formData: FormData) {
     const idx = startKey.split("_")[1];
     const start = formData.get(`horaInicio_${idx}`) as string;
     const end = formData.get(`horaFin_${idx}`) as string;
+    const proyecto = formData.get(`proyecto_${idx}`) as string;
+    const actividad = formData.get(`actividad_${idx}`) as string;
+    const observacion = (formData.get(`observacion_${idx}`) as string) || "";
     
-    if (start || end) {
-      if (!start || !end) {
-        return { error: "Debe completar tanto la hora de inicio como la de fin para todos los rangos." };
+    if (start || end || proyecto || actividad || observacion) {
+      if (!start || !end || !proyecto || !actividad) {
+        return { error: `Debe completar Cédula, Actividad, Hora de Inicio y Hora de Fin para el rango #${parseInt(idx) + 1}.` };
       }
+      
       const trimmedStart = start.trim();
       const trimmedEnd = end.trim();
       
@@ -54,7 +63,13 @@ export async function createMinuta(formData: FormData) {
         return { error: `La hora de fin (${trimmedEnd}) debe ser posterior a la hora de inicio (${trimmedStart})` };
       }
       
-      intervals.push({ horaInicio: trimmedStart, horaFin: trimmedEnd });
+      intervals.push({ 
+        proyecto: proyecto.trim(), 
+        actividad: actividad.trim(), 
+        horaInicio: trimmedStart, 
+        horaFin: trimmedEnd,
+        observacion: observacion.trim()
+      });
     }
   }
 
@@ -112,28 +127,32 @@ export async function createMinuta(formData: FormData) {
       }
     }
 
-    const proyectoExistente = await prisma.minuta_proyecto.findUnique({
-      where: { code: data.proyecto },
-    });
-
-    if (!proyectoExistente) {
-      const proyectoRaw = await prisma.$queryRaw<{ nombre: string }[]>`
-        SELECT nombre_proyecto AS nombre
-        FROM briefing_2026
-        WHERE cedula = ${data.proyecto}
-        LIMIT 1
-      `;
-
-      if (!proyectoRaw.length) {
-        return { error: "El proyecto seleccionado no existe en el catálogo de proyectos" };
-      }
-
-      await prisma.minuta_proyecto.create({
-        data: {
-          code: data.proyecto,
-          nombre: proyectoRaw[0].nombre,
-        },
+    // Validar y crear proyectos que no existan
+    const uniqueProyectos = Array.from(new Set(intervals.map((inv) => inv.proyecto)));
+    for (const projCode of uniqueProyectos) {
+      const proyectoExistente = await prisma.minuta_proyecto.findUnique({
+        where: { code: projCode },
       });
+
+      if (!proyectoExistente) {
+        const proyectoRaw = await prisma.$queryRaw<{ nombre: string }[]>`
+          SELECT nombre_proyecto AS nombre
+          FROM briefing_2026
+          WHERE cedula = ${projCode}
+          LIMIT 1
+        `;
+
+        if (!proyectoRaw.length) {
+          return { error: `El proyecto con cédula "${projCode}" no existe en el catálogo de proyectos` };
+        }
+
+        await prisma.minuta_proyecto.create({
+          data: {
+            code: projCode,
+            nombre: proyectoRaw[0].nombre,
+          },
+        });
+      }
     }
 
     // Guardar en la base de datos de manera atómica
@@ -148,10 +167,11 @@ export async function createMinuta(formData: FormData) {
             fecha: fechaDate,
             hora_inicio: horaInicioDate,
             hora_fin: horaFinDate,
-            proyecto: data.proyecto,
-            actividad: data.actividad,
+            proyecto: interval.proyecto,
+            actividad: interval.actividad,
             tipo_minuta: data.tipo,
             aprobado: data.tipo === "B" ? "PE" : "SI",
+            observacion: interval.observacion,
           },
         });
       })

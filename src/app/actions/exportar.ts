@@ -25,6 +25,7 @@ const HEADERS = [
   "apellido-nombre",
   "ACTIVIDAD",
   "ESTADO",
+  "OBSERVACIÓN",
 ];
 
 const DAYS_OF_WEEK = [
@@ -151,6 +152,7 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
           minuta.minuta_empleado.apellido_nombre,
           minuta.minuta_actividad?.nombre ?? "",
           minuta.aprobado ?? "NO",
+          minuta.observacion ?? "",
         ]),
       ];
 
@@ -182,6 +184,7 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
           minuta.minuta_empleado.apellido_nombre,
           minuta.minuta_actividad?.nombre ?? "",
           minuta.aprobado ?? "NO",
+          minuta.observacion ?? "",
         ]),
       ];
 

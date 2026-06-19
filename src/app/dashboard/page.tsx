@@ -3,11 +3,14 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { MinutaForm } from "@/components/MinutaForm";
 import { HistorialTiempos } from "@/components/HistorialTiempos";
+import { Clock } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) return null;
+
+  const isAdmin = session.user.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
 
   type ProyectoOption = {
     code: string;
@@ -56,7 +59,15 @@ export default async function DashboardPage() {
         </div>
 
         <div className="min-w-0">
-          <HistorialTiempos tiempos={minutas} />
+          {isAdmin ? (
+            <HistorialTiempos tiempos={minutas} />
+          ) : (
+            <div className="bg-white rounded-xl shadow-md border border-brand-dark/10 p-8 text-center text-brand-dark/60 h-full min-h-[300px] flex flex-col justify-center items-center">
+              <Clock className="w-12 h-12 text-brand-primary/45 mb-4 animate-pulse" />
+              <h3 className="text-lg font-bold text-brand-dark mb-1">Historial Privado</h3>
+              <p className="text-sm max-w-sm">El historial de registros de tiempo es restringido y únicamente visible para la administración.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
