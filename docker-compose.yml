@@ -1,0 +1,7 @@
+services:
+  app:
+    build: .
+    ports:
+      - "21900:21900"
+    env_file: .env
+    restart: unless-stopped
