@@ -31,6 +31,17 @@ export default async function DashboardPage() {
     orderBy: { nombre: 'asc' }
   });
 
+  // Cargar empleado para validar si es líder
+  const empleado = await prisma.minuta_empleado.findFirst({
+    where: {
+      OR: [
+        { id: session.user.id },
+        { email: { equals: session.user.email ?? "", mode: "insensitive" } }
+      ]
+    }
+  });
+  const esLiderN = empleado ? empleado.es_lider === "N" : session.user.rol === "EMPLEADO";
+
   // Cargar registro de tiempos del usuario logueado
   const minutas = await prisma.minuta_registro_actividad.findMany({
     where: { empleado: session.user.id },
@@ -53,23 +64,29 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(30rem,0.95fr)_minmax(0,1.25fr)] gap-6 2xl:gap-8">
-        <div className="w-full">
+      {esLiderN ? (
+        <div className="max-w-3xl mx-auto w-full">
           <MinutaForm proyectos={proyectos} actividades={actividades} />
         </div>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(30rem,0.95fr)_minmax(0,1.25fr)] gap-6 2xl:gap-8">
+          <div className="w-full">
+            <MinutaForm proyectos={proyectos} actividades={actividades} />
+          </div>
 
-        <div className="min-w-0">
-          {isAdmin ? (
-            <HistorialTiempos tiempos={minutas} />
-          ) : (
-            <div className="bg-white rounded-xl shadow-md border border-brand-dark/10 p-8 text-center text-brand-dark/60 h-full min-h-[300px] flex flex-col justify-center items-center">
-              <Clock className="w-12 h-12 text-brand-primary/45 mb-4 animate-pulse" />
-              <h3 className="text-lg font-bold text-brand-dark mb-1">Historial Privado</h3>
-              <p className="text-sm max-w-sm">El historial de registros de tiempo es restringido y únicamente visible para la administración.</p>
-            </div>
-          )}
+          <div className="min-w-0">
+            {isAdmin ? (
+              <HistorialTiempos tiempos={minutas} />
+            ) : (
+              <div className="bg-white rounded-xl shadow-md border border-brand-dark/10 p-8 text-center text-brand-dark/60 h-full min-h-[300px] flex flex-col justify-center items-center">
+                <Clock className="w-12 h-12 text-brand-primary/45 mb-4 animate-pulse" />
+                <h3 className="text-lg font-bold text-brand-dark mb-1">Historial Privado</h3>
+                <p className="text-sm max-w-sm">El historial de registros de tiempo es restringido y únicamente visible para la administración.</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
