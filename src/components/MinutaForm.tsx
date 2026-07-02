@@ -22,6 +22,14 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
   ]);
   const formRef = useRef<HTMLFormElement>(null);
 
+  // Calcular la fecha máxima permitida (hoy + 2 días)
+  const hoy = new Date();
+  hoy.setDate(hoy.getDate() + 2);
+  const yyyy = hoy.getFullYear();
+  const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+  const dd = String(hoy.getDate()).padStart(2, '0');
+  const maxDate = `${yyyy}-${mm}-${dd}`;
+
   const addRange = () => {
     if (ranges.length < 7) {
       setRanges([...ranges, { 
@@ -138,6 +146,24 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
       setError(overlapError);
       return;
     }
+
+    // Validar fecha en el cliente también
+    const fechaInput = formData.get("fecha") as string;
+    if (fechaInput) {
+      const hoyVal = new Date();
+      const hoySoloFecha = new Date(hoyVal.getFullYear(), hoyVal.getMonth(), hoyVal.getDate());
+      const limiteMaximo = new Date(hoySoloFecha);
+      limiteMaximo.setDate(limiteMaximo.getDate() + 2);
+      
+      const [year, month, day] = fechaInput.split("-").map(Number);
+      const fechaIngresada = new Date(year, month - 1, day);
+      
+      if (fechaIngresada > limiteMaximo) {
+        setError("No es posible registrar tiempos para fechas con más de dos días de posterioridad a la fecha actual.");
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(false);
@@ -200,6 +226,7 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
               type="date" 
               name="fecha" 
               required 
+              max={maxDate}
               className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50 text-sm" 
             />
           </div>

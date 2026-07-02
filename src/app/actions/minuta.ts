@@ -25,6 +25,19 @@ export async function createMinuta(formData: FormData) {
     return { error: "Todos los campos principales son obligatorios" };
   }
 
+  // Validar que la fecha no sea superior a dos días después del día en curso
+  const hoy = new Date();
+  const hoySoloFecha = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const limiteMaximo = new Date(hoySoloFecha);
+  limiteMaximo.setDate(limiteMaximo.getDate() + 2);
+
+  const [year, month, day] = data.fecha.split("-").map(Number);
+  const fechaIngresada = new Date(year, month - 1, day);
+
+  if (fechaIngresada > limiteMaximo) {
+    return { error: "No es posible registrar tiempos para fechas con más de dos días de posterioridad a la fecha actual." };
+  }
+
   // Extraer y procesar múltiples rangos de horario
   const intervals: { 
     proyecto: string; 
