@@ -9,7 +9,7 @@ export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const canApprove = session?.user.rol === "ADMIN" || session?.user.rol === "LIDER";
-  const isAdmin = session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
+  const isAdmin = session?.user.rol === "ADMIN" || session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
 
   if (!session) return null;
 

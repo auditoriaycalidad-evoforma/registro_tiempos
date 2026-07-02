@@ -26,6 +26,10 @@ interface TiempoRecord {
     area: string | null;
     descripcion: string | null;
   } | null;
+  minuta_empleado?: {
+    id: string;
+    apellido_nombre: string;
+  } | null;
 }
 
 export function HistorialTiempos({ tiempos }: { tiempos: TiempoRecord[] }) {
@@ -61,7 +65,9 @@ export function HistorialTiempos({ tiempos }: { tiempos: TiempoRecord[] }) {
       (t.minuta_proyecto?.nombre?.toLowerCase().includes(searchLower) || false) ||
       (t.minuta_proyecto?.code?.toLowerCase().includes(searchLower) || false) ||
       (t.proyecto?.toLowerCase().includes(searchLower) || false) ||
-      (t.minuta_actividad?.nombre?.toLowerCase().includes(searchLower) || false);
+      (t.minuta_actividad?.nombre?.toLowerCase().includes(searchLower) || false) ||
+      (t.minuta_empleado?.apellido_nombre?.toLowerCase().includes(searchLower) || false) ||
+      (t.empleado?.toLowerCase().includes(searchLower) || false);
 
     const matchesTipo = tipoFilter ? t.tipo_minuta === tipoFilter : true;
     
@@ -105,7 +111,7 @@ export function HistorialTiempos({ tiempos }: { tiempos: TiempoRecord[] }) {
             </span>
             <input
               type="text"
-              placeholder="Buscar por proyecto o actividad..."
+              placeholder="Buscar por empleado, proyecto o actividad..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 pr-4 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
@@ -155,6 +161,7 @@ export function HistorialTiempos({ tiempos }: { tiempos: TiempoRecord[] }) {
                     <ArrowUpDown className="w-3.5 h-3.5" />
                   </div>
                 </th>
+                <th className="px-4 py-3 font-bold">Empleado</th>
                 <th className="px-4 py-3 font-bold">Horario</th>
                 <th className="px-4 py-3 font-bold">Cédula Proyecto</th>
                 <th className="px-4 py-3 font-bold">Nombre del Proyecto</th>
@@ -168,6 +175,9 @@ export function HistorialTiempos({ tiempos }: { tiempos: TiempoRecord[] }) {
                 <tr key={t.id} className="hover:bg-brand-dark/5 transition-colors duration-150">
                   <td className="px-4 py-3 whitespace-nowrap font-medium">
                     {format(new Date(t.fecha), 'MMM dd, yyyy', { locale: es })}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-brand-dark/90 font-medium">
+                    {t.minuta_empleado?.apellido_nombre || t.empleado}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-semibold">
                     {formatTime24(t.hora_inicio)} - {formatTime24(t.hora_fin)}
