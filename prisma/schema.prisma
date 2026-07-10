@@ -27,12 +27,9 @@ model minuta_empleado {
   apellido_nombre           String                      @db.VarChar(255)
   cargo                     String?                     @db.VarChar(255)
   email                     String?                     @unique @db.VarChar(255)
-  telefono                  String?                     @db.VarChar(50)
+  activo                    String?                     @db.VarChar(10)
   es_lider                  String?                     @db.VarChar(1)
-  hora_inicio_lv            DateTime?                   @db.Time(6)
-  hora_fin_lv               DateTime?                   @db.Time(6)
-  hora_inicio_sabado        DateTime?                   @db.Time(6)
-  hora_fin_sabado           DateTime?                   @db.Time(6)
+  area_lider                String?                     @db.VarChar(255)
   minuta_registro_actividad minuta_registro_actividad[]
 }
 
