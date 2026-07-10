@@ -29,7 +29,7 @@ model minuta_empleado {
   email                     String?                     @unique @db.VarChar(255)
   activo                    String?                     @db.VarChar(10)
   es_lider                  String?                     @db.VarChar(1)
-  area_lider                String?                     @db.VarChar(255)
+  area_lider                String[]                    @db.VarChar(64)
   minuta_registro_actividad minuta_registro_actividad[]
 }
 
