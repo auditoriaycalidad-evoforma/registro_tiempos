@@ -195,6 +195,11 @@ export async function getPwaHistory() {
     return { error: "No autorizado" };
   }
 
+  const isAdmin = session.user.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
+  if (!isAdmin) {
+    return { history: [] };
+  }
+
   try {
     const history = await prisma.minuta_registro_actividad.findMany({
       where: {

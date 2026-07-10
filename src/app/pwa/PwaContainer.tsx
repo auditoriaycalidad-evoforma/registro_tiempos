@@ -67,6 +67,8 @@ interface PwaContainerProps {
 }
 
 export function PwaContainer({ proyectos, actividades, initialHistory, session }: PwaContainerProps) {
+  const isAdmin = session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
+
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<"registrar" | "historial">("registrar");
   const [darkMode, setDarkMode] = useState<boolean>(false);
@@ -909,7 +911,7 @@ interface PwaIntervalForm {
         )}
 
         {/* === TAB 2: HISTORIAL === */}
-        {activeTab === "historial" && (
+        {activeTab === "historial" && isAdmin && (
           <div className="space-y-4 animate-slideUp">
             
             {/* Header / Refresh */}
@@ -1028,7 +1030,7 @@ interface PwaIntervalForm {
 
       {/* 4. CALCULATION PANEL (Only in Tab: Registrar) */}
       {activeTab === "registrar" && (
-        <div className="fixed bottom-16 left-0 right-0 z-20 bg-white/95 dark:bg-[#121318]/95 backdrop-blur-md border-t border-slate-200/50 dark:border-slate-800/50 px-4 py-3.5 flex items-center justify-between shadow-lg select-none">
+        <div className={`fixed ${isAdmin ? "bottom-16" : "bottom-0"} left-0 right-0 z-20 bg-white/95 dark:bg-[#121318]/95 backdrop-blur-md border-t border-slate-200/50 dark:border-slate-800/50 px-4 py-3.5 flex items-center justify-between shadow-lg select-none`}>
           <div className="space-y-0.5">
             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
               Total Horas Rango
@@ -1061,36 +1063,38 @@ interface PwaIntervalForm {
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              <span>Guardar</span>
+              <span>{isAdmin ? "Guardar" : "Registrar"}</span>
             </button>
           </div>
         </div>
       )}
 
       {/* 5. BOTTOM NAVIGATION BAR */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-[#121318] border-t border-slate-200/50 dark:border-slate-800/50 grid grid-cols-2 py-1 safe-bottom select-none shadow-xl">
-        <button
-          type="button"
-          onClick={() => setActiveTab("registrar")}
-          className={`flex flex-col items-center justify-center py-1.5 transition-all ${activeTab === "registrar" ? "text-brand-primary" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"}`}
-        >
-          <PlusCircle className={`w-6 h-6 ${activeTab === "registrar" ? "scale-110" : ""} transition-transform`} />
-          <span className="text-[10px] font-black uppercase mt-1">Registrar</span>
-        </button>
+      {isAdmin && (
+        <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white dark:bg-[#121318] border-t border-slate-200/50 dark:border-slate-800/50 grid grid-cols-2 py-1 safe-bottom select-none shadow-xl">
+          <button
+            type="button"
+            onClick={() => setActiveTab("registrar")}
+            className={`flex flex-col items-center justify-center py-1.5 transition-all ${activeTab === "registrar" ? "text-brand-primary" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"}`}
+          >
+            <PlusCircle className={`w-6 h-6 ${activeTab === "registrar" ? "scale-110" : ""} transition-transform`} />
+            <span className="text-[10px] font-black uppercase mt-1">Registrar</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab("historial")}
-          className={`flex flex-col items-center justify-center py-1.5 transition-all ${activeTab === "historial" ? "text-brand-primary" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"}`}
-        >
-          <History className={`w-6 h-6 ${activeTab === "historial" ? "scale-110" : ""} transition-transform`} />
-          <span className="text-[10px] font-black uppercase mt-1">Historial</span>
-        </button>
-      </nav>
+          <button
+            type="button"
+            onClick={() => setActiveTab("historial")}
+            className={`flex flex-col items-center justify-center py-1.5 transition-all ${activeTab === "historial" ? "text-brand-primary" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"}`}
+          >
+            <History className={`w-6 h-6 ${activeTab === "historial" ? "scale-110" : ""} transition-transform`} />
+            <span className="text-[10px] font-black uppercase mt-1">Historial</span>
+          </button>
+        </nav>
+      )}
 
       {/* 6. SNACKBAR NOTIFICATION OVERLAY */}
       {notification && (
-        <div className="fixed bottom-28 left-4 right-4 z-50 flex items-center gap-3 p-4 rounded-2xl shadow-2xl border bg-white dark:bg-slate-900 border-slate-200/50 dark:border-slate-800/50 animate-slideUp">
+        <div className={`fixed ${isAdmin ? "bottom-40" : "bottom-28"} left-4 right-4 z-50 flex items-center gap-3 p-4 rounded-2xl shadow-2xl border bg-white dark:bg-slate-900 border-slate-200/50 dark:border-slate-800/50 animate-slideUp`}>
           {notification.type === "success" && (
             <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
           )}

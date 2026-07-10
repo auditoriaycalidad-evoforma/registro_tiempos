@@ -117,85 +117,71 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
     },
   });
 
-  const grouped = new Map<string, typeof minutas>();
-
-  for (const minuta of minutas) {
-    const cargo = minuta.minuta_empleado.cargo?.trim() || "SIN CARGO";
-    const rows = grouped.get(cargo) ?? [];
-    rows.push(minuta);
-    grouped.set(cargo, rows);
-  }
-
   const results: SyncResult[] = [];
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
 
   if (spreadsheetId) {
-    // Modo de hoja única: se exporta cada cargo en una pestaña (sheet) del documento común
-    for (const [cargo, rows] of Array.from(grouped)) {
-      const sheetTitle = sanitizeFilePart(cargo);
-      
-      // Aseguramos que la pestaña exista antes de escribir los datos
-      await ensureSheetExists(spreadsheetId, sheetTitle);
+    const sheetTitle = "Historial";
+    
+    // Aseguramos que la pestaña existan antes de escribir
+    await ensureSheetExists(spreadsheetId, sheetTitle);
 
-      const values = [
-        HEADERS,
-        ...rows.map((minuta) => [
-          DAYS_OF_WEEK[minuta.fecha.getUTCDay()],
-          `Tipo ${minuta.tipo_minuta}`,
-          MONTHS[minuta.fecha.getUTCMonth()],
-          formatDate(minuta.fecha),
-          minuta.minuta_proyecto?.code ?? minuta.proyecto ?? "",
-          minuta.minuta_proyecto?.nombre ?? "",
-          formatTime24(minuta.hora_inicio),
-          formatTime24(minuta.hora_fin),
-          calculateHours(minuta.hora_inicio, minuta.hora_fin),
-          minuta.minuta_empleado.apellido_nombre,
-          minuta.minuta_actividad?.nombre ?? "",
-          minuta.aprobado ?? "NO",
-          minuta.observacion ?? "",
-        ]),
-      ];
+    const values = [
+      HEADERS,
+      ...minutas.map((minuta) => [
+        DAYS_OF_WEEK[minuta.fecha.getUTCDay()],
+        `Tipo ${minuta.tipo_minuta}`,
+        MONTHS[minuta.fecha.getUTCMonth()],
+        formatDate(minuta.fecha),
+        minuta.minuta_proyecto?.code ?? minuta.proyecto ?? "",
+        minuta.minuta_proyecto?.nombre ?? "",
+        formatTime24(minuta.hora_inicio),
+        formatTime24(minuta.hora_fin),
+        calculateHours(minuta.hora_inicio, minuta.hora_fin),
+        minuta.minuta_empleado.apellido_nombre,
+        minuta.minuta_actividad?.nombre ?? "",
+        minuta.aprobado ?? "NO",
+        minuta.observacion ?? "",
+      ]),
+    ];
 
-      await replaceSheetValues(spreadsheetId, sheetTitle, values);
-      results.push({
-        cargo,
-        rows: rows.length,
-        fileName: `Pestaña: ${sheetTitle}`,
-        url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
-      });
-    }
+    await replaceSheetValues(spreadsheetId, sheetTitle, values);
+    results.push({
+      cargo: "TODOS",
+      rows: minutas.length,
+      fileName: `Pestaña: ${sheetTitle}`,
+      url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+    });
   } else {
-    // Modo multi-archivo: se crea un archivo de Google Sheets independiente por cargo
-    for (const [cargo, rows] of Array.from(grouped)) {
-      const fileName = `Tiempos ${year} - ${sanitizeFilePart(cargo)}`;
-      const spreadsheet = await getOrCreateSpreadsheet(fileName);
-      const values = [
-        HEADERS,
-        ...rows.map((minuta) => [
-          DAYS_OF_WEEK[minuta.fecha.getUTCDay()],
-          `Tipo ${minuta.tipo_minuta}`,
-          MONTHS[minuta.fecha.getUTCMonth()],
-          formatDate(minuta.fecha),
-          minuta.minuta_proyecto?.code ?? minuta.proyecto ?? "",
-          minuta.minuta_proyecto?.nombre ?? "",
-          formatTime24(minuta.hora_inicio),
-          formatTime24(minuta.hora_fin),
-          calculateHours(minuta.hora_inicio, minuta.hora_fin),
-          minuta.minuta_empleado.apellido_nombre,
-          minuta.minuta_actividad?.nombre ?? "",
-          minuta.aprobado ?? "NO",
-          minuta.observacion ?? "",
-        ]),
-      ];
+    // Si no hay spreadsheetId, creamos un archivo completo para el año
+    const fileName = `Tiempos ${year} - Historial`;
+    const spreadsheet = await getOrCreateSpreadsheet(fileName);
+    const values = [
+      HEADERS,
+      ...minutas.map((minuta) => [
+        DAYS_OF_WEEK[minuta.fecha.getUTCDay()],
+        `Tipo ${minuta.tipo_minuta}`,
+        MONTHS[minuta.fecha.getUTCMonth()],
+        formatDate(minuta.fecha),
+        minuta.minuta_proyecto?.code ?? minuta.proyecto ?? "",
+        minuta.minuta_proyecto?.nombre ?? "",
+        formatTime24(minuta.hora_inicio),
+        formatTime24(minuta.hora_fin),
+        calculateHours(minuta.hora_inicio, minuta.hora_fin),
+        minuta.minuta_empleado.apellido_nombre,
+        minuta.minuta_actividad?.nombre ?? "",
+        minuta.aprobado ?? "NO",
+        minuta.observacion ?? "",
+      ]),
+    ];
 
-      await replaceSpreadsheetValues(spreadsheet.id, values);
-      results.push({
-        cargo,
-        rows: rows.length,
-        fileName: spreadsheet.name,
-        url: spreadsheet.url,
-      });
-    }
+    await replaceSpreadsheetValues(spreadsheet.id, values);
+    results.push({
+      cargo: "TODOS",
+      rows: minutas.length,
+      fileName: spreadsheet.name,
+      url: spreadsheet.url,
+    });
   }
 
   revalidatePath("/exportar");

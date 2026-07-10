@@ -42,6 +42,19 @@ export default async function AdminPage() {
   const pendientes = minutasB.filter((m) => m.aprobado === "PE");
   const procesadas = minutasB.filter((m) => m.aprobado === "SI" || m.aprobado === "RE");
 
+  // Normalización de texto para comparar áreas sin problemas de acentos ni mayúsculas/minúsculas
+  const normalizeString = (str: string) => 
+    str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  const leaderAreas = empleado?.area_lider || [];
+
+  // Los líderes solo ven pendientes de sus áreas asignadas. Admin ve todas.
+  const pendientesFiltradas = isAdmin ? pendientes : pendientes.filter((m) => {
+    const actArea = m.minuta_actividad?.area;
+    if (!actArea) return false;
+    return leaderAreas.some(la => normalizeString(la) === normalizeString(actArea));
+  });
+
   return (
     <div className="space-y-8">
       <div className="color-white">
@@ -55,11 +68,11 @@ export default async function AdminPage() {
           <div className="p-6 border-b border-brand-dark/10 bg-brand-accent/10">
             <div className="flex items-center">
               <Clock className="w-5 h-5 text-brand-accent mr-2" />
-              <h2 className="text-lg font-bold text-brand-dark">Pendientes de Aprobación ({pendientes.length})</h2>
+              <h2 className="text-lg font-bold text-brand-dark">Pendientes de Aprobación ({pendientesFiltradas.length})</h2>
             </div>
           </div>
 
-          {pendientes.length === 0 ? (
+          {pendientesFiltradas.length === 0 ? (
             <div className="p-8 text-center text-brand-dark/60">No hay tiempos B pendientes de aprobación en este momento.</div>
           ) : (
             <div className="overflow-x-auto">
@@ -76,7 +89,7 @@ export default async function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-brand-dark/10">
-                  {pendientes.map((m) => (
+                  {pendientesFiltradas.map((m) => (
                     <tr key={m.id} className="hover:bg-brand-accent/5 transition-colors">
                       <td className="px-4 py-3 font-medium text-brand-dark">{m.minuta_empleado?.apellido_nombre || m.empleado}</td>
                       <td className="px-4 py-3">

@@ -43,8 +43,9 @@ export default async function PwaPage() {
   });
 
   let initialHistory: any[] = [];
+  const isAdmin = session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
   
-  if (session?.user?.id) {
+  if (session?.user?.id && isAdmin) {
     const rawHistory = await prisma.minuta_registro_actividad.findMany({
       where: {
         empleado: session.user.id,
