@@ -68,8 +68,18 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
     return localISOTime;
   });
   const [tipoMinuta, setTipoMinuta] = useState<string>("A"); // "A" = Ordinaria, "B" = Extra
-  const [intervals, setIntervals] = useState<PwaInterval[]>([
-    { proyecto: "", actividad: "", horaInicio: "", horaFin: "", observacion: "" }
+interface PwaIntervalForm {
+  proyecto: string;
+  proyectoText: string;
+  actividad: string;
+  actividadText: string;
+  horaInicio: string;
+  horaFin: string;
+  observacion: string;
+}
+
+  const [intervals, setIntervals] = useState<PwaIntervalForm[]>([
+    { proyecto: "", proyectoText: "", actividad: "", actividadText: "", horaInicio: "", horaFin: "", observacion: "" }
   ]);
 
   // Autocomplete & focus references
@@ -178,7 +188,7 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
   };
 
   // --- FORM ACTIONS ---
-  const updateInterval = (index: number, field: keyof PwaInterval, value: string) => {
+  const updateInterval = (index: number, field: keyof PwaIntervalForm, value: string) => {
     setIntervals((prev) => {
       const copy = [...prev];
       copy[index] = { ...copy[index], [field]: value };
@@ -201,10 +211,72 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
     }
   };
 
+  const handleProjectBlur = (index: number) => {
+    setTimeout(() => {
+      setIntervals((prev) => {
+        const copy = [...prev];
+        const typed = copy[index].proyectoText.trim();
+        if (!typed) {
+          copy[index].proyecto = "";
+          copy[index].proyectoText = "";
+          return copy;
+        }
+        const match = proyectos.find(
+          (p) => 
+            p.code.toLowerCase() === typed.toLowerCase() || 
+            p.nombre.toLowerCase() === typed.toLowerCase() ||
+            `${p.code} - ${p.nombre}`.toLowerCase() === typed.toLowerCase()
+        );
+        if (match) {
+          copy[index].proyecto = match.code;
+          copy[index].proyectoText = `${match.code} - ${match.nombre}`;
+        } else {
+          const isValidCode = proyectos.some(p => p.code === copy[index].proyecto);
+          if (!isValidCode) {
+            copy[index].proyecto = "";
+          }
+        }
+        return copy;
+      });
+      setProjectSearch([]);
+    }, 200);
+  };
+
+  const handleActivityBlur = (index: number) => {
+    setTimeout(() => {
+      setIntervals((prev) => {
+        const copy = [...prev];
+        const typed = copy[index].actividadText.trim();
+        if (!typed) {
+          copy[index].actividad = "";
+          copy[index].actividadText = "";
+          return copy;
+        }
+        const match = actividades.find(
+          (a) => 
+            a.nombre.toLowerCase() === typed.toLowerCase() || 
+            a.code.toLowerCase() === typed.toLowerCase() ||
+            `${a.code} - ${a.nombre}`.toLowerCase() === typed.toLowerCase()
+        );
+        if (match) {
+          copy[index].actividad = match.code;
+          copy[index].actividadText = match.nombre;
+        } else {
+          const isValidCode = actividades.some(a => a.code === copy[index].actividad);
+          if (!isValidCode) {
+            copy[index].actividad = "";
+          }
+        }
+        return copy;
+      });
+      setActivitySearch([]);
+    }, 200);
+  };
+
   const addInterval = () => {
     setIntervals((prev) => [
       ...prev,
-      { proyecto: "", actividad: "", horaInicio: "", horaFin: "", observacion: "" }
+      { proyecto: "", proyectoText: "", actividad: "", actividadText: "", horaInicio: "", horaFin: "", observacion: "" }
     ]);
   };
 
@@ -308,28 +380,44 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
 
   // --- AUTOCOMPLETES LOGIC ---
   const handleProjectSearch = (text: string, index: number) => {
-    updateInterval(index, "proyecto", text);
+    updateInterval(index, "proyectoText", text);
+    const exactCodeMatch = proyectos.find(p => p.code?.toLowerCase() === text.trim().toLowerCase());
+    if (exactCodeMatch) {
+      updateInterval(index, "proyecto", exactCodeMatch.code);
+    } else {
+      updateInterval(index, "proyecto", "");
+    }
+
     if (!text.trim()) {
       setProjectSearch([]);
       return;
     }
     const query = text.toLowerCase();
     const filtered = proyectos
-      .filter((p) => p.code.toLowerCase().includes(query) || p.nombre.toLowerCase().includes(query))
+      .filter((p) => p.code?.toLowerCase().includes(query) || p.nombre?.toLowerCase().includes(query))
       .slice(0, 6)
       .map((p) => `${p.code} - ${p.nombre}`);
     setProjectSearch(filtered);
   };
 
   const handleActivitySearch = (text: string, index: number) => {
-    updateInterval(index, "actividad", text);
+    updateInterval(index, "actividadText", text);
+    const exactNameMatch = actividades.find(
+      (a) => a.nombre?.toLowerCase() === text.trim().toLowerCase() || a.code?.toLowerCase() === text.trim().toLowerCase()
+    );
+    if (exactNameMatch) {
+      updateInterval(index, "actividad", exactNameMatch.code);
+    } else {
+      updateInterval(index, "actividad", "");
+    }
+
     if (!text.trim()) {
       setActivitySearch([]);
       return;
     }
     const query = text.toLowerCase();
     const filtered = actividades
-      .filter((a) => a.nombre.toLowerCase().includes(query) || a.code.toLowerCase().includes(query))
+      .filter((a) => a.nombre?.toLowerCase().includes(query) || a.code?.toLowerCase().includes(query))
       .slice(0, 6)
       .map((a) => `${a.code} - ${a.nombre}`);
     setActivitySearch(filtered);
@@ -337,11 +425,51 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
 
   // --- SUBMIT ---
   const handleSave = async () => {
-    // Pre-validate fields
-    for (let i = 0; i < intervals.length; i++) {
-      const inv = intervals[i];
-      if (!inv.proyecto || !inv.actividad || !inv.horaInicio || !inv.horaFin) {
-        showToast(`Rango #${i + 1} incompleto. Completa Cédula, Actividad y Horarios.`, "error");
+    // 1. Resolver búsquedas escritas a códigos
+    const resolvedIntervals = intervals.map((inv) => {
+      let pCode = inv.proyecto;
+      let aCode = inv.actividad;
+
+      if (!pCode && inv.proyectoText.trim()) {
+        const pMatch = proyectos.find(
+          (p) => 
+            p.code?.toLowerCase() === inv.proyectoText.trim().toLowerCase() ||
+            p.nombre?.toLowerCase() === inv.proyectoText.trim().toLowerCase() ||
+            `${p.code} - ${p.nombre}`.toLowerCase() === inv.proyectoText.trim().toLowerCase()
+        );
+        if (pMatch) pCode = pMatch.code;
+      }
+
+      if (!aCode && inv.actividadText.trim()) {
+        const aMatch = actividades.find(
+          (a) => 
+            a.nombre?.toLowerCase() === inv.actividadText.trim().toLowerCase() ||
+            a.code?.toLowerCase() === inv.actividadText.trim().toLowerCase() ||
+            `${a.code} - ${a.nombre}`.toLowerCase() === inv.actividadText.trim().toLowerCase()
+        );
+        if (aMatch) aCode = aMatch.code;
+      }
+
+      return {
+        ...inv,
+        proyecto: pCode,
+        actividad: aCode
+      };
+    });
+
+    // 2. Pre-validar campos
+    for (let i = 0; i < resolvedIntervals.length; i++) {
+      const inv = resolvedIntervals[i];
+      if (!inv.proyecto) {
+        showToast(`Rango #${i + 1} requiere un proyecto válido de la lista.`, "error");
+        return;
+      }
+      if (!inv.actividad) {
+        showToast(`Rango #${i + 1} requiere una actividad válida de la lista.`, "error");
+        return;
+      }
+      if (!inv.horaInicio || !inv.horaFin) {
+        showToast(`Rango #${i + 1} requiere hora de inicio y fin.`, "error");
         return;
       }
     }
@@ -352,10 +480,18 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
     }
 
     setIsLoading(true);
+    const dataToSubmit = resolvedIntervals.map((inv) => ({
+      proyecto: inv.proyecto,
+      actividad: inv.actividad,
+      horaInicio: inv.horaInicio,
+      horaFin: inv.horaFin,
+      observacion: inv.observacion
+    }));
+
     const res = await createMinutasPwa({
       fecha,
       tipo: tipoMinuta,
-      intervals
+      intervals: dataToSubmit
     });
     setIsLoading(false);
 
@@ -364,7 +500,7 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
     } else {
       showToast("Tiempos registrados con éxito.", "success");
       // Reset form
-      setIntervals([{ proyecto: "", actividad: "", horaInicio: "", horaFin: "", observacion: "" }]);
+      setIntervals([{ proyecto: "", proyectoText: "", actividad: "", actividadText: "", horaInicio: "", horaFin: "", observacion: "" }]);
       // Refresh local history
       const histRes = await getPwaHistory();
       if ("history" in histRes && histRes.history) {
@@ -547,7 +683,7 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
                     onClick={() => setTipoMinuta("B")}
                     className={`py-2.5 rounded-xl text-xs font-bold transition-all ${tipoMinuta === "B" ? "bg-white dark:bg-[#252630] text-brand-primary shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
                   >
-                    Horas Extra (B)
+                    Horas Adicionales (B)
                   </button>
                 </div>
               </div>
@@ -598,17 +734,17 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
                         <input 
                           type="text"
                           placeholder="Buscar proyecto..."
-                          value={inv.proyecto}
+                          value={inv.proyectoText}
                           onChange={(e) => handleProjectSearch(e.target.value, index)}
                           onFocus={() => setFocusedField({ index, field: "proyecto" })}
-                          onBlur={() => setTimeout(() => setFocusedField({ index: -1, field: null }), 200)}
+                          onBlur={() => handleProjectBlur(index)}
                           className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl pl-9 pr-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary font-medium"
                         />
                       </div>
                       
                       {/* Project Dropdown overlay */}
                       {focusedField.index === index && focusedField.field === "proyecto" && projectSearch.length > 0 && (
-                        <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-20 overflow-hidden animate-scaleIn">
+                        <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#1a1b22] border border-slate-200/50 dark:border-slate-800 rounded-2xl shadow-xl z-20 overflow-hidden animate-scaleIn">
                           {projectSearch.map((option, oIdx) => (
                             <button
                               key={oIdx}
@@ -616,6 +752,7 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
                               onMouseDown={() => {
                                 const code = option.split(" - ")[0];
                                 updateInterval(index, "proyecto", code);
+                                updateInterval(index, "proyectoText", option);
                                 setProjectSearch([]);
                               }}
                               className="w-full text-left px-4 py-3 text-xs hover:bg-slate-100 dark:hover:bg-slate-800 active:bg-slate-200 dark:active:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-800/50 last:border-0 truncate font-semibold"
@@ -637,10 +774,10 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
                         <input 
                           type="text"
                           placeholder="Buscar actividad..."
-                          value={inv.actividad}
+                          value={inv.actividadText}
                           onChange={(e) => handleActivitySearch(e.target.value, index)}
                           onFocus={() => setFocusedField({ index, field: "actividad" })}
-                          onBlur={() => setTimeout(() => setFocusedField({ index: -1, field: null }), 200)}
+                          onBlur={() => handleActivityBlur(index)}
                           className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl pl-9 pr-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary font-medium"
                         />
                       </div>
@@ -654,7 +791,9 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
                               type="button"
                               onMouseDown={() => {
                                 const code = option.split(" - ")[0];
+                                const name = option.substring(code.length + 3);
                                 updateInterval(index, "actividad", code);
+                                updateInterval(index, "actividadText", name);
                                 setActivitySearch([]);
                               }}
                               className="w-full text-left px-4 py-3 text-xs hover:bg-slate-100 dark:hover:bg-slate-800 active:bg-slate-200 dark:active:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-800/50 last:border-0 truncate font-semibold"
@@ -799,7 +938,7 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
                           {isBType ? (
                             <>
                               <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400">
-                                Extra (B)
+                                Adicionales (B)
                               </span>
                               {item.aprobado === "PE" && (
                                 <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400">
