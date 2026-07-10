@@ -25,6 +25,28 @@ function calculateIntervalHours(start: string, end: string): number {
   return (endMin - startMin) / 60;
 }
 
+function formatHistoryTime(timeVal: any): string {
+  if (!timeVal) return "";
+  if (timeVal instanceof Date) {
+    const hours = timeVal.getUTCHours().toString().padStart(2, "0");
+    const minutes = timeVal.getUTCMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  }
+  if (typeof timeVal === "string") {
+    if (timeVal.includes("T")) {
+      const parts = timeVal.split("T");
+      if (parts[1]) {
+        return parts[1].substring(0, 5);
+      }
+    }
+    if (/^\d{2}:\d{2}$/.test(timeVal)) {
+      return timeVal;
+    }
+    return formatTime24(timeVal);
+  }
+  return "";
+}
+
 interface Proyecto {
   code: string;
   nombre: string;
@@ -913,13 +935,9 @@ interface PwaIntervalForm {
             ) : (
               <div className="space-y-3">
                 {history.map((item) => {
-                  const duration = calculateIntervalHours(
-                    item.hora_inicio.split("T")[1]?.substring(0, 5) || formatTime24(item.hora_inicio),
-                    item.hora_fin.split("T")[1]?.substring(0, 5) || formatTime24(item.hora_fin)
-                  );
-                  
-                  const startStr = item.hora_inicio.split("T")[1]?.substring(0, 5) || formatTime24(item.hora_inicio);
-                  const endStr = item.hora_fin.split("T")[1]?.substring(0, 5) || formatTime24(item.hora_fin);
+                  const startStr = formatHistoryTime(item.hora_inicio);
+                  const endStr = formatHistoryTime(item.hora_fin);
+                  const duration = calculateIntervalHours(startStr, endStr);
 
                   const isBType = item.tipo_minuta === "B";
 
