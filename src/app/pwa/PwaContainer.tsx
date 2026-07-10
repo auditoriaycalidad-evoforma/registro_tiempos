@@ -836,7 +836,7 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
                           </p>
                           {item.observacion && (
                             <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">
-                              "{item.observacion}"
+                              &quot;{item.observacion}&quot;
                             </p>
                           )}
                         </div>

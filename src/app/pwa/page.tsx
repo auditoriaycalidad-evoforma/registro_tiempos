@@ -7,10 +7,17 @@ export const metadata = {
   title: "Evoforma - Registro de Tiempos",
   description: "Registro rápido de tiempos de actividades (PWA)",
   manifest: "/manifest.json",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
-  themeColor: "#E87C1E",
   appleWebAppCapable: "yes",
   appleWebAppStatusBarStyle: "default",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#E87C1E",
 };
 
 export default async function PwaPage() {
