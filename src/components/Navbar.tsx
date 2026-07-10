@@ -11,7 +11,7 @@ export default function Navbar() {
   const canApprove = session?.user.rol === "ADMIN" || session?.user.rol === "LIDER";
   const isAdmin = session?.user.rol === "ADMIN" || session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
 
-  if (!session) return null;
+  if (!session || pathname.startsWith("/pwa")) return null;
 
   return (
     <nav className="bg-third border-b color-white border-brand-light/10 shadow-sm sticky top-0 z-50">
