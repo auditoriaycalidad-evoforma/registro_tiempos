@@ -224,8 +224,8 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
               className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50 text-sm"
             >
               <option value="">Seleccione un tipo</option>
-              <option value="A">Tipo A (Horario Habitual)</option>
-              <option value="O">Tipo O (Horas Extra/Adicionales)</option>
+              <option value="A">Tipo A</option>
+              <option value="O">Tipo O</option>
             </select>
           </div>
           <div>

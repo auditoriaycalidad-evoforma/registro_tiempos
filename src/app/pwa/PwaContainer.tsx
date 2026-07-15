@@ -732,14 +732,14 @@ interface PwaIntervalForm {
                     onClick={() => setTipoMinuta("A")}
                     className={`py-2.5 rounded-xl text-xs font-bold transition-all ${tipoMinuta === "A" ? "bg-white dark:bg-[#252630] text-brand-primary shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
                   >
-                    Ordinarias (A)
+                    Tipo A
                   </button>
                   <button
                     type="button"
                     onClick={() => setTipoMinuta("O")}
                     className={`py-2.5 rounded-xl text-xs font-bold transition-all ${tipoMinuta === "O" ? "bg-white dark:bg-[#252630] text-brand-primary shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
                   >
-                    Horas Adicionales (O)
+                    Tipo O
                   </button>
                 </div>
               </div>
@@ -990,7 +990,7 @@ interface PwaIntervalForm {
                           {isOType ? (
                             <>
                               <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400">
-                                Adicionales (O)
+                                Tipo O
                               </span>
                               {item.aprobado === "PE" && (
                                 <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400">
@@ -1010,7 +1010,7 @@ interface PwaIntervalForm {
                             </>
                           ) : (
                             <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
-                              Ordinario (A)
+                              Tipo A
                             </span>
                           )}
                         </div>

@@ -61,7 +61,7 @@ export default async function AdminPage() {
     <div className="space-y-8">
       <div className="color-white">
         <h1 className="text-3xl font-bold tracking-tight">Panel de Administración</h1>
-        <p className="mt-1 text-brand-light/75">Gestión y Aprobación de Tiempos Tipo O (Horas Extra)</p>
+        <p className="mt-1 text-brand-light/75">Gestión y Aprobación de Tiempos Tipo O</p>
       </div>
 
       {/* Sección de Aprobaciones Pendientes (Solo para Líderes) */}

@@ -197,8 +197,8 @@ export function HistorialTiempos({
               className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
             >
               <option value="">Todos los tipos</option>
-              <option value="A">Tipo A (Habitual)</option>
-              <option value="O">Tipo O (Horas Extra)</option>
+              <option value="A">Tipo A</option>
+              <option value="O">Tipo O</option>
             </select>
           </div>
 
@@ -341,8 +341,8 @@ export function HistorialTiempos({
                     onChange={(e) => setEditForm({ ...editForm, tipo_minuta: e.target.value })}
                     className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
                   >
-                    <option value="A">Tipo A (Habitual)</option>
-                    <option value="O">Tipo O (Horas Extra)</option>
+                    <option value="A">Tipo A</option>
+                    <option value="O">Tipo O</option>
                   </select>
                 </div>
               </div>
