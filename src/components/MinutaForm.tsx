@@ -22,13 +22,22 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
   ]);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Calcular la fecha máxima permitida (hoy + 2 días)
+  // Calcular la fecha mínima y máxima permitida (hoy - 2 días a hoy + 2 días)
   const hoy = new Date();
-  hoy.setDate(hoy.getDate() + 2);
-  const yyyy = hoy.getFullYear();
-  const mm = String(hoy.getMonth() + 1).padStart(2, '0');
-  const dd = String(hoy.getDate()).padStart(2, '0');
-  const maxDate = `${yyyy}-${mm}-${dd}`;
+  
+  const hoyMin = new Date(hoy);
+  hoyMin.setDate(hoyMin.getDate() - 2);
+  const yyyyMin = hoyMin.getFullYear();
+  const mmMin = String(hoyMin.getMonth() + 1).padStart(2, '0');
+  const ddMin = String(hoyMin.getDate()).padStart(2, '0');
+  const minDate = `${yyyyMin}-${mmMin}-${ddMin}`;
+
+  const hoyMax = new Date(hoy);
+  hoyMax.setDate(hoyMax.getDate() + 2);
+  const yyyyMax = hoyMax.getFullYear();
+  const mmMax = String(hoyMax.getMonth() + 1).padStart(2, '0');
+  const ddMax = String(hoyMax.getDate()).padStart(2, '0');
+  const maxDate = `${yyyyMax}-${mmMax}-${ddMax}`;
 
   const addRange = () => {
     if (ranges.length < 7) {
@@ -152,14 +161,16 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
     if (fechaInput) {
       const hoyVal = new Date();
       const hoySoloFecha = new Date(hoyVal.getFullYear(), hoyVal.getMonth(), hoyVal.getDate());
+      const limiteMinimo = new Date(hoySoloFecha);
+      limiteMinimo.setDate(limiteMinimo.getDate() - 2);
       const limiteMaximo = new Date(hoySoloFecha);
       limiteMaximo.setDate(limiteMaximo.getDate() + 2);
       
       const [year, month, day] = fechaInput.split("-").map(Number);
       const fechaIngresada = new Date(year, month - 1, day);
       
-      if (fechaIngresada > limiteMaximo) {
-        setError("No es posible registrar tiempos para fechas con más de dos días de posterioridad a la fecha actual.");
+      if (fechaIngresada < limiteMinimo || fechaIngresada > limiteMaximo) {
+        setError("La fecha seleccionada no está permitida");
         return;
       }
     }
@@ -214,7 +225,7 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
             >
               <option value="">Seleccione un tipo</option>
               <option value="A">Tipo A (Horario Habitual)</option>
-              <option value="B">Tipo B (Horas Adicionales)</option>
+              <option value="O">Tipo O (Horas Extra/Adicionales)</option>
             </select>
           </div>
           <div>
@@ -226,6 +237,7 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
               type="date" 
               name="fecha" 
               required 
+              min={minDate}
               max={maxDate}
               className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50 text-sm" 
             />

@@ -15,7 +15,9 @@ export default async function AdminPage() {
     redirect("/dashboard");
   }
 
-  const isAdmin = session.user.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
+  const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+  const userEmail = session.user.email?.toLowerCase();
+  const isAdmin = userEmail && allowedEmails.includes(userEmail);
 
   // Consultar minuta_empleado para saber si es líder
   const empleado = await prisma.minuta_empleado.findUnique({
@@ -27,9 +29,9 @@ export default async function AdminPage() {
     redirect("/dashboard");
   }
 
-  // Filtrar las minutas B pendientes y todo el historial
-  const minutasB = await prisma.minuta_registro_actividad.findMany({
-    where: { tipo_minuta: "B" },
+  // Filtrar las minutas O pendientes y todo el historial
+  const minutasO = await prisma.minuta_registro_actividad.findMany({
+    where: { tipo_minuta: "O" },
     orderBy: [{ fecha: "desc" }],
     include: {
       minuta_empleado: true,
@@ -39,8 +41,8 @@ export default async function AdminPage() {
   });
 
   // Una vez aprobado (SI) o rechazado (RE), desaparece de pendientes (PE)
-  const pendientes = minutasB.filter((m) => m.aprobado === "PE");
-  const procesadas = minutasB.filter((m) => m.aprobado === "SI" || m.aprobado === "RE");
+  const pendientes = minutasO.filter((m) => m.aprobado === "PE");
+  const procesadas = minutasO.filter((m) => m.aprobado === "SI" || m.aprobado === "RE");
 
   // Normalización de texto para comparar áreas sin problemas de acentos ni mayúsculas/minúsculas
   const normalizeString = (str: string) => 
@@ -59,7 +61,7 @@ export default async function AdminPage() {
     <div className="space-y-8">
       <div className="color-white">
         <h1 className="text-3xl font-bold tracking-tight">Panel de Administración</h1>
-        <p className="mt-1 text-brand-light/75">Gestión y Aprobación de Tiempos Tipo B (Horas Extra)</p>
+        <p className="mt-1 text-brand-light/75">Gestión y Aprobación de Tiempos Tipo O (Horas Extra)</p>
       </div>
 
       {/* Sección de Aprobaciones Pendientes (Solo para Líderes) */}
@@ -73,7 +75,7 @@ export default async function AdminPage() {
           </div>
 
           {pendientesFiltradas.length === 0 ? (
-            <div className="p-8 text-center text-brand-dark/60">No hay tiempos B pendientes de aprobación en este momento.</div>
+            <div className="p-8 text-center text-brand-dark/60">No hay tiempos O pendientes de aprobación en este momento.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-brand-dark/80">

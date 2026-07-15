@@ -33,17 +33,23 @@ export async function createMinutasPwa(data: { fecha: string; tipo: string; inte
     return { error: "Debe registrar al menos un rango de tiempo." };
   }
 
-  // Validar que la fecha no sea superior a dos días después del día en curso
+  if (tipo !== "A" && tipo !== "O") {
+    return { error: "Tipo de tiempo no permitido" };
+  }
+
+  // Validar que la fecha no sea inferior a dos días antes ni superior a dos días después del día en curso
   const hoy = new Date();
   const hoySoloFecha = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const limiteMinimo = new Date(hoySoloFecha);
+  limiteMinimo.setDate(limiteMinimo.getDate() - 2);
   const limiteMaximo = new Date(hoySoloFecha);
   limiteMaximo.setDate(limiteMaximo.getDate() + 2);
 
   const [year, month, day] = fecha.split("-").map(Number);
   const fechaIngresada = new Date(year, month - 1, day);
 
-  if (fechaIngresada > limiteMaximo) {
-    return { error: "No es posible registrar tiempos para fechas posteriores a más de 2 días de la fecha actual." };
+  if (fechaIngresada < limiteMinimo || fechaIngresada > limiteMaximo) {
+    return { error: "La fecha seleccionada no está permitida" };
   }
 
   const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -162,7 +168,7 @@ export async function createMinutasPwa(data: { fecha: string; tipo: string; inte
             proyecto: inv.proyecto,
             actividad: inv.actividad,
             tipo_minuta: tipo,
-            aprobado: tipo === "B" ? "PE" : "SI",
+            aprobado: tipo === "O" ? "PE" : "SI",
             observacion: inv.observacion,
           },
         });
@@ -195,7 +201,9 @@ export async function getPwaHistory() {
     return { error: "No autorizado" };
   }
 
-  const isAdmin = session.user.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
+  const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+  const userEmail = session.user.email?.toLowerCase();
+  const isAdmin = userEmail && allowedEmails.includes(userEmail);
   if (!isAdmin) {
     return { history: [] };
   }
@@ -239,8 +247,12 @@ export async function deleteMinutaPwa(id: number) {
       return { error: "Registro no encontrado o no autorizado." };
     }
 
-    // Bloquear eliminación si es horas extra B y ya está aprobado
-    if (record.tipo_minuta === "B" && record.aprobado === "SI") {
+    const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+    const userEmail = session.user.email?.toLowerCase();
+    const isSpecialUser = userEmail && allowedEmails.includes(userEmail);
+
+    // Bloquear eliminación si es horas extra O y ya está aprobado
+    if (record.tipo_minuta === "O" && record.aprobado === "SI" && !isSpecialUser) {
       return { error: "No puedes eliminar un registro de horas extra que ya ha sido aprobado." };
     }
 

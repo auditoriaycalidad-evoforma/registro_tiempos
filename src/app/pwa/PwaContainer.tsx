@@ -69,6 +69,20 @@ interface PwaContainerProps {
 export function PwaContainer({ proyectos, actividades, initialHistory, session }: PwaContainerProps) {
   const isAdmin = session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
 
+  const minDateStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 10);
+  }, []);
+
+  const maxDateStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 10);
+  }, []);
+
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<"registrar" | "historial">("registrar");
   const [darkMode, setDarkMode] = useState<boolean>(false);
@@ -91,7 +105,7 @@ export function PwaContainer({ proyectos, actividades, initialHistory, session }
     const localISOTime = (new Date(Date.now() - tzOffset)).toISOString().slice(0, 10);
     return localISOTime;
   });
-  const [tipoMinuta, setTipoMinuta] = useState<string>("A"); // "A" = Ordinaria, "B" = Extra
+  const [tipoMinuta, setTipoMinuta] = useState<string>("A"); // "A" = Ordinaria, "O" = Extrar
 interface PwaIntervalForm {
   proyecto: string;
   proyectoText: string;
@@ -399,8 +413,24 @@ interface PwaIntervalForm {
       }
     }
 
+    if (fecha) {
+      const hoy = new Date();
+      const hoySoloFecha = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+      const limiteMinimo = new Date(hoySoloFecha);
+      limiteMinimo.setDate(limiteMinimo.getDate() - 2);
+      const limiteMaximo = new Date(hoySoloFecha);
+      limiteMaximo.setDate(limiteMaximo.getDate() + 2);
+
+      const [year, month, day] = fecha.split("-").map(Number);
+      const fechaIngresada = new Date(year, month - 1, day);
+
+      if (fechaIngresada < limiteMinimo || fechaIngresada > limiteMaximo) {
+        return { isValid: false, message: "La fecha seleccionada no está permitida" };
+      }
+    }
+
     return { isValid: true, message: "" };
-  }, [intervals]);
+  }, [intervals, fecha]);
 
   // --- AUTOCOMPLETES LOGIC ---
   const handleProjectSearch = (text: string, index: number) => {
@@ -668,6 +698,8 @@ interface PwaIntervalForm {
                     <input 
                       type="date"
                       value={fecha}
+                      min={minDateStr}
+                      max={maxDateStr}
                       onChange={(e) => setFecha(e.target.value)}
                       className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-brand-primary transition-all font-semibold"
                     />
@@ -704,10 +736,10 @@ interface PwaIntervalForm {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTipoMinuta("B")}
-                    className={`py-2.5 rounded-xl text-xs font-bold transition-all ${tipoMinuta === "B" ? "bg-white dark:bg-[#252630] text-brand-primary shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
+                    onClick={() => setTipoMinuta("O")}
+                    className={`py-2.5 rounded-xl text-xs font-bold transition-all ${tipoMinuta === "O" ? "bg-white dark:bg-[#252630] text-brand-primary shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
                   >
-                    Horas Adicionales (B)
+                    Horas Adicionales (O)
                   </button>
                 </div>
               </div>
@@ -941,7 +973,7 @@ interface PwaIntervalForm {
                   const endStr = formatHistoryTime(item.hora_fin);
                   const duration = calculateIntervalHours(startStr, endStr);
 
-                  const isBType = item.tipo_minuta === "B";
+                  const isOType = item.tipo_minuta === "O";
 
                   return (
                     <div 
@@ -955,10 +987,10 @@ interface PwaIntervalForm {
                           <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{item.fecha}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          {isBType ? (
+                          {isOType ? (
                             <>
                               <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400">
-                                Adicionales (B)
+                                Adicionales (O)
                               </span>
                               {item.aprobado === "PE" && (
                                 <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400">
@@ -1007,7 +1039,7 @@ interface PwaIntervalForm {
                           </span>
                           
                           {/* Only show delete option if not approved or if type A */}
-                          {(!isBType || item.aprobado !== "SI") && (
+                          {(!isOType || item.aprobado !== "SI") && (
                             <button
                               type="button"
                               onClick={() => handleDeleteEntry(item.id)}

@@ -54,3 +54,14 @@ model minuta_registro_actividad {
   minuta_empleado  minuta_empleado   @relation(fields: [empleado], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_registro_empleado")
   minuta_proyecto  minuta_proyecto?  @relation(fields: [proyecto], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "fk_registro_proyecto")
 }
+
+model minuta_auditoria {
+  id             Int      @id @default(autoincrement())
+  registro_id    Int
+  usuario        String   @db.VarChar(255)
+  fecha_cambio   DateTime @default(now()) @db.Timestamp(6)
+  campo          String   @db.VarChar(255)
+  valor_anterior String?  @db.VarChar(2048)
+  valor_nuevo    String?  @db.VarChar(2048)
+}
+

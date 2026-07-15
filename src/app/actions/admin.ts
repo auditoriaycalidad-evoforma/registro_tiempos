@@ -15,6 +15,26 @@ export async function approveMinuta(id: number, decision: "SI" | "RE") {
   }
 
   try {
+    const record = await prisma.minuta_registro_actividad.findUnique({
+      where: { id },
+    });
+
+    if (!record) {
+      return { error: "Registro no encontrado" };
+    }
+
+    if (record.tipo_minuta !== "O") {
+      return { error: "Solo se pueden aprobar tiempos de tipo O." };
+    }
+
+    const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+    const userEmail = session?.user?.email?.toLowerCase();
+    const isSpecialUser = userEmail && allowedEmails.includes(userEmail);
+
+    if (record.aprobado === "SI" && !isSpecialUser) {
+      return { error: "No tiene permisos para modificar tiempos aprobados." };
+    }
+
     await prisma.minuta_registro_actividad.update({
       where: { id },
       data: { aprobado: decision },

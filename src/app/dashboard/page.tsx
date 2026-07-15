@@ -10,7 +10,9 @@ export default async function DashboardPage() {
 
   if (!session?.user?.id) return null;
 
-  const isAdmin = session.user.rol === "ADMIN" || session.user.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
+  const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+  const userEmail = session.user.email?.toLowerCase();
+  const isAdmin = session.user.rol === "ADMIN" || (userEmail && allowedEmails.includes(userEmail));
 
   type ProyectoOption = {
     code: string;
@@ -72,7 +74,7 @@ export default async function DashboardPage() {
 
       {isAdmin ? (
         <div className="w-full">
-          <HistorialTiempos tiempos={minutas} />
+          <HistorialTiempos tiempos={minutas} proyectos={proyectos} actividades={actividades} />
         </div>
       ) : esLiderN ? (
         <div className="max-w-3xl mx-auto w-full">

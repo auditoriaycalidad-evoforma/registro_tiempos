@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CheckCircle2, Clock, XCircle, Search, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, Search, SlidersHorizontal, ArrowUpDown, Edit2, Save, X, AlertCircle } from "lucide-react";
 import { formatTime24 } from "@/lib/formatTime";
+import { useSession } from "next-auth/react";
+import { updateMinutaHistory } from "@/app/actions/minuta";
+import { useRouter } from "next/navigation";
 
 interface TiempoRecord {
   id: number;
@@ -16,6 +19,7 @@ interface TiempoRecord {
   proyecto: string | null;
   tipo_minuta: string;
   aprobado: string | null;
+  observacion?: string | null;
   minuta_proyecto?: {
     code: string;
     nombre: string;
@@ -32,15 +36,45 @@ interface TiempoRecord {
   } | null;
 }
 
-export function HistorialTiempos({ tiempos }: { tiempos: TiempoRecord[] }) {
+export function HistorialTiempos({ 
+  tiempos, 
+  proyectos = [], 
+  actividades = [] 
+}: { 
+  tiempos: TiempoRecord[]; 
+  proyectos?: any[]; 
+  actividades?: any[]; 
+}) {
+  const { data: session } = useSession();
+  const router = useRouter();
+
   const [search, setSearch] = useState("");
   const [tipoFilter, setTipoFilter] = useState("");
   const [estadoFilter, setEstadoFilter] = useState("");
   const [sortAsc, setSortAsc] = useState(false); // Default desc
 
+  // Edit states
+  const [editingRecord, setEditingRecord] = useState<TiempoRecord | null>(null);
+  const [editForm, setEditForm] = useState({
+    fecha: "",
+    hora_inicio: "",
+    hora_fin: "",
+    proyecto: "",
+    actividad: "",
+    tipo_minuta: "",
+    aprobado: "",
+    observacion: ""
+  });
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const sessionEmail = session?.user?.email?.toLowerCase();
+  const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+  const canEditHistory = sessionEmail && allowedEmails.includes(sessionEmail);
+
   const getStatusIcon = (tipo: string, aprobado: string | null) => {
     if (tipo === "A") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Horario Habitual" />;
-    if (tipo === "B") {
+    if (tipo === "O") {
       if (aprobado === "SI") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Aprobado" />;
       if (aprobado === "NO" || aprobado === "RE") return <XCircle className="h-5 w-5 text-red-500" aria-label="Rechazado" />;
       return <Clock className="h-5 w-5 text-amber-500" aria-label="Pendiente" />;
@@ -50,7 +84,7 @@ export function HistorialTiempos({ tiempos }: { tiempos: TiempoRecord[] }) {
 
   const getStatusBadge = (tipo: string, aprobado: string | null) => {
     if (tipo === "A") return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Regular</span>;
-    if (tipo === "B") {
+    if (tipo === "O") {
       if (aprobado === "SI") return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Aprobado</span>;
       if (aprobado === "NO" || aprobado === "RE") return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rechazado</span>;
       return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">Pendiente</span>;
@@ -97,6 +131,44 @@ export function HistorialTiempos({ tiempos }: { tiempos: TiempoRecord[] }) {
     return sortAsc ? startA.localeCompare(startB) : startB.localeCompare(startA);
   });
 
+  // Edit methods
+  const handleStartEdit = (t: TiempoRecord) => {
+    const dateObj = new Date(t.fecha);
+    const yyyy = dateObj.getUTCFullYear();
+    const mm = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(dateObj.getUTCDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+
+    setEditingRecord(t);
+    setEditForm({
+      fecha: dateStr,
+      hora_inicio: formatTime24(t.hora_inicio),
+      hora_fin: formatTime24(t.hora_fin),
+      proyecto: t.proyecto || "",
+      actividad: t.actividad || "",
+      tipo_minuta: t.tipo_minuta,
+      aprobado: t.aprobado || "SI",
+      observacion: t.observacion || ""
+    });
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingRecord) return;
+    setIsSaving(true);
+    setEditError(null);
+
+    const res = await updateMinutaHistory(editingRecord.id, editForm);
+    if (res.error) {
+      setEditError(res.error);
+      setIsSaving(false);
+    } else {
+      setIsSaving(false);
+      setEditingRecord(null);
+      router.refresh();
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md border border-brand-dark/10 overflow-hidden hover:shadow-lg transition-shadow duration-300">
       <div className="p-6 border-b border-brand-dark/10 bg-slate-50/50">
@@ -126,7 +198,7 @@ export function HistorialTiempos({ tiempos }: { tiempos: TiempoRecord[] }) {
             >
               <option value="">Todos los tipos</option>
               <option value="A">Tipo A (Habitual)</option>
-              <option value="B">Tipo B (Adicional)</option>
+              <option value="O">Tipo O (Horas Extra)</option>
             </select>
           </div>
 
@@ -168,6 +240,7 @@ export function HistorialTiempos({ tiempos }: { tiempos: TiempoRecord[] }) {
                 <th className="px-4 py-3 font-bold">Actividad</th>
                 <th className="px-4 py-3 font-bold text-center">Tipo</th>
                 <th className="px-4 py-3 font-bold text-center">Estado</th>
+                {canEditHistory && <th className="px-4 py-3 font-bold text-center">Acción</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-dark/10">
@@ -202,10 +275,188 @@ export function HistorialTiempos({ tiempos }: { tiempos: TiempoRecord[] }) {
                       {getStatusBadge(t.tipo_minuta, t.aprobado)}
                     </div>
                   </td>
+                  {canEditHistory && (
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                      <button
+                        onClick={() => handleStartEdit(t)}
+                        className="p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/10 transition-colors"
+                        title="Editar registro"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-brand-dark/10 overflow-hidden animate-scaleIn">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-brand-dark/10 bg-slate-50 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-brand-dark">Modificar Registro Histórico</h3>
+                <p className="text-xs text-brand-dark/60 mt-0.5">Editando registro #{editingRecord.id} del empleado {editingRecord.minuta_empleado?.apellido_nombre || editingRecord.empleado}</p>
+              </div>
+              <button
+                onClick={() => setEditingRecord(null)}
+                className="text-brand-dark/40 hover:text-brand-dark hover:bg-brand-dark/5 p-1.5 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Error Message */}
+            {editError && (
+              <div className="mx-6 mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            {/* Form */}
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Fecha */}
+                <div>
+                  <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Fecha</label>
+                  <input
+                    type="date"
+                    value={editForm.fecha}
+                    onChange={(e) => setEditForm({ ...editForm, fecha: e.target.value })}
+                    className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
+                  />
+                </div>
+
+                {/* Tipo de Horas */}
+                <div>
+                  <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Tipo de Horas</label>
+                  <select
+                    value={editForm.tipo_minuta}
+                    onChange={(e) => setEditForm({ ...editForm, tipo_minuta: e.target.value })}
+                    className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
+                  >
+                    <option value="A">Tipo A (Habitual)</option>
+                    <option value="O">Tipo O (Horas Extra)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Hora Inicio */}
+                <div>
+                  <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Inicio (HH:MM)</label>
+                  <input
+                    type="text"
+                    placeholder="HH:MM"
+                    maxLength={5}
+                    value={editForm.hora_inicio}
+                    onChange={(e) => setEditForm({ ...editForm, hora_inicio: e.target.value })}
+                    className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
+                  />
+                </div>
+
+                {/* Hora Fin */}
+                <div>
+                  <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Fin (HH:MM)</label>
+                  <input
+                    type="text"
+                    placeholder="HH:MM"
+                    maxLength={5}
+                    value={editForm.hora_fin}
+                    onChange={(e) => setEditForm({ ...editForm, hora_fin: e.target.value })}
+                    className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Proyecto */}
+              <div>
+                <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Cédula del Proyecto</label>
+                <select
+                  value={editForm.proyecto}
+                  onChange={(e) => setEditForm({ ...editForm, proyecto: e.target.value })}
+                  className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
+                >
+                  {proyectos.map((p: any) => (
+                    <option key={p.code} value={p.code}>
+                      {p.code} - {p.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Actividad */}
+              <div>
+                <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Actividad</label>
+                <select
+                  value={editForm.actividad}
+                  onChange={(e) => setEditForm({ ...editForm, actividad: e.target.value })}
+                  className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
+                >
+                  {actividades.map((a: any) => (
+                    <option key={a.code} value={a.code}>
+                      {a.nombre} {a.area ? `(${a.area})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Estado */}
+                <div>
+                  <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Estado de Aprobación</label>
+                  <select
+                    value={editForm.aprobado}
+                    onChange={(e) => setEditForm({ ...editForm, aprobado: e.target.value })}
+                    className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
+                  >
+                    <option value="SI">Aprobado / Regular</option>
+                    <option value="PE">Pendiente</option>
+                    <option value="RE">Rechazado</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Observación */}
+              <div>
+                <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Observación</label>
+                <textarea
+                  rows={2}
+                  value={editForm.observacion}
+                  onChange={(e) => setEditForm({ ...editForm, observacion: e.target.value })}
+                  className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
+                  placeholder="Detalles sobre este registro..."
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-brand-dark/10 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditingRecord(null)}
+                disabled={isSaving}
+                className="px-4 py-2 border border-brand-dark/25 hover:bg-slate-100 text-brand-dark text-sm font-semibold rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+                className="px-4 py-2 bg-brand-primary hover:bg-brand-primary/95 text-white text-sm font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="w-4 h-4" />
+                {isSaving ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
