@@ -262,3 +262,25 @@ export async function replaceSheetValues(
   );
 }
 
+export async function getSheetValues(
+  spreadsheetId: string,
+  sheetTitle?: string
+): Promise<(string | number)[][]> {
+  const config = getGoogleConfig();
+  const accessToken = await requestAccessToken(config);
+
+  const range = sheetTitle ? `'${sheetTitle}'!A:Z` : "A:Z";
+  const encodedRange = encodeURIComponent(range);
+
+  try {
+    const data = await googleFetch<{ values?: (string | number)[][] }>(
+      `${SHEETS_URL}/${spreadsheetId}/values/${encodedRange}`,
+      accessToken
+    );
+    return data.values ?? [];
+  } catch (error) {
+    // If the sheet has no values or doesn't exist yet, return empty list
+    return [];
+  }
+}
+

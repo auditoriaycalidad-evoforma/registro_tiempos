@@ -2,7 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
-import { LogOut, LayoutDashboard, Clock, Shield, FileSpreadsheet } from "lucide-react";
+import { LogOut, LayoutDashboard, Clock, Shield, FileSpreadsheet, BarChart3 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 export default function Navbar() {
@@ -10,6 +10,10 @@ export default function Navbar() {
   const pathname = usePathname();
   const canApprove = session?.user.rol === "ADMIN" || session?.user.rol === "LIDER";
   const isAdmin = session?.user.rol === "ADMIN" || session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
+  
+  const allowedReportEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+  const userEmail = session?.user?.email?.toLowerCase();
+  const showReportes = !!(userEmail && allowedReportEmails.includes(userEmail));
 
   if (!session || pathname.startsWith("/pwa")) return null;
 
@@ -57,6 +61,19 @@ export default function Navbar() {
                 >
                   <FileSpreadsheet className="h-4 w-4 mr-1.5 text-brand-primary" />
                   Exportar
+                </Link>
+              )}
+
+              {showReportes && (
+                <Link
+                  href="/reportes"
+                  className={`${pathname.startsWith("/reportes")
+                    ? "border-brand-primary text-brand-light"
+                    : "border-transparent text-brand-light/70 hover:border-brand-primary/50 hover:text-brand-dark"
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                >
+                  <BarChart3 className="h-4 w-4 mr-1.5 text-brand-primary" />
+                  Reportes
                 </Link>
               )}
             </div>

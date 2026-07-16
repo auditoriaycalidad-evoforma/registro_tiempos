@@ -123,7 +123,6 @@ interface PwaIntervalForm {
   // Autocomplete & focus references
   const [focusedField, setFocusedField] = useState<{ index: number; field: "proyecto" | "actividad" | null }>({ index: -1, field: null });
   const [projectSearch, setProjectSearch] = useState<string[]>([]);
-  const [activitySearch, setActivitySearch] = useState<string[]>([]);
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -280,36 +279,6 @@ interface PwaIntervalForm {
     }, 200);
   };
 
-  const handleActivityBlur = (index: number) => {
-    setTimeout(() => {
-      setIntervals((prev) => {
-        const copy = [...prev];
-        const typed = copy[index].actividadText.trim();
-        if (!typed) {
-          copy[index].actividad = "";
-          copy[index].actividadText = "";
-          return copy;
-        }
-        const match = actividades.find(
-          (a) => 
-            a.nombre.toLowerCase() === typed.toLowerCase() || 
-            a.code.toLowerCase() === typed.toLowerCase() ||
-            `${a.code} - ${a.nombre}`.toLowerCase() === typed.toLowerCase()
-        );
-        if (match) {
-          copy[index].actividad = match.code;
-          copy[index].actividadText = match.nombre;
-        } else {
-          const isValidCode = actividades.some(a => a.code === copy[index].actividad);
-          if (!isValidCode) {
-            copy[index].actividad = "";
-          }
-        }
-        return copy;
-      });
-      setActivitySearch([]);
-    }, 200);
-  };
 
   const addInterval = () => {
     setIntervals((prev) => [
@@ -454,28 +423,6 @@ interface PwaIntervalForm {
     setProjectSearch(filtered);
   };
 
-  const handleActivitySearch = (text: string, index: number) => {
-    updateInterval(index, "actividadText", text);
-    const exactNameMatch = actividades.find(
-      (a) => a.nombre?.toLowerCase() === text.trim().toLowerCase() || a.code?.toLowerCase() === text.trim().toLowerCase()
-    );
-    if (exactNameMatch) {
-      updateInterval(index, "actividad", exactNameMatch.code);
-    } else {
-      updateInterval(index, "actividad", "");
-    }
-
-    if (!text.trim()) {
-      setActivitySearch([]);
-      return;
-    }
-    const query = text.toLowerCase();
-    const filtered = actividades
-      .filter((a) => a.nombre?.toLowerCase().includes(query) || a.code?.toLowerCase().includes(query))
-      .slice(0, 6)
-      .map((a) => `${a.code} - ${a.nombre}`);
-    setActivitySearch(filtered);
-  };
 
   // --- SUBMIT ---
   const handleSave = async () => {
@@ -820,45 +767,31 @@ interface PwaIntervalForm {
                       )}
                     </div>
 
-                    {/* Auto-Complete Actividad */}
+                    {/* Select Actividad */}
                     <div className="relative">
                       <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
                         Actividad
                       </label>
                       <div className="relative">
-                        <Sparkles className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input 
-                          type="text"
-                          placeholder="Buscar actividad..."
-                          value={inv.actividadText}
-                          onChange={(e) => handleActivitySearch(e.target.value, index)}
-                          onFocus={() => setFocusedField({ index, field: "actividad" })}
-                          onBlur={() => handleActivityBlur(index)}
-                          className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl pl-9 pr-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary font-medium"
-                        />
-                      </div>
-
-                      {/* Activity Dropdown overlay */}
-                      {focusedField.index === index && focusedField.field === "actividad" && activitySearch.length > 0 && (
-                        <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-20 overflow-hidden animate-scaleIn">
-                          {activitySearch.map((option, oIdx) => (
-                            <button
-                              key={oIdx}
-                              type="button"
-                              onMouseDown={() => {
-                                const code = option.split(" - ")[0];
-                                const name = option.substring(code.length + 3);
-                                updateInterval(index, "actividad", code);
-                                updateInterval(index, "actividadText", name);
-                                setActivitySearch([]);
-                              }}
-                              className="w-full text-left px-4 py-3 text-xs hover:bg-slate-100 dark:hover:bg-slate-800 active:bg-slate-200 dark:active:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-800/50 last:border-0 truncate font-semibold"
-                            >
-                              {option}
-                            </button>
+                        <Sparkles className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <select 
+                          value={inv.actividad}
+                          onChange={(e) => {
+                            const code = e.target.value;
+                            const match = actividades.find(a => a.code === code);
+                            updateInterval(index, "actividad", code);
+                            updateInterval(index, "actividadText", match ? match.nombre : "");
+                          }}
+                          className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl pl-9 pr-8 py-2.5 text-xs focus:outline-none focus:border-brand-primary font-semibold text-slate-700 dark:text-slate-200"
+                        >
+                          <option value="">Seleccione una actividad...</option>
+                          {actividades.map((a) => (
+                            <option key={a.code} value={a.code}>
+                              {a.nombre} {a.area ? `(${a.area})` : ''}
+                            </option>
                           ))}
-                        </div>
-                      )}
+                        </select>
+                      </div>
                     </div>
 
                     {/* Time Pickers (Inicio / Fin) */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CheckCircle2, Clock, XCircle, Search, SlidersHorizontal, ArrowUpDown, Edit2, Save, X, AlertCircle } from "lucide-react";
@@ -33,6 +33,7 @@ interface TiempoRecord {
   minuta_empleado?: {
     id: string;
     apellido_nombre: string;
+    cargo?: string | null;
   } | null;
 }
 
@@ -51,7 +52,19 @@ export function HistorialTiempos({
   const [search, setSearch] = useState("");
   const [tipoFilter, setTipoFilter] = useState("");
   const [estadoFilter, setEstadoFilter] = useState("");
+  const [cargoFilter, setCargoFilter] = useState("");
   const [sortAsc, setSortAsc] = useState(false); // Default desc
+
+  const cargosDisponibles = useMemo(() => {
+    const set = new Set<string>();
+    tiempos.forEach((t) => {
+      const cargo = t.minuta_empleado?.cargo;
+      if (cargo) {
+        set.add(cargo.trim());
+      }
+    });
+    return Array.from(set).sort();
+  }, [tiempos]);
 
   // Edit states
   const [editingRecord, setEditingRecord] = useState<TiempoRecord | null>(null);
@@ -114,7 +127,11 @@ export function HistorialTiempos({
       }
     }
 
-    return matchesSearch && matchesTipo && matchesEstado;
+    const matchesCargo = cargoFilter
+      ? t.minuta_empleado?.cargo?.trim() === cargoFilter
+      : true;
+
+    return matchesSearch && matchesTipo && matchesEstado && matchesCargo;
   });
 
   // Sort records by date/start time
@@ -176,7 +193,7 @@ export function HistorialTiempos({
         <p className="text-xs text-brand-dark/60 mt-1">Busca, filtra y consulta tus registros de tiempo.</p>
         
         {/* Barra de Filtros */}
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="relative">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-brand-dark/40" />
@@ -212,6 +229,21 @@ export function HistorialTiempos({
               <option value="SI">Aprobado / Regular</option>
               <option value="PE">Pendiente</option>
               <option value="RE">Rechazado</option>
+            </select>
+          </div>
+
+          <div className="relative">
+            <select
+              value={cargoFilter}
+              onChange={(e) => setCargoFilter(e.target.value)}
+              className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
+            >
+              <option value="">Todos los cargos</option>
+              {cargosDisponibles.map((cargo) => (
+                <option key={cargo} value={cargo}>
+                  {cargo}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -250,7 +282,12 @@ export function HistorialTiempos({
                     {format(new Date(t.fecha), 'MMM dd, yyyy', { locale: es })}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-brand-dark/90 font-medium">
-                    {t.minuta_empleado?.apellido_nombre || t.empleado}
+                    <div>{t.minuta_empleado?.apellido_nombre || t.empleado}</div>
+                    {t.minuta_empleado?.cargo && (
+                      <div className="text-[10px] text-brand-dark/50 font-normal mt-0.5">
+                        {t.minuta_empleado.cargo}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-semibold">
                     {formatTime24(t.hora_inicio)} - {formatTime24(t.hora_fin)}

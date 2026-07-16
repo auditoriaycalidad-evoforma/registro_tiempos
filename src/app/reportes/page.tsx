@@ -2,9 +2,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
-import { AprobacionesPanel } from "@/components/AprobacionesPanel";
+import { ReportesPanel } from "@/components/ReportesPanel";
 
-export default async function AdminPage() {
+export default async function ReportesPage() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -13,22 +13,18 @@ export default async function AdminPage() {
 
   const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
   const userEmail = session.user.email?.toLowerCase();
-  const isAdmin = !!(userEmail && allowedEmails.includes(userEmail));
+  const showReportes = !!(userEmail && allowedEmails.includes(userEmail));
 
-  // Consultar minuta_empleado para saber si es líder
-  const empleado = await prisma.minuta_empleado.findUnique({
-    where: { id: session.user.id }
-  });
-  const esLider = empleado?.es_lider === "S";
-
-  if (!esLider && !isAdmin) {
+  if (!showReportes) {
     redirect("/dashboard");
   }
 
-  // Filtrar las minutas O pendientes y todo el historial
-  const minutasO = await prisma.minuta_registro_actividad.findMany({
-    where: { tipo_minuta: "O" },
-    orderBy: [{ fecha: "desc" }, { hora_inicio: "desc" }],
+  // Fetch all minutas to build reports (both Type A and Type O)
+  const minutas = await prisma.minuta_registro_actividad.findMany({
+    orderBy: [
+      { fecha: "asc" },
+      { hora_inicio: "asc" },
+    ],
     include: {
       minuta_empleado: true,
       minuta_proyecto: true,
@@ -36,11 +32,8 @@ export default async function AdminPage() {
     },
   });
 
-  const leaderAreas = empleado?.area_lider || [];
-  const isSuperAdmin = userEmail === "auditoriaycalidad@evoforma.net";
-
-  // Serializar fechas a cadenas ISO para Next.js Client Component
-  const serializedMinutasO = minutasO.map((m) => ({
+  // Serialize records for Client Component consumption
+  const serializedMinutas = minutas.map((m) => ({
     id: m.id,
     empleado: m.empleado,
     fecha: m.fecha.toISOString(),
@@ -48,6 +41,7 @@ export default async function AdminPage() {
     hora_fin: m.hora_fin.toISOString(),
     proyecto: m.proyecto,
     actividad: m.actividad,
+    tipo_minuta: m.tipo_minuta,
     aprobado: m.aprobado,
     observacion: m.observacion,
     minuta_empleado: m.minuta_empleado
@@ -73,19 +67,15 @@ export default async function AdminPage() {
   }));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="color-white">
-        <h1 className="text-3xl font-bold tracking-tight">Panel de Administración</h1>
-        <p className="mt-1 text-brand-light/75">Gestión y Aprobación de Tiempos Tipo O</p>
+        <h1 className="text-3xl font-bold tracking-tight">Reportes y Tablas Dinámicas</h1>
+        <p className="mt-1 text-brand-light/75">
+          Consulte la información acumulada de horas, clasificada por área, mes, empleado y tipo.
+        </p>
       </div>
 
-      <AprobacionesPanel
-        minutasO={serializedMinutasO}
-        esLider={esLider}
-        isAdmin={isAdmin}
-        leaderAreas={leaderAreas}
-        isSuperAdmin={isSuperAdmin}
-      />
+      <ReportesPanel minutas={serializedMinutas} />
     </div>
   );
 }
