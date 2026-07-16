@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { ExportSyncButton } from "@/components/ExportSyncButton";
+import { CleanDatabaseButton } from "@/components/CleanDatabaseButton";
 import { CalendarClock, FileSpreadsheet, FolderOpen } from "lucide-react";
 
 function getCurrentYearRange() {
@@ -96,6 +97,8 @@ export default async function ExportarPage() {
           <p className="mt-3 text-sm font-semibold text-brand-dark group-hover:underline">Abrir en Drive</p>
         </a>
       </div>
+
+      <CleanDatabaseButton />
 
       <div className="bg-white rounded-xl shadow-sm border border-brand-dark/10 overflow-hidden">
         <div className="p-6 border-b border-brand-dark/10">
