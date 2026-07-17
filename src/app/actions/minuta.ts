@@ -66,30 +66,28 @@ export async function createMinuta(formData: FormData) {
     const actividad = formData.get(`actividad_${idx}`) as string;
     const observacion = (formData.get(`observacion_${idx}`) as string) || "";
     
-    if (start || end || proyecto || actividad || observacion) {
-      if (!start || !end || !proyecto || !actividad) {
-        return { error: `Debe completar Cédula, Actividad, Hora de Inicio y Hora de Fin para el rango #${parseInt(idx) + 1}.` };
-      }
-      
-      const trimmedStart = start.trim();
-      const trimmedEnd = end.trim();
-      
-      if (!timePattern.test(trimmedStart) || !timePattern.test(trimmedEnd)) {
-        return { error: "Las horas deben estar en formato de 24 horas (HH:MM)" };
-      }
-      
-      if (trimmedEnd <= trimmedStart) {
-        return { error: `La hora de fin (${trimmedEnd}) debe ser posterior a la hora de inicio (${trimmedStart})` };
-      }
-      
-      intervals.push({ 
-        proyecto: proyecto.trim(), 
-        actividad: actividad.trim(), 
-        horaInicio: trimmedStart, 
-        horaFin: trimmedEnd,
-        observacion: observacion.trim()
-      });
+    if (!start || !end || !proyecto || !actividad) {
+      return { error: `Debe completar Cédula, Actividad, Hora de Inicio y Hora de Fin para el rango #${parseInt(idx) + 1}.` };
     }
+    
+    const trimmedStart = start.trim();
+    const trimmedEnd = end.trim();
+    
+    if (!timePattern.test(trimmedStart) || !timePattern.test(trimmedEnd)) {
+      return { error: "Las horas deben estar en formato de 24 horas (HH:MM)" };
+    }
+    
+    if (trimmedEnd <= trimmedStart) {
+      return { error: `La hora de fin (${trimmedEnd}) debe ser posterior a la hora de inicio (${trimmedStart})` };
+    }
+    
+    intervals.push({ 
+      proyecto: proyecto.trim(), 
+      actividad: actividad.trim(), 
+      horaInicio: trimmedStart, 
+      horaFin: trimmedEnd,
+      observacion: observacion.trim()
+    });
   }
 
   if (intervals.length === 0) {

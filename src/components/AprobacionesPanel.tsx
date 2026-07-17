@@ -52,6 +52,8 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
   // --- States ---
   const [search, setSearch] = useState("");
   const [empleadoFilter, setEmpleadoFilter] = useState("");
+  const [areaFilter, setAreaFilter] = useState("");
+  const [cargoFilter, setCargoFilter] = useState("");
   const [mesFilter, setMesFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState(""); // Only for processed
 
@@ -111,6 +113,24 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
       .sort((a, b) => a.name.localeCompare(b.name, "es"));
   }, [minutasO]);
 
+  const uniqueAreas = useMemo(() => {
+    const set = new Set<string>();
+    minutasO.forEach((m) => {
+      const area = m.minuta_actividad?.area;
+      if (area) set.add(area.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
+  }, [minutasO]);
+
+  const uniqueCargos = useMemo(() => {
+    const set = new Set<string>();
+    minutasO.forEach((m) => {
+      const cargo = m.minuta_empleado?.cargo;
+      if (cargo) set.add(cargo.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
+  }, [minutasO]);
+
   const uniqueMeses = useMemo(() => {
     const set = new Set<string>(); // Format: YYYY-MM
     minutasO.forEach((m) => {
@@ -147,7 +167,13 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
       // 1. Empleado Filter
       if (empleadoFilter && m.empleado !== empleadoFilter) return false;
 
-      // 2. Mes Filter (Date format is YYYY-MM-DD or full ISO string)
+      // 2. Area Filter
+      if (areaFilter && m.minuta_actividad?.area?.trim() !== areaFilter) return false;
+
+      // 3. Cargo Filter
+      if (cargoFilter && m.minuta_empleado?.cargo?.trim() !== cargoFilter) return false;
+
+      // 4. Mes Filter (Date format is YYYY-MM-DD or full ISO string)
       if (mesFilter) {
         try {
           const dateObj = new Date(m.fecha);
@@ -160,10 +186,12 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
         }
       }
 
-      // 3. Search Filter (matches employee, project code/name, activity, observation)
+      // 5. Search Filter (matches employee, cargo, area, project code/name, activity, observation)
       if (search) {
         const query = search.toLowerCase();
         const empName = m.minuta_empleado?.apellido_nombre?.toLowerCase() || "";
+        const empCargo = m.minuta_empleado?.cargo?.toLowerCase() || "";
+        const actArea = m.minuta_actividad?.area?.toLowerCase() || "";
         const projCode = m.minuta_proyecto?.code?.toLowerCase() || m.proyecto?.toLowerCase() || "";
         const projName = m.minuta_proyecto?.nombre?.toLowerCase() || "";
         const actName = m.minuta_actividad?.nombre?.toLowerCase() || "";
@@ -171,6 +199,8 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
         
         const matches = 
           empName.includes(query) ||
+          empCargo.includes(query) ||
+          actArea.includes(query) ||
           projCode.includes(query) ||
           projName.includes(query) ||
           actName.includes(query) ||
@@ -181,7 +211,7 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
 
       return true;
     });
-  }, [minutasO, empleadoFilter, mesFilter, search]);
+  }, [minutasO, empleadoFilter, areaFilter, cargoFilter, mesFilter, search]);
 
   // --- Segregate into Pending and Processed ---
   const pendientesRaw = useMemo(() => {
@@ -214,7 +244,7 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
       {/* Dynamic Filters Bar */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-brand-dark/10">
         <h3 className="text-sm font-bold text-brand-dark/70 uppercase tracking-wider mb-4">Filtros de Búsqueda</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
           {/* Search bar */}
           <div className="relative">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -222,7 +252,7 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
             </span>
             <input
               type="text"
-              placeholder="Buscar por empleado, proyecto..."
+              placeholder="Buscar por empleado, proyecto, área, cargo..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 pr-4 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
@@ -234,7 +264,7 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
             <select
               value={empleadoFilter}
               onChange={(e) => setEmpleadoFilter(e.target.value)}
-              className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
+              className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white font-medium text-brand-dark"
             >
               <option value="">Todos los empleados</option>
               {uniqueEmpleados.map((emp) => (
@@ -245,12 +275,44 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
             </select>
           </div>
 
+          {/* Área filter */}
+          <div className="relative">
+            <select
+              value={areaFilter}
+              onChange={(e) => setAreaFilter(e.target.value)}
+              className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white font-medium text-brand-dark"
+            >
+              <option value="">Todas las áreas</option>
+              {uniqueAreas.map((area) => (
+                <option key={area} value={area}>
+                  {area}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Cargo filter */}
+          <div className="relative">
+            <select
+              value={cargoFilter}
+              onChange={(e) => setCargoFilter(e.target.value)}
+              className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white font-medium text-brand-dark"
+            >
+              <option value="">Todos los cargos</option>
+              {uniqueCargos.map((cargo) => (
+                <option key={cargo} value={cargo}>
+                  {cargo}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Mes filter */}
           <div className="relative">
             <select
               value={mesFilter}
               onChange={(e) => setMesFilter(e.target.value)}
-              className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
+              className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white font-medium text-brand-dark"
             >
               <option value="">Todos los meses</option>
               {uniqueMeses.map((m) => (
@@ -267,7 +329,7 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
+                className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white font-medium text-brand-dark"
               >
                 <option value="">Todos los estados procesados</option>
                 <option value="SI">Aprobados</option>

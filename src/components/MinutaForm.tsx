@@ -151,13 +151,29 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
   const overlapError = getOverlapError();
 
   async function action(formData: FormData) {
+    // Validar campos principales
+    const tipoInput = formData.get("tipo") as string;
+    const fechaInput = formData.get("fecha") as string;
+    if (!tipoInput || !fechaInput) {
+      setError("Todos los campos principales son obligatorios (Tipo de Tiempo y Fecha).");
+      return;
+    }
+
+    // Validar completez de todos los campos en todos los rangos (excepto observacion)
+    for (let i = 0; i < ranges.length; i++) {
+      const r = ranges[i];
+      if (!r.proyecto || !r.actividad || !r.horaInicio || !r.horaFin) {
+        setError(`Debe completar Cédula, Actividad, Hora de Inicio y Hora de Fin en el rango #${i + 1}.`);
+        return;
+      }
+    }
+
     if (overlapError) {
       setError(overlapError);
       return;
     }
 
     // Validar fecha en el cliente también
-    const fechaInput = formData.get("fecha") as string;
     if (fechaInput) {
       const hoyVal = new Date();
       const hoySoloFecha = new Date(hoyVal.getFullYear(), hoyVal.getMonth(), hoyVal.getDate());
