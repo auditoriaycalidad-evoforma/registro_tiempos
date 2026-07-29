@@ -9,6 +9,34 @@ import { useSession } from "next-auth/react";
 import { updateMinutaHistory } from "@/app/actions/minuta";
 import { useRouter } from "next/navigation";
 
+const DAYS_OF_WEEK = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
+const MONTHS = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+
+const getUTCDayName = (dateInput: Date | string) => {
+  const date = new Date(dateInput);
+  return DAYS_OF_WEEK[date.getUTCDay()];
+};
+
+const getUTCMonthName = (dateInput: Date | string) => {
+  const date = new Date(dateInput);
+  return MONTHS[date.getUTCMonth()];
+};
+
+const getUTCDateString = (dateInput: Date | string) => {
+  const date = new Date(dateInput);
+  const day = date.getUTCDate().toString().padStart(2, "0");
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+  const year = date.getUTCFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const calculateHours = (startInput: Date | string, endInput: Date | string) => {
+  const start = new Date(startInput);
+  const end = new Date(endInput);
+  const diff = end.getTime() - start.getTime();
+  return Math.round((diff / 36e5) * 100) / 100;
+};
+
 interface TiempoRecord {
   id: number;
   empleado: string;
@@ -259,72 +287,87 @@ export function HistorialTiempos({
           <table className="w-full text-left text-sm text-brand-dark/80">
             <thead className="bg-brand-dark/5 text-brand-dark border-b border-brand-dark/10">
               <tr>
+                <th className="px-4 py-3 font-bold">Día</th>
+                <th className="px-4 py-3 font-bold text-center">Tipo de Tiempo</th>
+                <th className="px-4 py-3 font-bold">Mes</th>
                 <th className="px-4 py-3 font-bold select-none cursor-pointer hover:bg-brand-dark/10 transition-colors" onClick={() => setSortAsc(!sortAsc)}>
                   <div className="flex items-center gap-1">
                     Fecha
                     <ArrowUpDown className="w-3.5 h-3.5" />
                   </div>
                 </th>
-                <th className="px-4 py-3 font-bold">Empleado</th>
-                <th className="px-4 py-3 font-bold">Horario</th>
-                <th className="px-4 py-3 font-bold">Cédula Proyecto</th>
+                <th className="px-4 py-3 font-bold">Cédula del Proyecto</th>
                 <th className="px-4 py-3 font-bold">Nombre del Proyecto</th>
-                <th className="px-4 py-3 font-bold">Actividad</th>
-                <th className="px-4 py-3 font-bold text-center">Tipo</th>
+                <th className="px-4 py-3 font-bold">Hora Inicio</th>
+                <th className="px-4 py-3 font-bold">Hora Fin</th>
+                <th className="px-4 py-3 font-bold text-center">Total Horas</th>
+                <th className="px-4 py-3 font-bold">Apellido - Nombre</th>
+                <th className="px-4 py-3 font-bold">Actividad - Cargo</th>
                 <th className="px-4 py-3 font-bold text-center">Estado</th>
+                <th className="px-4 py-3 font-bold">Observación</th>
                 {canEditHistory && <th className="px-4 py-3 font-bold text-center">Acción</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-dark/10">
-              {sortedTiempos.map((t) => (
-                <tr key={t.id} className="hover:bg-brand-dark/5 transition-colors duration-150">
-                  <td className="px-4 py-3 whitespace-nowrap font-medium">
-                    {format(new Date(t.fecha), 'MMM dd, yyyy', { locale: es })}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-brand-dark/90 font-medium">
-                    <div>{t.minuta_empleado?.apellido_nombre || t.empleado}</div>
-                    {t.minuta_empleado?.cargo && (
-                      <div className="text-[10px] text-brand-dark/50 font-normal mt-0.5">
-                        {t.minuta_empleado.cargo}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-semibold">
-                    {formatTime24(t.hora_inicio)} - {formatTime24(t.hora_fin)}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-brand-dark/95 whitespace-nowrap">
-                    {t.minuta_proyecto?.code || t.proyecto || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-brand-dark/70 max-w-xs truncate" title={t.minuta_proyecto?.nombre || ""}>
-                    {t.minuta_proyecto?.nombre || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-brand-dark/80">
-                    {t.minuta_actividad?.nombre || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-center whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-bold rounded-md ${t.tipo_minuta === 'A' ? 'bg-brand-primary/10 text-brand-primary' : 'bg-brand-primary/10 text-brand-primary/90'}`}>
-                      Tipo {t.tipo_minuta}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-1.5">
-                      {getStatusIcon(t.tipo_minuta, t.aprobado)}
-                      {getStatusBadge(t.tipo_minuta, t.aprobado)}
-                    </div>
-                  </td>
-                  {canEditHistory && (
+              {sortedTiempos.map((t) => {
+                const actName = t.minuta_actividad?.nombre || t.actividad || "";
+                const empCargo = t.minuta_empleado?.cargo || "";
+                const actividadCargo = actName && empCargo ? `${actName} - ${empCargo}` : (actName || empCargo || "-");
+
+                return (
+                  <tr key={t.id} className="hover:bg-brand-dark/5 transition-colors duration-150">
+                    <td className="px-4 py-3 whitespace-nowrap font-medium">{getUTCDayName(t.fecha)}</td>
                     <td className="px-4 py-3 text-center whitespace-nowrap">
-                      <button
-                        onClick={() => handleStartEdit(t)}
-                        className="p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/10 transition-colors"
-                        title="Editar registro"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <span className={`px-2 py-1 text-xs font-bold rounded-md ${t.tipo_minuta === 'A' ? 'bg-brand-primary/10 text-brand-primary' : 'bg-brand-primary/10 text-brand-primary/90'}`}>
+                        Tipo {t.tipo_minuta}
+                      </span>
                     </td>
-                  )}
-                </tr>
-              ))}
+                    <td className="px-4 py-3 whitespace-nowrap font-medium">{getUTCMonthName(t.fecha)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap font-medium">{getUTCDateString(t.fecha)}</td>
+                    <td className="px-4 py-3 font-medium text-brand-dark/95 whitespace-nowrap">
+                      {t.minuta_proyecto?.code || t.proyecto || "-"}
+                    </td>
+                    <td className="px-4 py-3 text-brand-dark/70 max-w-xs truncate" title={t.minuta_proyecto?.nombre || ""}>
+                      {t.minuta_proyecto?.nombre || "-"}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-semibold">
+                      {formatTime24(t.hora_inicio)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-semibold">
+                      {formatTime24(t.hora_fin)}
+                    </td>
+                    <td className="px-4 py-3 text-center font-bold text-brand-dark">
+                      {calculateHours(t.hora_inicio, t.hora_fin).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-brand-dark/90 font-medium">
+                      {t.minuta_empleado?.apellido_nombre || t.empleado}
+                    </td>
+                    <td className="px-4 py-3 text-brand-dark/80 max-w-xs truncate" title={actividadCargo}>
+                      {actividadCargo}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1.5">
+                        {getStatusIcon(t.tipo_minuta, t.aprobado)}
+                        {getStatusBadge(t.tipo_minuta, t.aprobado)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs italic text-brand-dark/70 max-w-xs truncate" title={t.observacion || ""}>
+                      {t.observacion || "-"}
+                    </td>
+                    {canEditHistory && (
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <button
+                          onClick={() => handleStartEdit(t)}
+                          className="p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/10 transition-colors"
+                          title="Editar registro"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

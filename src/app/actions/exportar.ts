@@ -23,8 +23,8 @@ const HEADERS = [
   "HORA INICIO",
   "HORA FIN",
   "TOTAL HORAS",
-  "apellido-nombre",
-  "ACTIVIDAD",
+  "APELLIDO - NOMBRE",
+  "ACTIVIDAD - CARGO",
   "ESTADO",
   "OBSERVACIÓN",
   "ID_REGISTRO",
@@ -66,6 +66,20 @@ function sanitizeFilePart(value: string) {
   return value.replace(/[<>:"/\\|?*\u0000-\u001F]/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function sanitizeSheetTitle(title: string): string {
+  let sanitized = title
+    .replace(/[\\/\?\*:\[\]]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (sanitized.startsWith("'")) {
+    sanitized = sanitized.substring(1);
+  }
+  if (sanitized.endsWith("'")) {
+    sanitized = sanitized.substring(0, sanitized.length - 1);
+  }
+  return sanitized.trim().substring(0, 100);
+}
+
 function formatDate(date: Date) {
   const day = date.getUTCDate().toString().padStart(2, "0");
   const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
@@ -102,22 +116,28 @@ function mergeMinutasWithSheetValues(
   dbMinutas: any[],
   existingValues: (string | number)[][]
 ): (string | number)[][] {
-  const dbRows = dbMinutas.map((minuta) => [
-    DAYS_OF_WEEK[minuta.fecha.getUTCDay()],
-    `Tipo ${minuta.tipo_minuta}`,
-    MONTHS[minuta.fecha.getUTCMonth()],
-    formatDate(minuta.fecha),
-    minuta.minuta_proyecto?.code ?? minuta.proyecto ?? "",
-    minuta.minuta_proyecto?.nombre ?? "",
-    formatTime24(minuta.hora_inicio),
-    formatTime24(minuta.hora_fin),
-    calculateHours(minuta.hora_inicio, minuta.hora_fin),
-    minuta.minuta_empleado.apellido_nombre,
-    minuta.minuta_actividad?.nombre ?? "",
-    minuta.aprobado ?? "NO",
-    minuta.observacion ?? "",
-    minuta.id, // ID_REGISTRO column (index 13)
-  ]);
+  const dbRows = dbMinutas.map((minuta) => {
+    const actName = minuta.minuta_actividad?.nombre ?? minuta.actividad ?? "";
+    const empCargo = minuta.minuta_empleado?.cargo ?? "";
+    const actividadCargo = actName && empCargo ? `${actName} - ${empCargo}` : (actName || empCargo || "");
+
+    return [
+      DAYS_OF_WEEK[minuta.fecha.getUTCDay()],
+      `Tipo ${minuta.tipo_minuta}`,
+      MONTHS[minuta.fecha.getUTCMonth()],
+      formatDate(minuta.fecha),
+      minuta.minuta_proyecto?.code ?? minuta.proyecto ?? "",
+      minuta.minuta_proyecto?.nombre ?? "",
+      formatTime24(minuta.hora_inicio),
+      formatTime24(minuta.hora_fin),
+      calculateHours(minuta.hora_inicio, minuta.hora_fin),
+      minuta.minuta_empleado.apellido_nombre,
+      actividadCargo,
+      minuta.aprobado ?? "NO",
+      minuta.observacion ?? "",
+      minuta.id, // ID_REGISTRO column (index 13)
+    ];
+  });
 
   if (existingValues.length <= 1) {
     // Only header or empty
@@ -216,37 +236,75 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
   const results: SyncResult[] = [];
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
 
-  if (spreadsheetId) {
-    const sheetTitle = "Historial";
-    
-    // Aseguramos que la pestaña existan antes de escribir
-    await ensureSheetExists(spreadsheetId, sheetTitle);
+  // Determinar la hoja de cálculo objetivo
+  let targetSpreadsheetId = spreadsheetId;
+  let isNewFile = false;
+  let newFileUrl = "";
 
-    const existingValues = await getSheetValues(spreadsheetId, sheetTitle);
-    const values = mergeMinutasWithSheetValues(minutas, existingValues);
-
-    await replaceSheetValues(spreadsheetId, sheetTitle, values);
-    results.push({
-      cargo: "TODOS",
-      rows: values.length - 1,
-      fileName: `Pestaña: ${sheetTitle}`,
-      url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
-    });
-  } else {
-    // Si no hay spreadsheetId, creamos un archivo completo para el año
+  if (!targetSpreadsheetId) {
     const fileName = `Tiempos ${year} - Historial`;
     const spreadsheet = await getOrCreateSpreadsheet(fileName);
-    
-    const existingValues = await getSheetValues(spreadsheet.id);
-    const values = mergeMinutasWithSheetValues(minutas, existingValues);
+    targetSpreadsheetId = spreadsheet.id;
+    isNewFile = true;
+    newFileUrl = spreadsheet.url;
+  }
 
-    await replaceSpreadsheetValues(spreadsheet.id, values);
-    results.push({
-      cargo: "TODOS",
-      rows: values.length - 1,
-      fileName: spreadsheet.name,
-      url: spreadsheet.url,
-    });
+  // 1. Sincronizar Pestaña Historial General
+  const sheetTitle = "Historial";
+  await ensureSheetExists(targetSpreadsheetId, sheetTitle);
+  const existingValues = await getSheetValues(targetSpreadsheetId, sheetTitle);
+  const values = mergeMinutasWithSheetValues(minutas, existingValues);
+  await replaceSheetValues(targetSpreadsheetId, sheetTitle, values);
+
+  results.push({
+    cargo: "TODOS",
+    rows: values.length - 1,
+    fileName: isNewFile ? `Archivo: Tiempos ${year} - Historial` : `Pestaña: ${sheetTitle}`,
+    url: isNewFile ? newFileUrl : `https://docs.google.com/spreadsheets/d/${targetSpreadsheetId}/edit`,
+  });
+
+  // 2. Sincronizar por Cargo de Colaborador
+  const cargoGroups = new Map<string, typeof minutas>();
+
+  minutas.forEach((minuta) => {
+    const cargoRaw = minuta.minuta_empleado?.cargo;
+    const cargo = cargoRaw ? cargoRaw.trim() : "";
+
+    if (!cargo) {
+      console.error(
+        `Advertencia de sincronización: El colaborador ${minuta.minuta_empleado?.apellido_nombre || minuta.empleado} no tiene un cargo identificado para el registro ID ${minuta.id}.`
+      );
+      return;
+    }
+
+    if (!cargoGroups.has(cargo)) {
+      cargoGroups.set(cargo, []);
+    }
+    cargoGroups.get(cargo)!.push(minuta);
+  });
+
+  for (const [cargo, cargoMinutas] of Array.from(cargoGroups.entries())) {
+    const cargoSheetTitle = sanitizeSheetTitle(cargo);
+    if (!cargoSheetTitle) {
+      console.error(`Error de sincronización: El cargo "${cargo}" no produce un nombre de pestaña válido.`);
+      continue;
+    }
+
+    try {
+      await ensureSheetExists(targetSpreadsheetId, cargoSheetTitle);
+      const existingCargoValues = await getSheetValues(targetSpreadsheetId, cargoSheetTitle);
+      const cargoValues = mergeMinutasWithSheetValues(cargoMinutas, existingCargoValues);
+      await replaceSheetValues(targetSpreadsheetId, cargoSheetTitle, cargoValues);
+
+      results.push({
+        cargo: cargo,
+        rows: cargoValues.length - 1,
+        fileName: `Pestaña: ${cargoSheetTitle}`,
+        url: `https://docs.google.com/spreadsheets/d/${targetSpreadsheetId}/edit#gid=${cargoSheetTitle}`, // link directly or general sheet URL
+      });
+    } catch (err) {
+      console.error(`Error de sincronización al procesar el cargo "${cargo}":`, err);
+    }
   }
 
   revalidatePath("/exportar");
