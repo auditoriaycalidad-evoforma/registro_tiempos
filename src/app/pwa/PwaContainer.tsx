@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { createMinutasPwa, getPwaHistory, deleteMinutaPwa, PwaInterval } from "@/app/actions/pwa";
 import { formatTime24 } from "@/lib/formatTime";
+import { SearchableSelect } from "@/components/SearchableSelect";
 
 function calculateIntervalHours(start: string, end: string): number {
   if (!start || !end) return 0;
@@ -431,22 +432,20 @@ interface PwaIntervalForm {
       let pCode = inv.proyecto;
       let aCode = inv.actividad;
 
-      if (!pCode && inv.proyectoText.trim()) {
+      if (pCode) {
         const pMatch = proyectos.find(
           (p) => 
-            p.code?.toLowerCase() === inv.proyectoText.trim().toLowerCase() ||
-            p.nombre?.toLowerCase() === inv.proyectoText.trim().toLowerCase() ||
-            `${p.code} - ${p.nombre}`.toLowerCase() === inv.proyectoText.trim().toLowerCase()
+            p.code.toLowerCase() === pCode.trim().toLowerCase() ||
+            p.nombre.toLowerCase() === pCode.trim().toLowerCase()
         );
         if (pMatch) pCode = pMatch.code;
       }
 
-      if (!aCode && inv.actividadText.trim()) {
+      if (aCode) {
         const aMatch = actividades.find(
           (a) => 
-            a.nombre?.toLowerCase() === inv.actividadText.trim().toLowerCase() ||
-            a.code?.toLowerCase() === inv.actividadText.trim().toLowerCase() ||
-            `${a.code} - ${a.nombre}`.toLowerCase() === inv.actividadText.trim().toLowerCase()
+            a.code.toLowerCase() === aCode.trim().toLowerCase() ||
+            a.nombre.toLowerCase() === aCode.trim().toLowerCase()
         );
         if (aMatch) aCode = aMatch.code;
       }
@@ -461,10 +460,13 @@ interface PwaIntervalForm {
     // 2. Pre-validar campos
     for (let i = 0; i < resolvedIntervals.length; i++) {
       const inv = resolvedIntervals[i];
-      if (!inv.proyecto) {
-        showToast(`Rango #${i + 1} requiere un proyecto válido de la lista.`, "error");
+      
+      const proyectoInfo = proyectos.find(p => p.code === inv.proyecto);
+      if (!proyectoInfo || !proyectoInfo.nombre) {
+        showToast(`El proyecto en el rango #${i + 1} no es válido. Debe seleccionar un proyecto válido de la base de datos.`, "error");
         return;
       }
+
       if (!inv.actividad) {
         showToast(`Rango #${i + 1} requiere una actividad válida de la lista.`, "error");
         return;
@@ -728,70 +730,41 @@ interface PwaIntervalForm {
                   <div className="space-y-3">
                     
                     {/* Auto-Complete Proyecto */}
-                    <div className="relative">
+                    <div>
                       <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
                         Proyecto (Cédula o Nombre)
                       </label>
-                      <div className="relative">
-                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input 
-                          type="text"
-                          placeholder="Buscar proyecto..."
-                          value={inv.proyectoText}
-                          onChange={(e) => handleProjectSearch(e.target.value, index)}
-                          onFocus={() => setFocusedField({ index, field: "proyecto" })}
-                          onBlur={() => handleProjectBlur(index)}
-                          className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl pl-9 pr-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary font-medium"
-                        />
-                      </div>
-                      
-                      {/* Project Dropdown overlay */}
-                      {focusedField.index === index && focusedField.field === "proyecto" && projectSearch.length > 0 && (
-                        <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#1a1b22] border border-slate-200/50 dark:border-slate-800 rounded-2xl shadow-xl z-20 overflow-hidden animate-scaleIn">
-                          {projectSearch.map((option, oIdx) => (
-                            <button
-                              key={oIdx}
-                              type="button"
-                              onMouseDown={() => {
-                                const code = option.split(" - ")[0];
-                                updateInterval(index, "proyecto", code);
-                                updateInterval(index, "proyectoText", option);
-                                setProjectSearch([]);
-                              }}
-                              className="w-full text-left px-4 py-3 text-xs hover:bg-slate-100 dark:hover:bg-slate-800 active:bg-slate-200 dark:active:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-800/50 last:border-0 truncate font-semibold"
-                            >
-                              {option}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      <SearchableSelect
+                        name={`proyecto_${index}`}
+                        value={inv.proyecto}
+                        onChange={(val) => updateInterval(index, "proyecto", val)}
+                        options={proyectos.map((p) => ({
+                          value: p.code,
+                          label: p.code,
+                          sublabel: p.nombre
+                        }))}
+                        placeholder="Seleccione o busque una cédula"
+                        required
+                      />
                     </div>
 
                     {/* Select Actividad */}
-                    <div className="relative">
+                    <div>
                       <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
                         Actividad
                       </label>
-                      <div className="relative">
-                        <Sparkles className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        <select 
-                          value={inv.actividad}
-                          onChange={(e) => {
-                            const code = e.target.value;
-                            const match = actividades.find(a => a.code === code);
-                            updateInterval(index, "actividad", code);
-                            updateInterval(index, "actividadText", match ? match.nombre : "");
-                          }}
-                          className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl pl-9 pr-8 py-2.5 text-xs focus:outline-none focus:border-brand-primary font-semibold text-slate-700 dark:text-slate-200"
-                        >
-                          <option value="">Seleccione una actividad...</option>
-                          {actividades.map((a) => (
-                            <option key={a.code} value={a.code}>
-                              {a.nombre} {a.area ? `(${a.area})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <SearchableSelect
+                        name={`actividad_${index}`}
+                        value={inv.actividad}
+                        onChange={(val) => updateInterval(index, "actividad", val)}
+                        options={actividades.map((a) => ({
+                          value: a.code,
+                          label: a.nombre,
+                          sublabel: a.area ? `(${a.area})` : undefined
+                        }))}
+                        placeholder="Seleccione o busque una actividad"
+                        required
+                      />
                     </div>
 
                     {/* Time Pickers (Inicio / Fin) */}

@@ -132,6 +132,8 @@ export async function createMinutasPwa(data: { fecha: string; tipo: string; inte
         where: { code: projCode },
       });
 
+      let nombreProyecto = proyectoExistente?.nombre;
+
       if (!proyectoExistente) {
         const proyectoRaw = await prisma.$queryRaw<{ nombre: string }[]>`
           SELECT nombre_proyecto AS nombre
@@ -140,16 +142,20 @@ export async function createMinutasPwa(data: { fecha: string; tipo: string; inte
           LIMIT 1
         `;
 
-        if (!proyectoRaw.length) {
-          return { error: `La cédula de proyecto "${projCode}" no existe en el catálogo de proyectos.` };
+        if (!proyectoRaw.length || !proyectoRaw[0].nombre) {
+          return { error: `El proyecto con cédula "${projCode}" no es válido. Debe seleccionar un proyecto válido de la base de datos.` };
         }
+
+        nombreProyecto = proyectoRaw[0].nombre;
 
         await prisma.minuta_proyecto.create({
           data: {
             code: projCode,
-            nombre: proyectoRaw[0].nombre,
+            nombre: nombreProyecto,
           },
         });
+      } else if (!nombreProyecto) {
+        return { error: `El proyecto con cédula "${projCode}" no es válido. Debe seleccionar un proyecto válido de la base de datos.` };
       }
     }
 

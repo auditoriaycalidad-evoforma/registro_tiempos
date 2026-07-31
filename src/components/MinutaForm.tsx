@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { createMinuta } from "@/app/actions/minuta";
 import { Plus, Trash2, Calendar, Folder, BookOpen, Clock, AlertCircle } from "lucide-react";
+import { SearchableSelect } from "./SearchableSelect";
 
 interface TimeRange {
   id: string;
@@ -166,6 +167,12 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
         setError(`Debe completar Cédula, Actividad, Hora de Inicio y Hora de Fin en el rango #${i + 1}.`);
         return;
       }
+
+      const proyectoInfo = proyectos.find(p => p.code === r.proyecto);
+      if (!proyectoInfo || !proyectoInfo.nombre) {
+        setError(`El proyecto con cédula "${r.proyecto}" no es válido. Debe seleccionar un proyecto válido de la base de datos.`);
+        return;
+      }
     }
 
     if (overlapError) {
@@ -293,18 +300,18 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
                   {/* Cédula del Proyecto */}
                   <div>
                     <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Cédula del Proyecto</label>
-                    <select 
-                      name={`proyecto_${index}`} 
-                      required 
+                    <SearchableSelect
+                      name={`proyecto_${index}`}
                       value={r.proyecto}
-                      onChange={(e) => handleRangeFieldChange(r.id, "proyecto", e.target.value)}
-                      className="w-full rounded-md border border-brand-dark/20 px-3 py-2 text-xs text-brand-dark focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-brand-light/50"
-                    >
-                      <option value="">Seleccione una cédula</option>
-                      {proyectos.map((p) => (
-                        <option key={p.code} value={p.code}>{p.code}</option>
-                      ))}
-                    </select>
+                      onChange={(val) => handleRangeFieldChange(r.id, "proyecto", val)}
+                      options={proyectos.map((p) => ({
+                        value: p.code,
+                        label: p.code,
+                        sublabel: p.nombre
+                      }))}
+                      placeholder="Seleccione o busque una cédula"
+                      required
+                    />
                   </div>
 
                   {/* Nombre del Proyecto */}
@@ -324,18 +331,18 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
                   {/* Actividad */}
                   <div className="md:col-span-2">
                     <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Actividad</label>
-                    <select 
-                      name={`actividad_${index}`} 
-                      required 
+                    <SearchableSelect
+                      name={`actividad_${index}`}
                       value={r.actividad}
-                      onChange={(e) => handleRangeFieldChange(r.id, "actividad", e.target.value)}
-                      className="w-full rounded-md border border-brand-dark/20 px-3 py-2 text-xs text-brand-dark focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-brand-light/50"
-                    >
-                      <option value="">Seleccione una actividad</option>
-                      {actividades.map((a) => (
-                        <option key={a.code} value={a.code}>{a.nombre} {a.area ? `(${a.area})` : ''}</option>
-                      ))}
-                    </select>
+                      onChange={(val) => handleRangeFieldChange(r.id, "actividad", val)}
+                      options={actividades.map((a) => ({
+                        value: a.code,
+                        label: a.nombre,
+                        sublabel: a.area ? `(${a.area})` : undefined
+                      }))}
+                      placeholder="Seleccione o busque una actividad"
+                      required
+                    />
                   </div>
 
                   {/* Horario */}

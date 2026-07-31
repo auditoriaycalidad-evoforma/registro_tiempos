@@ -151,6 +151,8 @@ export async function createMinuta(formData: FormData) {
         where: { code: projCode },
       });
 
+      let nombreProyecto = proyectoExistente?.nombre;
+
       if (!proyectoExistente) {
         const proyectoRaw = await prisma.$queryRaw<{ nombre: string }[]>`
           SELECT nombre_proyecto AS nombre
@@ -159,16 +161,20 @@ export async function createMinuta(formData: FormData) {
           LIMIT 1
         `;
 
-        if (!proyectoRaw.length) {
-          return { error: `El proyecto con cédula "${projCode}" no existe en el catálogo de proyectos` };
+        if (!proyectoRaw.length || !proyectoRaw[0].nombre) {
+          return { error: `El proyecto con cédula "${projCode}" no es válido. Debe seleccionar un proyecto válido de la base de datos.` };
         }
+
+        nombreProyecto = proyectoRaw[0].nombre;
 
         await prisma.minuta_proyecto.create({
           data: {
             code: projCode,
-            nombre: proyectoRaw[0].nombre,
+            nombre: nombreProyecto,
           },
         });
+      } else if (!nombreProyecto) {
+        return { error: `El proyecto con cédula "${projCode}" no es válido. Debe seleccionar un proyecto válido de la base de datos.` };
       }
     }
 
@@ -264,6 +270,8 @@ export async function updateMinutaHistory(
       where: { code: data.proyecto },
     });
 
+    let nombreProyecto = proyectoExistente?.nombre;
+
     if (!proyectoExistente) {
       const proyectoRaw = await prisma.$queryRaw<{ nombre: string }[]>`
         SELECT nombre_proyecto AS nombre
@@ -272,16 +280,20 @@ export async function updateMinutaHistory(
         LIMIT 1
       `;
 
-      if (!proyectoRaw.length) {
-        return { error: `El proyecto con cédula "${data.proyecto}" no existe en el catálogo de proyectos` };
+      if (!proyectoRaw.length || !proyectoRaw[0].nombre) {
+        return { error: `El proyecto con cédula "${data.proyecto}" no es válido. Debe seleccionar un proyecto válido de la base de datos.` };
       }
+
+      nombreProyecto = proyectoRaw[0].nombre;
 
       await prisma.minuta_proyecto.create({
         data: {
           code: data.proyecto,
-          nombre: proyectoRaw[0].nombre,
+          nombre: nombreProyecto,
         },
       });
+    } else if (!nombreProyecto) {
+      return { error: `El proyecto con cédula "${data.proyecto}" no es válido. Debe seleccionar un proyecto válido de la base de datos.` };
     }
 
     const fechaDate = new Date(`${data.fecha}T00:00:00.000Z`);

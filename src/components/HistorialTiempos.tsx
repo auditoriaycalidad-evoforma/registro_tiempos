@@ -8,6 +8,7 @@ import { formatTime24 } from "@/lib/formatTime";
 import { useSession } from "next-auth/react";
 import { updateMinutaHistory } from "@/app/actions/minuta";
 import { useRouter } from "next/navigation";
+import { SearchableSelect } from "./SearchableSelect";
 
 const DAYS_OF_WEEK = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
 const MONTHS = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
@@ -200,6 +201,13 @@ export function HistorialTiempos({
 
   const handleSaveEdit = async () => {
     if (!editingRecord) return;
+
+    const proyectoInfo = proyectos.find(p => p.code === editForm.proyecto);
+    if (!proyectoInfo || !proyectoInfo.nombre) {
+      setEditError(`El proyecto con cédula "${editForm.proyecto}" no es válido. Debe seleccionar un proyecto válido de la base de datos.`);
+      return;
+    }
+
     setIsSaving(true);
     setEditError(null);
 
@@ -458,33 +466,35 @@ export function HistorialTiempos({
               {/* Proyecto */}
               <div>
                 <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Cédula del Proyecto</label>
-                <select
+                <SearchableSelect
+                  name="proyecto"
                   value={editForm.proyecto}
-                  onChange={(e) => setEditForm({ ...editForm, proyecto: e.target.value })}
-                  className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
-                >
-                  {proyectos.map((p: any) => (
-                    <option key={p.code} value={p.code}>
-                      {p.code} - {p.nombre}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setEditForm({ ...editForm, proyecto: val })}
+                  options={proyectos.map((p: any) => ({
+                    value: p.code,
+                    label: p.code,
+                    sublabel: p.nombre
+                  }))}
+                  placeholder="Seleccione o busque una cédula"
+                  required
+                />
               </div>
 
               {/* Actividad */}
               <div>
                 <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Actividad</label>
-                <select
+                <SearchableSelect
+                  name="actividad"
                   value={editForm.actividad}
-                  onChange={(e) => setEditForm({ ...editForm, actividad: e.target.value })}
-                  className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
-                >
-                  {actividades.map((a: any) => (
-                    <option key={a.code} value={a.code}>
-                      {a.nombre} {a.area ? `(${a.area})` : ''}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setEditForm({ ...editForm, actividad: val })}
+                  options={actividades.map((a: any) => ({
+                    value: a.code,
+                    label: a.nombre,
+                    sublabel: a.area ? `(${a.area})` : undefined
+                  }))}
+                  placeholder="Seleccione o busque una actividad"
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
