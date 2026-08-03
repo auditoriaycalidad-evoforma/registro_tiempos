@@ -291,9 +291,9 @@ export function HistorialTiempos({
           <p className="font-medium text-sm">No se encontraron registros que coincidan con la búsqueda.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
           <table className="w-full text-left text-sm text-brand-dark/80">
-            <thead className="bg-brand-dark/5 text-brand-dark border-b border-brand-dark/10">
+            <thead className="bg-slate-100 text-brand-dark border-b border-brand-dark/10 sticky top-0 z-10">
               <tr>
                 <th className="px-4 py-3 font-bold">Día</th>
                 <th className="px-4 py-3 font-bold text-center">Tipo de Tiempo</th>

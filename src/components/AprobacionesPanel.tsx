@@ -388,9 +388,9 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
               No hay tiempos O pendientes de aprobación que coincidan con los filtros.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
               <table className="w-full text-left text-sm text-brand-dark/80">
-                <thead className="bg-brand-dark/5 text-brand-dark">
+                <thead className="bg-slate-100 text-brand-dark sticky top-0 z-10">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Día</th>
                     <th className="px-4 py-3 font-semibold text-center">Tipo de Tiempo</th>
@@ -480,9 +480,9 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
               No hay registros procesados que coincidan con los filtros.
             </div>
           ) : (
-            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
               <table className="w-full text-left text-sm text-brand-dark/80">
-                <thead className="bg-brand-dark/5 text-brand-dark sticky top-0 z-10">
+                <thead className="bg-slate-100 text-brand-dark sticky top-0 z-10">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Día</th>
                     <th className="px-4 py-3 font-semibold text-center">Tipo de Tiempo</th>
