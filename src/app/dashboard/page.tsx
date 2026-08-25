@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   const proyectos = await prisma.$queryRaw<ProyectoOption[]>`
     SELECT DISTINCT
       cedula AS code,
-      nombre_proyecto AS nombre
+      COALESCE(nombre_proyecto, cedula) AS nombre
     FROM briefing_2026
     WHERE cedula IS NOT NULL
     ORDER BY cedula ASC

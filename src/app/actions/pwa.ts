@@ -136,7 +136,7 @@ export async function createMinutasPwa(data: { fecha: string; tipo: string; inte
 
       if (!proyectoExistente) {
         const proyectoRaw = await prisma.$queryRaw<{ nombre: string }[]>`
-          SELECT nombre_proyecto AS nombre
+          SELECT COALESCE(nombre_proyecto, cedula) AS nombre
           FROM briefing_2026
           WHERE cedula = ${projCode}
           LIMIT 1

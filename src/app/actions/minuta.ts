@@ -155,7 +155,7 @@ export async function createMinuta(formData: FormData) {
 
       if (!proyectoExistente) {
         const proyectoRaw = await prisma.$queryRaw<{ nombre: string }[]>`
-          SELECT nombre_proyecto AS nombre
+          SELECT COALESCE(nombre_proyecto, cedula) AS nombre
           FROM briefing_2026
           WHERE cedula = ${projCode}
           LIMIT 1
@@ -274,7 +274,7 @@ export async function updateMinutaHistory(
 
     if (!proyectoExistente) {
       const proyectoRaw = await prisma.$queryRaw<{ nombre: string }[]>`
-        SELECT nombre_proyecto AS nombre
+        SELECT COALESCE(nombre_proyecto, cedula) AS nombre
         FROM briefing_2026
         WHERE cedula = ${data.proyecto}
         LIMIT 1
