@@ -43,7 +43,24 @@ export default async function PwaPage() {
   });
 
   let initialHistory: any[] = [];
-  const isAdmin = session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
+  const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+  const userEmail = session?.user?.email?.toLowerCase();
+  const isAdmin = !!(userEmail && allowedEmails.includes(userEmail));
+
+  const empleados = await prisma.minuta_empleado.findMany({
+    where: {
+      OR: [
+        { activo: null },
+        { activo: { not: "N" } }
+      ]
+    },
+    orderBy: { apellido_nombre: "asc" },
+    select: {
+      id: true,
+      apellido_nombre: true,
+      cargo: true,
+    }
+  });
   
   if (session?.user?.id && isAdmin) {
     const rawHistory = await prisma.minuta_registro_actividad.findMany({
@@ -90,6 +107,7 @@ export default async function PwaPage() {
     <PwaContainer
       proyectos={proyectos}
       actividades={actividades}
+      empleados={empleados}
       initialHistory={initialHistory}
       session={session}
     />

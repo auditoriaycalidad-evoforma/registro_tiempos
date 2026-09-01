@@ -69,11 +69,13 @@ interface TiempoRecord {
 export function HistorialTiempos({ 
   tiempos, 
   proyectos = [], 
-  actividades = [] 
+  actividades = [],
+  empleados = []
 }: { 
   tiempos: TiempoRecord[]; 
   proyectos?: any[]; 
   actividades?: any[]; 
+  empleados?: { id: string; apellido_nombre: string; cargo?: string | null }[];
 }) {
   const { data: session } = useSession();
   const router = useRouter();
@@ -98,6 +100,7 @@ export function HistorialTiempos({
   // Edit states
   const [editingRecord, setEditingRecord] = useState<TiempoRecord | null>(null);
   const [editForm, setEditForm] = useState({
+    empleado: "",
     fecha: "",
     hora_inicio: "",
     hora_fin: "",
@@ -187,6 +190,7 @@ export function HistorialTiempos({
 
     setEditingRecord(t);
     setEditForm({
+      empleado: t.minuta_empleado?.id || t.empleado || "",
       fecha: dateStr,
       hora_inicio: formatTime24(t.hora_inicio),
       hora_fin: formatTime24(t.hora_fin),
@@ -409,6 +413,24 @@ export function HistorialTiempos({
 
             {/* Form */}
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              {empleados.length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Apellido - Nombre (Colaborador)</label>
+                  <SearchableSelect
+                    name="empleado"
+                    value={editForm.empleado}
+                    onChange={(val) => setEditForm({ ...editForm, empleado: val })}
+                    options={empleados.map((emp: any) => ({
+                      value: emp.id,
+                      label: emp.apellido_nombre,
+                      sublabel: emp.cargo ? `(${emp.cargo})` : undefined
+                    }))}
+                    placeholder="Seleccione un colaborador"
+                    required
+                  />
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 {/* Fecha */}
                 <div>

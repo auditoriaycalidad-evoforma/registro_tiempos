@@ -7,6 +7,8 @@ import { revalidatePath } from "next/cache";
 import { syncMinutasToSheets } from "./exportar";
 import { formatTime24 } from "@/lib/formatTime";
 
+import { isAuthorizedAuditor } from "./minuta";
+
 // Interfaz para recibir los intervalos desde la PWA
 export interface PwaInterval {
   proyecto: string;
@@ -16,11 +18,34 @@ export interface PwaInterval {
   observacion: string;
 }
 
-export async function createMinutasPwa(data: { fecha: string; tipo: string; intervals: PwaInterval[] }) {
+export async function createMinutasPwa(data: {
+  empleado?: string;
+  fecha: string;
+  tipo: string;
+  intervals: PwaInterval[];
+}) {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
     return { error: "No autorizado. Inicie sesión de nuevo." };
+  }
+
+  const isAuditor = await isAuthorizedAuditor(session);
+  let targetEmpleadoId = session.user.id;
+
+  if (data.empleado && data.empleado !== session.user.id) {
+    if (!isAuditor) {
+      return { error: "No autorizado. Solo los auditores autorizados pueden registrar tiempos de otros colaboradores." };
+    }
+    const targetEmpleado = await prisma.minuta_empleado.findUnique({
+      where: { id: data.empleado },
+    });
+    if (!targetEmpleado || (targetEmpleado.activo && targetEmpleado.activo.toUpperCase() === "N")) {
+      return { error: "El colaborador seleccionado no es válido o está inactivo." };
+    }
+    targetEmpleadoId = data.empleado;
+  } else if (data.empleado) {
+    targetEmpleadoId = data.empleado;
   }
 
   const { fecha, tipo, intervals } = data;
@@ -102,7 +127,7 @@ export async function createMinutasPwa(data: { fecha: string; tipo: string; inte
     // Validar solapamiento con registros existentes en la base de datos para este empleado en esta fecha
     const existing = await prisma.minuta_registro_actividad.findMany({
       where: {
-        empleado: session.user.id,
+        empleado: targetEmpleadoId,
         fecha: fechaDate,
       },
     });
@@ -167,7 +192,7 @@ export async function createMinutasPwa(data: { fecha: string; tipo: string; inte
 
         return prisma.minuta_registro_actividad.create({
           data: {
-            empleado: session.user.id,
+            empleado: targetEmpleadoId,
             fecha: fechaDate,
             hora_inicio: horaInicioDate,
             hora_fin: horaFinDate,

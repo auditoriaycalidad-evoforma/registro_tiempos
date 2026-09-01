@@ -60,15 +60,27 @@ interface Actividad {
   descripcion: string | null;
 }
 
+interface Empleado {
+  id: string;
+  apellido_nombre: string;
+  cargo?: string | null;
+}
+
 interface PwaContainerProps {
   proyectos: Proyecto[];
   actividades: Actividad[];
+  empleados?: Empleado[];
   initialHistory: any[];
   session: any;
 }
 
-export function PwaContainer({ proyectos, actividades, initialHistory, session }: PwaContainerProps) {
-  const isAdmin = session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
+export function PwaContainer({ proyectos, actividades, empleados = [], initialHistory, session }: PwaContainerProps) {
+  const allowedAuditorEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+  const userEmail = session?.user?.email?.toLowerCase();
+  const isAdmin = !!(userEmail && allowedAuditorEmails.includes(userEmail));
+  const isAuditor = isAdmin;
+
+  const [selectedEmpleado, setSelectedEmpleado] = useState<string>(session?.user?.id || "");
 
   const minDateStr = useMemo(() => {
     const d = new Date();
@@ -492,6 +504,7 @@ interface PwaIntervalForm {
     }));
 
     const res = await createMinutasPwa({
+      empleado: isAuditor && selectedEmpleado ? selectedEmpleado : undefined,
       fecha,
       tipo: tipoMinuta,
       intervals: dataToSubmit
@@ -636,6 +649,26 @@ interface PwaIntervalForm {
             
             {/* 3.1 METADATA CARD (Date & Type) */}
             <div className="bg-white dark:bg-[#121318] p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm space-y-4">
+              {/* Colaborador (Solo para auditores) */}
+              {isAuditor && empleados.length > 0 && (
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1.5">
+                    Apellido - Nombre (Colaborador)
+                  </label>
+                  <SearchableSelect
+                    name="pwa_empleado"
+                    value={selectedEmpleado}
+                    onChange={(val) => setSelectedEmpleado(val)}
+                    options={empleados.map((emp) => ({
+                      value: emp.id,
+                      label: emp.apellido_nombre,
+                      sublabel: emp.cargo ? `(${emp.cargo})` : undefined,
+                    }))}
+                    placeholder="Seleccione un colaborador"
+                    required
+                  />
+                </div>
+              )}
               {/* Date */}
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1.5">

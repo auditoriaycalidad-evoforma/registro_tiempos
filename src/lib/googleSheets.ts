@@ -236,7 +236,7 @@ export async function replaceSheetValues(
   const config = getGoogleConfig();
   const accessToken = await requestAccessToken(config);
 
-  const range = `'${sheetTitle}'!A:Z`;
+  const range = `'${sheetTitle}'!A:ZZ`;
   const encodedRange = encodeURIComponent(range);
 
   await googleFetch(
@@ -245,7 +245,7 @@ export async function replaceSheetValues(
     { method: "POST", body: JSON.stringify({}) }
   );
 
-  const updateRange = `'${sheetTitle}'!A1:Z${Math.max(values.length, 1)}`;
+  const updateRange = `'${sheetTitle}'!A1`;
   const encodedUpdateRange = encodeURIComponent(updateRange);
 
   await googleFetch(
@@ -269,7 +269,7 @@ export async function getSheetValues(
   const config = getGoogleConfig();
   const accessToken = await requestAccessToken(config);
 
-  const range = sheetTitle ? `'${sheetTitle}'!A:Z` : "A:Z";
+  const range = sheetTitle ? `'${sheetTitle}'!A:ZZ` : "A:ZZ";
   const encodedRange = encodeURIComponent(range);
 
   try {

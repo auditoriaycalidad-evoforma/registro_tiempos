@@ -105,7 +105,9 @@ function getCurrentYearRange() {
 
 async function ensureCanExport() {
   const session = await getServerSession(authOptions);
-  const canExport = session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
+  const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+  const userEmail = session?.user?.email?.toLowerCase();
+  const canExport = !!(userEmail && allowedEmails.includes(userEmail));
 
   if (!canExport) {
     throw new Error("No autorizado");
@@ -116,12 +118,15 @@ function mergeMinutasWithSheetValues(
   dbMinutas: any[],
   existingValues: (string | number)[][]
 ): (string | number)[][] {
-  const dbRows = dbMinutas.map((minuta) => {
+  // Construir mapa de registros de la base de datos indexado por su ID
+  const dbRowsMap = new Map<string, (string | number)[]>();
+
+  dbMinutas.forEach((minuta) => {
     const actName = minuta.minuta_actividad?.nombre ?? minuta.actividad ?? "";
     const empCargo = minuta.minuta_empleado?.cargo ?? "";
     const actividadCargo = actName && empCargo ? `${actName} - ${empCargo}` : (actName || empCargo || "");
 
-    return [
+    const row = [
       DAYS_OF_WEEK[minuta.fecha.getUTCDay()],
       `Tipo ${minuta.tipo_minuta}`,
       MONTHS[minuta.fecha.getUTCMonth()],
@@ -131,85 +136,53 @@ function mergeMinutasWithSheetValues(
       formatTime24(minuta.hora_inicio),
       formatTime24(minuta.hora_fin),
       calculateHours(minuta.hora_inicio, minuta.hora_fin),
-      minuta.minuta_empleado.apellido_nombre,
+      minuta.minuta_empleado?.apellido_nombre ?? minuta.empleado ?? "",
       actividadCargo,
       minuta.aprobado ?? "NO",
       minuta.observacion ?? "",
       minuta.id, // ID_REGISTRO column (index 13)
     ];
+
+    dbRowsMap.set(minuta.id.toString(), row);
   });
 
   if (existingValues.length <= 1) {
-    // Only header or empty
-    return [HEADERS, ...dbRows];
+    // Si la hoja está vacía o solo tiene encabezado
+    return [HEADERS, ...Array.from(dbRowsMap.values())];
   }
 
-  const mergedMap = new Map<string, (string | number)[]>();
+  const resultRows: (string | number)[][] = [];
+  const processedDbIds = new Set<string>();
 
-  const getCompositeKey = (fecha: string, inicio: string, fin: string, empleado: string) => {
-    return `${fecha}_${inicio}_${fin}_${empleado}`;
-  };
+  // 1. Recorrer las filas existentes en la hoja de cálculo
+  existingValues.slice(1).forEach((existingRow) => {
+    const rawId = existingRow[13]?.toString().trim();
 
-  // 1. Populate map with existing rows
-  existingValues.slice(1).forEach((row) => {
-    const paddedRow = [...row];
-    while (paddedRow.length < 14) {
-      paddedRow.push("");
-    }
-    const id = paddedRow[13]?.toString().trim();
-    if (id) {
-      mergedMap.set(`id:${id}`, paddedRow);
-    } else {
-      const key = getCompositeKey(
-        paddedRow[3]?.toString().trim() ?? "",
-        paddedRow[6]?.toString().trim() ?? "",
-        paddedRow[7]?.toString().trim() ?? "",
-        paddedRow[9]?.toString().trim() ?? ""
-      );
-      mergedMap.set(`comp:${key}`, paddedRow);
+    // Caso A: Fila con ID generado por la app que coincide con un registro en la BD
+    if (rawId && dbRowsMap.has(rawId)) {
+      const updatedRow = [...dbRowsMap.get(rawId)!];
+      // Preservar cualquier columna adicional manual (índice >= 14) que exista en la hoja
+      if (existingRow.length > 14) {
+        updatedRow.push(...existingRow.slice(14));
+      }
+      resultRows.push(updatedRow);
+      processedDbIds.add(rawId);
+    } 
+    // Caso B: Fila con ID de la app que no está en el conjunto actual de BD (conservar intacta)
+    // Caso C: Fila manual (sin ID o con ID vacío) -> CONSERVAR TOTALMENTE INTACTA
+    else {
+      resultRows.push([...existingRow]);
     }
   });
 
-  // 2. Overwrite / merge with dbMinutas
-  dbRows.forEach((dbRow) => {
-    const dbId = dbRow[13].toString();
-    const dbCompKey = getCompositeKey(
-      dbRow[3].toString(),
-      dbRow[6].toString(),
-      dbRow[7].toString(),
-      dbRow[9].toString()
-    );
-
-    if (mergedMap.has(`id:${dbId}`)) {
-      mergedMap.set(`id:${dbId}`, dbRow);
-    } else if (mergedMap.has(`comp:${dbCompKey}`)) {
-      mergedMap.delete(`comp:${dbCompKey}`);
-      mergedMap.set(`id:${dbId}`, dbRow);
-    } else {
-      mergedMap.set(`id:${dbId}`, dbRow);
+  // 2. Agregar los nuevos registros de la BD cuyos IDs no estaban en la hoja
+  dbRowsMap.forEach((row, id) => {
+    if (!processedDbIds.has(id)) {
+      resultRows.push(row);
     }
   });
 
-  const finalRows = Array.from(mergedMap.values());
-
-  // 3. Sort chronologically by date and start time
-  const parseSheetDateAndStart = (dateStr: string, timeStr: string): number => {
-    try {
-      const [d, m, y] = dateStr.split("/").map(Number);
-      const [h, min] = timeStr.split(":").map(Number);
-      return new Date(Date.UTC(y, m - 1, d, h, min)).getTime();
-    } catch (e) {
-      return 0;
-    }
-  };
-
-  finalRows.sort((a, b) => {
-    const timeA = parseSheetDateAndStart(a[3]?.toString() ?? "", a[6]?.toString() ?? "");
-    const timeB = parseSheetDateAndStart(b[3]?.toString() ?? "", b[6]?.toString() ?? "");
-    return timeA - timeB;
-  });
-
-  return [HEADERS, ...finalRows];
+  return [HEADERS, ...resultRows];
 }
 
 export async function syncMinutasToSheets({ skipAuth = false } = {}) {

@@ -8,11 +8,50 @@ import { syncMinutasToSheets } from "./exportar";
 
 import { formatTime24 } from "@/lib/formatTime";
 
+export const AUTHORIZED_AUDITOR_EMAILS = [
+  "ia.evoforma@gmail.com",
+  "auditoriaycalidad@evoforma.net",
+];
+
+export async function isAuthorizedAuditor(session: any): Promise<boolean> {
+  const email = session?.user?.email?.toLowerCase().trim();
+  if (!email || !AUTHORIZED_AUDITOR_EMAILS.includes(email)) {
+    return false;
+  }
+  const emp = await prisma.minuta_empleado.findFirst({
+    where: {
+      email: { equals: email, mode: "insensitive" },
+    },
+  });
+  if (!emp) return false;
+  if (emp.activo && emp.activo.toUpperCase() === "N") return false;
+  return true;
+}
+
 export async function createMinuta(formData: FormData) {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.id) {
     return { error: "No autorizado" };
+  }
+
+  const isAuditor = await isAuthorizedAuditor(session);
+  const requestedEmpleado = (formData.get("empleado") as string)?.trim();
+  let targetEmpleadoId = session.user.id;
+
+  if (requestedEmpleado && requestedEmpleado !== session.user.id) {
+    if (!isAuditor) {
+      return { error: "No autorizado. Solo los auditores autorizados pueden registrar tiempos de otros colaboradores." };
+    }
+    const targetEmpleado = await prisma.minuta_empleado.findUnique({
+      where: { id: requestedEmpleado },
+    });
+    if (!targetEmpleado || (targetEmpleado.activo && targetEmpleado.activo.toUpperCase() === "N")) {
+      return { error: "El colaborador seleccionado no es válido o está inactivo." };
+    }
+    targetEmpleadoId = requestedEmpleado;
+  } else if (requestedEmpleado) {
+    targetEmpleadoId = requestedEmpleado;
   }
 
   const data = {
@@ -121,7 +160,7 @@ export async function createMinuta(formData: FormData) {
     // Validar solapamiento con registros existentes en la base de datos para este empleado en esta fecha
     const existing = await prisma.minuta_registro_actividad.findMany({
       where: {
-        empleado: session.user.id,
+        empleado: targetEmpleadoId,
         fecha: fechaDate,
       },
     });
@@ -138,7 +177,7 @@ export async function createMinuta(formData: FormData) {
 
         if (startMin < recEndMin && recStartMin < endMin) {
           return {
-            error: `El rango ${interval.horaInicio} - ${interval.horaFin} se solapa con una actividad ya registrada en este día (${recStartStr} - ${recEndStr})`
+            error: `El rango ${interval.horaInicio} - ${interval.horaFin} se solapa con una actividad ya registrada para este colaborador en este día (${recStartStr} - ${recEndStr})`
           };
         }
       }
@@ -186,7 +225,7 @@ export async function createMinuta(formData: FormData) {
         
         return prisma.minuta_registro_actividad.create({
           data: {
-            empleado: session.user.id,
+            empleado: targetEmpleadoId,
             fecha: fechaDate,
             hora_inicio: horaInicioDate,
             hora_fin: horaFinDate,
@@ -221,6 +260,7 @@ export async function createMinuta(formData: FormData) {
 export async function updateMinutaHistory(
   id: number,
   data: {
+    empleado?: string;
     fecha: string;
     hora_inicio: string;
     hora_fin: string;
@@ -232,11 +272,11 @@ export async function updateMinutaHistory(
   }
 ) {
   const session = await getServerSession(authOptions);
-  const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+  const isAuditor = await isAuthorizedAuditor(session);
   const userEmail = session?.user?.email?.toLowerCase();
 
-  if (!userEmail || !allowedEmails.includes(userEmail)) {
-    return { error: "No autorizado. Solo los auditores autorizados pueden editar el historial." };
+  if (!isAuditor || !userEmail) {
+    return { error: "No autorizado. Solo los auditores autorizados activos pueden editar el historial." };
   }
 
   // Basic validations
@@ -319,6 +359,22 @@ export async function updateMinutaHistory(
       auditoriaLogs.push({ campo: "hora_fin", valor_anterior: origFin, valor_nuevo: data.hora_fin });
     }
 
+    let targetEmpleado = original.empleado;
+    if (data.empleado && data.empleado !== original.empleado) {
+      const newEmp = await prisma.minuta_empleado.findUnique({
+        where: { id: data.empleado },
+      });
+      if (!newEmp || (newEmp.activo && newEmp.activo.toUpperCase() === "N")) {
+        return { error: "El colaborador seleccionado no es válido o está inactivo." };
+      }
+      targetEmpleado = data.empleado;
+      auditoriaLogs.push({
+        campo: "empleado",
+        valor_anterior: original.empleado,
+        valor_nuevo: data.empleado,
+      });
+    }
+
     if (original.proyecto !== data.proyecto) {
       auditoriaLogs.push({ campo: "proyecto", valor_anterior: original.proyecto, valor_nuevo: data.proyecto });
     }
@@ -355,6 +411,7 @@ export async function updateMinutaHistory(
       prisma.minuta_registro_actividad.update({
         where: { id },
         data: {
+          empleado: targetEmpleado,
           fecha: fechaDate,
           hora_inicio: horaInicioDate,
           hora_fin: horaFinDate,

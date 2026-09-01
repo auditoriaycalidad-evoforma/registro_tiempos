@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { createMinuta } from "@/app/actions/minuta";
-import { Plus, Trash2, Calendar, Folder, BookOpen, Clock, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Calendar, Folder, BookOpen, Clock, AlertCircle, User } from "lucide-react";
 import { SearchableSelect } from "./SearchableSelect";
 
 interface TimeRange {
@@ -14,7 +14,26 @@ interface TimeRange {
   observacion: string;
 }
 
-export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; actividades: any[] }) {
+interface EmpleadoOption {
+  id: string;
+  apellido_nombre: string;
+  cargo?: string | null;
+}
+
+export function MinutaForm({ 
+  proyectos, 
+  actividades,
+  empleados = [],
+  canSelectEmpleado = false,
+  defaultEmpleadoId = ""
+}: { 
+  proyectos: any[]; 
+  actividades: any[];
+  empleados?: EmpleadoOption[];
+  canSelectEmpleado?: boolean;
+  defaultEmpleadoId?: string;
+}) {
+  const [selectedEmpleado, setSelectedEmpleado] = useState<string>(defaultEmpleadoId);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -198,6 +217,11 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
       }
     }
 
+    if (canSelectEmpleado && !selectedEmpleado) {
+      setError("Debe seleccionar un colaborador (Apellido - Nombre).");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(false);
@@ -209,6 +233,7 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
     } else {
       setSuccess(true);
       formRef.current?.reset();
+      setSelectedEmpleado(defaultEmpleadoId);
       setRanges([{ id: "initial", proyecto: "", actividad: "", horaInicio: "", horaFin: "", observacion: "" }]);
     }
     setLoading(false);
@@ -235,6 +260,27 @@ export function MinutaForm({ proyectos, actividades }: { proyectos: any[]; activ
       )}
 
       <form ref={formRef} action={action} className="space-y-6">
+        {canSelectEmpleado && empleados.length > 0 && (
+          <div>
+            <label className="block text-sm font-semibold text-brand-dark/90 mb-1.5 flex items-center gap-1.5">
+              <User className="w-4 h-4 text-brand-primary" />
+              Apellido - Nombre (Colaborador)
+            </label>
+            <SearchableSelect
+              name="empleado"
+              value={selectedEmpleado}
+              onChange={(val) => setSelectedEmpleado(val)}
+              options={empleados.map((emp) => ({
+                value: emp.id,
+                label: emp.apellido_nombre,
+                sublabel: emp.cargo ? `(${emp.cargo})` : undefined,
+              }))}
+              placeholder="Seleccione o busque un colaborador"
+              required
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className="block text-sm font-semibold text-brand-dark/90 mb-1.5 flex items-center gap-1.5">
