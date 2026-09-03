@@ -233,17 +233,10 @@ export async function replaceSheetValues(
   sheetTitle: string,
   values: (string | number)[][]
 ) {
+  if (!values || values.length === 0) return;
+
   const config = getGoogleConfig();
   const accessToken = await requestAccessToken(config);
-
-  const range = `'${sheetTitle}'!A:ZZ`;
-  const encodedRange = encodeURIComponent(range);
-
-  await googleFetch(
-    `${SHEETS_URL}/${spreadsheetId}/values/${encodedRange}:clear`,
-    accessToken,
-    { method: "POST", body: JSON.stringify({}) }
-  );
 
   const updateRange = `'${sheetTitle}'!A1`;
   const encodedUpdateRange = encodeURIComponent(updateRange);
