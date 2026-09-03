@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { createMinuta } from "@/app/actions/minuta";
+import { useRouter } from "next/navigation";
 import { Plus, Trash2, Calendar, Folder, BookOpen, Clock, AlertCircle, User } from "lucide-react";
 import { SearchableSelect } from "./SearchableSelect";
 
@@ -33,7 +33,10 @@ export function MinutaForm({
   canSelectEmpleado?: boolean;
   defaultEmpleadoId?: string;
 }) {
+  const router = useRouter();
   const [selectedEmpleado, setSelectedEmpleado] = useState<string>(defaultEmpleadoId);
+  const [tipo, setTipo] = useState<string>("");
+  const [fecha, setFecha] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -170,11 +173,11 @@ export function MinutaForm({
 
   const overlapError = getOverlapError();
 
-  async function action(formData: FormData) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
     // Validar campos principales
-    const tipoInput = formData.get("tipo") as string;
-    const fechaInput = formData.get("fecha") as string;
-    if (!tipoInput || !fechaInput) {
+    if (!tipo || !fecha) {
       setError("Todos los campos principales son obligatorios (Tipo de Tiempo y Fecha).");
       return;
     }
@@ -200,7 +203,7 @@ export function MinutaForm({
     }
 
     // Validar fecha en el cliente también
-    if (fechaInput) {
+    if (fecha) {
       const hoyVal = new Date();
       const hoySoloFecha = new Date(hoyVal.getFullYear(), hoyVal.getMonth(), hoyVal.getDate());
       const limiteMinimo = new Date(hoySoloFecha);
@@ -208,7 +211,7 @@ export function MinutaForm({
       const limiteMaximo = new Date(hoySoloFecha);
       limiteMaximo.setDate(limiteMaximo.getDate() + 2);
       
-      const [year, month, day] = fechaInput.split("-").map(Number);
+      const [year, month, day] = fecha.split("-").map(Number);
       const fechaIngresada = new Date(year, month - 1, day);
       
       if (fechaIngresada < limiteMinimo || fechaIngresada > limiteMaximo) {
@@ -226,17 +229,45 @@ export function MinutaForm({
     setError(null);
     setSuccess(false);
 
-    const res = await createMinuta(formData);
-    
-    if (res?.error) {
-      setError(res.error);
-    } else {
-      setSuccess(true);
-      formRef.current?.reset();
-      setSelectedEmpleado(defaultEmpleadoId);
-      setRanges([{ id: "initial", proyecto: "", actividad: "", horaInicio: "", horaFin: "", observacion: "" }]);
+    const payload = {
+      empleado: canSelectEmpleado ? selectedEmpleado : defaultEmpleadoId || undefined,
+      tipo,
+      fecha,
+      intervals: ranges.map((r) => ({
+        proyecto: r.proyecto.trim(),
+        actividad: r.actividad.trim(),
+        horaInicio: r.horaInicio.trim(),
+        horaFin: r.horaFin.trim(),
+        observacion: r.observacion?.trim() || "",
+      })),
+    };
+
+    try {
+      const res = await fetch("/api/minuta", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        setError(data?.error || "Error al registrar el tiempo");
+      } else {
+        setSuccess(true);
+        setTipo("");
+        setFecha("");
+        setSelectedEmpleado(defaultEmpleadoId);
+        setRanges([{ id: Math.random().toString(), proyecto: "", actividad: "", horaInicio: "", horaFin: "", observacion: "" }]);
+        router.refresh();
+      }
+    } catch (err: any) {
+      setError(err?.message || "Error de conexión al guardar el registro");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
@@ -259,7 +290,7 @@ export function MinutaForm({
         </div>
       )}
 
-      <form ref={formRef} action={action} className="space-y-6">
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
         {canSelectEmpleado && empleados.length > 0 && (
           <div>
             <label className="block text-sm font-semibold text-brand-dark/90 mb-1.5 flex items-center gap-1.5">
@@ -289,6 +320,8 @@ export function MinutaForm({
             </label>
             <select 
               name="tipo" 
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value)}
               required 
               className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50 text-sm"
             >
@@ -305,6 +338,8 @@ export function MinutaForm({
             <input 
               type="date" 
               name="fecha" 
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
               required 
               min={minDate}
               max={maxDate}
