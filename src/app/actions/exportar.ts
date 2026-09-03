@@ -132,6 +132,14 @@ function normalizeEstado(estadoStr: string): string {
   return s;
 }
 
+function normalizeTipoMinuta(tipoStr: any): "A" | "O" | null {
+  if (!tipoStr) return null;
+  const s = tipoStr.toString().trim().toUpperCase();
+  if (s === "O" || s === "TIPO O" || s.endsWith(" O")) return "O";
+  if (s === "A" || s === "TIPO A" || s.endsWith(" A")) return "A";
+  return null;
+}
+
 function calculateHours(start: Date, end: Date): number {
   const diff = end.getTime() - start.getTime();
   return Math.max(0, Math.round((diff / 36e5) * 100) / 100);
@@ -296,14 +304,16 @@ async function bidirectionalCellSync(
       // 6. Tipo de Minuta (Index 1)
       const dbTipo = minuta.tipo_minuta;
       const sheetTipoRaw = existingRow[1]?.toString().trim() ?? "";
-      const sheetTipoCode = sheetTipoRaw.toUpperCase().includes("O") ? "O" : "A";
+      const sheetTipoCode = normalizeTipoMinuta(sheetTipoRaw);
       const tipoChangedInApp = appModifiedFields.has(`${idNum}:tipo_minuta`);
       let finalTipo = `Tipo ${dbTipo}`;
       if (tipoChangedInApp) {
         finalTipo = `Tipo ${dbTipo}`;
-      } else if (sheetTipoRaw && sheetTipoCode !== dbTipo) {
-        finalTipo = sheetTipoRaw;
+      } else if (sheetTipoCode && sheetTipoCode !== dbTipo) {
+        finalTipo = `Tipo ${sheetTipoCode}`;
         updates.tipo_minuta = sheetTipoCode;
+      } else {
+        finalTipo = sheetTipoRaw ? (sheetTipoRaw.toUpperCase().startsWith("TIPO") ? sheetTipoRaw : `Tipo ${dbTipo}`) : `Tipo ${dbTipo}`;
       }
 
       // 7. Proyecto (Index 4 y 5)
