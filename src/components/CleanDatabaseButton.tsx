@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { Trash2, AlertTriangle } from "lucide-react";
-import { cleanDatabaseRecords } from "@/app/actions/admin";
 
 export function CleanDatabaseButton() {
   const [isCleaning, setIsCleaning] = useState(false);
@@ -21,11 +20,19 @@ export function CleanDatabaseButton() {
     setMessage(null);
 
     try {
-      const res = await cleanDatabaseRecords(cleanupDate || undefined);
+      const response = await fetch("/api/admin/limpiar-db", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ beforeDate: cleanupDate || undefined }),
+      });
+
+      const res = await response.json();
       setIsCleaning(false);
 
-      if (res.error) {
-        setMessage({ text: res.error, type: "error" });
+      if (!response.ok || res.error) {
+        setMessage({ text: res.error || "Error al ejecutar la limpieza.", type: "error" });
       } else {
         setMessage({
           text: `Limpieza exitosa. Se eliminaron ${res.count} registros de la aplicación.`,

@@ -6,7 +6,6 @@ import { es } from "date-fns/locale";
 import { Clock, CheckCircle2, XCircle, Search } from "lucide-react";
 import { AdminActionButtons } from "@/components/AdminActionButtons";
 import { formatTime24 } from "@/lib/formatTime";
-import { cleanDatabaseRecords } from "@/app/actions/admin";
 
 const DAYS_OF_WEEK = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
 const MONTHS = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
@@ -108,11 +107,19 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
     setCleanupMessage(null);
 
     try {
-      const res = await cleanDatabaseRecords(cleanupDate);
+      const response = await fetch("/api/admin/limpiar-db", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ beforeDate: cleanupDate }),
+      });
+
+      const res = await response.json();
       setIsCleaning(false);
 
-      if (res.error) {
-        setCleanupMessage({ text: res.error, type: "error" });
+      if (!response.ok || res.error) {
+        setCleanupMessage({ text: res.error || "Error al ejecutar la limpieza.", type: "error" });
       } else {
         setCleanupMessage({
           text: `Limpieza exitosa. Se eliminaron ${res.count} registros de la aplicación.`,

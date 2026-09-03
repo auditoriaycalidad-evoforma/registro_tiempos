@@ -1,6 +1,5 @@
 "use client";
 
-import { syncMinutasToSheets } from "@/app/actions/exportar";
 import { RefreshCw } from "lucide-react";
 import { useState, useTransition } from "react";
 
@@ -28,8 +27,18 @@ export function ExportSyncButton() {
     setError(null);
     startTransition(async () => {
       try {
-        const result = await syncMinutasToSheets();
-        setSyncState(result);
+        const response = await fetch("/api/exportar", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        const result = await response.json();
+        if (!response.ok || result?.error) {
+          setError(result?.error || "No se pudo sincronizar la exportación.");
+        } else {
+          setSyncState(result);
+        }
       } catch (syncError) {
         setError(syncError instanceof Error ? syncError.message : "No se pudo sincronizar la exportación.");
       }

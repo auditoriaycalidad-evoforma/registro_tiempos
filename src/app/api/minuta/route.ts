@@ -274,3 +274,99 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+    const userEmail = session.user.email?.toLowerCase();
+    const isAdmin = userEmail && allowedEmails.includes(userEmail);
+    if (!isAdmin) {
+      return NextResponse.json({ history: [] }, { status: 200 });
+    }
+
+    const history = await prisma.minuta_registro_actividad.findMany({
+      where: {
+        empleado: session.user.id,
+      },
+      orderBy: [
+        { fecha: "desc" },
+        { hora_inicio: "desc" },
+      ],
+      include: {
+        minuta_proyecto: true,
+        minuta_actividad: true,
+      },
+      take: 50,
+    });
+
+    return NextResponse.json({ history }, { status: 200 });
+  } catch (error) {
+    console.error("Error en GET /api/minuta:", error);
+    return NextResponse.json({ error: "Error al obtener el historial" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    let idStr = searchParams.get("id");
+    if (!idStr) {
+      const body = await request.json().catch(() => ({}));
+      idStr = body?.id;
+    }
+
+    const id = parseInt(idStr || "", 10);
+    if (isNaN(id)) {
+      return NextResponse.json({ error: "ID de registro inválido" }, { status: 400 });
+    }
+
+    const record = await prisma.minuta_registro_actividad.findUnique({
+      where: { id },
+    });
+
+    if (!record || record.empleado !== session.user.id) {
+      return NextResponse.json({ error: "Registro no encontrado o no autorizado." }, { status: 404 });
+    }
+
+    const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+    const userEmail = session.user.email?.toLowerCase();
+    const isSpecialUser = userEmail && allowedEmails.includes(userEmail);
+
+    if (record.tipo_minuta === "O" && record.aprobado === "SI" && !isSpecialUser) {
+      return NextResponse.json(
+        { error: "No puedes eliminar un registro de horas extra que ya ha sido aprobado." },
+        { status: 403 }
+      );
+    }
+
+    await prisma.minuta_registro_actividad.delete({
+      where: { id },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/admin");
+    revalidatePath("/pwa");
+
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
+      syncMinutasToSheets({ skipAuth: true }).catch((err) => {
+        console.error("Error al actualizar Google Sheets en segundo plano tras eliminar:", err);
+      });
+    }
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error("Error en DELETE /api/minuta:", error);
+    return NextResponse.json({ error: "Error al eliminar el registro." }, { status: 500 });
+  }
+}
+

@@ -1,16 +1,32 @@
 "use client";
 
-import { approveMinuta } from "@/app/actions/admin";
 import { Check, X } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export function AdminActionButtons({ id }: { id: number }) {
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleAction = async (decision: "SI" | "RE") => {
     setLoading(true);
-    await approveMinuta(id, decision);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/minuta/aprobar", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id, decision }),
+      });
+
+      if (res.ok) {
+        router.refresh();
+      }
+    } catch (err) {
+      console.error("Error al aprobar/rechazar:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -7,9 +7,16 @@ import {
   History, PlusCircle, Search, AlertCircle, CheckCircle2, 
   Smartphone, Sparkles, X, ChevronRight, RefreshCw
 } from "lucide-react";
-import { createMinutasPwa, getPwaHistory, deleteMinutaPwa, PwaInterval } from "@/app/actions/pwa";
 import { formatTime24 } from "@/lib/formatTime";
 import { SearchableSelect } from "@/components/SearchableSelect";
+
+export interface PwaInterval {
+  proyecto: string;
+  actividad: string;
+  horaInicio: string;
+  horaFin: string;
+  observacion: string;
+}
 
 function calculateIntervalHours(start: string, end: string): number {
   if (!start || !end) return 0;
@@ -196,13 +203,18 @@ interface PwaIntervalForm {
   // Refresh user history
   const handleRefreshHistory = async () => {
     setIsRefreshing(true);
-    const res = await getPwaHistory();
-    setIsRefreshing(false);
-    if ("error" in res) {
+    try {
+      const res = await fetch("/api/minuta").then((r) => r.json());
+      setIsRefreshing(false);
+      if (res?.error) {
+        showToast("No se pudo actualizar el historial.", "error");
+      } else if (res?.history) {
+        setHistory(res.history);
+        showToast("Historial actualizado.", "success");
+      }
+    } catch {
+      setIsRefreshing(false);
       showToast("No se pudo actualizar el historial.", "error");
-    } else if (res.history) {
-      setHistory(res.history);
-      showToast("Historial actualizado.", "success");
     }
   };
 
@@ -503,27 +515,44 @@ interface PwaIntervalForm {
       observacion: inv.observacion
     }));
 
-    const res = await createMinutasPwa({
-      empleado: isAuditor && selectedEmpleado ? selectedEmpleado : undefined,
-      fecha,
-      tipo: tipoMinuta,
-      intervals: dataToSubmit
-    });
-    setIsLoading(false);
+    try {
+      const response = await fetch("/api/minuta", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          empleado: isAuditor && selectedEmpleado ? selectedEmpleado : undefined,
+          fecha,
+          tipo: tipoMinuta,
+          intervals: dataToSubmit,
+        }),
+      });
 
-    if (res.error) {
-      showToast(res.error, "error");
-    } else {
-      showToast("Tiempos registrados con éxito.", "success");
-      // Reset form
-      setIntervals([{ proyecto: "", proyectoText: "", actividad: "", actividadText: "", horaInicio: "", horaFin: "", observacion: "" }]);
-      // Refresh local history
-      const histRes = await getPwaHistory();
-      if ("history" in histRes && histRes.history) {
-        setHistory(histRes.history);
+      const res = await response.json();
+      setIsLoading(false);
+
+      if (!response.ok || res.error) {
+        showToast(res.error || "Error al registrar tiempo", "error");
+      } else {
+        showToast("Tiempos registrados con éxito.", "success");
+        // Reset form
+        setIntervals([{ proyecto: "", proyectoText: "", actividad: "", actividadText: "", horaInicio: "", horaFin: "", observacion: "" }]);
+        // Refresh local history via JSON GET
+        try {
+          const histRes = await fetch("/api/minuta").then((r) => r.json());
+          if (histRes && "history" in histRes && histRes.history) {
+            setHistory(histRes.history);
+          }
+        } catch (e) {
+          console.error("Error al refrescar historial:", e);
+        }
+        // Navigate to History Tab
+        setActiveTab("historial");
       }
-      // Navigate to History Tab
-      setActiveTab("historial");
+    } catch (err: any) {
+      setIsLoading(false);
+      showToast(err?.message || "Error de conexión", "error");
     }
   };
 
@@ -531,12 +560,20 @@ interface PwaIntervalForm {
   const handleDeleteEntry = async (id: number) => {
     if (!window.confirm("¿Seguro que deseas eliminar este registro de tiempo?")) return;
 
-    const res = await deleteMinutaPwa(id);
-    if (res.error) {
-      showToast(res.error, "error");
-    } else {
-      showToast("Registro eliminado.", "success");
-      setHistory((prev) => prev.filter((item) => item.id !== id));
+    try {
+      const response = await fetch(`/api/minuta/${id}`, {
+        method: "DELETE",
+      });
+      const res = await response.json();
+
+      if (!response.ok || res.error) {
+        showToast(res.error || "Error al eliminar el registro.", "error");
+      } else {
+        showToast("Registro eliminado.", "success");
+        setHistory((prev) => prev.filter((item) => item.id !== id));
+      }
+    } catch (err: any) {
+      showToast(err?.message || "Error al eliminar el registro.", "error");
     }
   };
 

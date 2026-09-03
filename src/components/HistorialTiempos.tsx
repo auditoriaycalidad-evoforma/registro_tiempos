@@ -6,7 +6,6 @@ import { es } from "date-fns/locale";
 import { CheckCircle2, Clock, XCircle, Search, SlidersHorizontal, ArrowUpDown, Edit2, Save, X, AlertCircle } from "lucide-react";
 import { formatTime24 } from "@/lib/formatTime";
 import { useSession } from "next-auth/react";
-import { updateMinutaHistory } from "@/app/actions/minuta";
 import { useRouter } from "next/navigation";
 import { SearchableSelect } from "./SearchableSelect";
 
@@ -215,14 +214,28 @@ export function HistorialTiempos({
     setIsSaving(true);
     setEditError(null);
 
-    const res = await updateMinutaHistory(editingRecord.id, editForm);
-    if (res.error) {
-      setEditError(res.error);
+    try {
+      const res = await fetch(`/api/minuta/${editingRecord.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(editForm),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        setEditError(data?.error || "Error al modificar el registro");
+        setIsSaving(false);
+      } else {
+        setIsSaving(false);
+        setEditingRecord(null);
+        router.refresh();
+      }
+    } catch (err: any) {
+      setEditError(err?.message || "Error de conexión al guardar los cambios");
       setIsSaving(false);
-    } else {
-      setIsSaving(false);
-      setEditingRecord(null);
-      router.refresh();
     }
   };
 
