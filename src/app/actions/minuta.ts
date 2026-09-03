@@ -8,7 +8,7 @@ import { syncMinutasToSheets } from "./exportar";
 
 import { formatTime24 } from "@/lib/formatTime";
 
-export const AUTHORIZED_AUDITOR_EMAILS = [
+const AUTHORIZED_AUDITOR_EMAILS = [
   "ia.evoforma@gmail.com",
   "auditoriaycalidad@evoforma.net",
 ];
