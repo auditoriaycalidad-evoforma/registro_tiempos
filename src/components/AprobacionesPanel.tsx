@@ -395,70 +395,70 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
               No hay tiempos O pendientes de aprobación que coincidan con los filtros.
             </div>
           ) : (
-            <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
-              <table className="w-full text-left text-sm text-brand-dark/80">
-                <thead className="bg-slate-100 text-brand-dark sticky top-0 z-10">
+            <div className="overflow-x-auto max-h-[650px] overflow-y-auto">
+              <table className="w-full text-left text-sm text-brand-dark/80 table-auto">
+                <thead className="bg-slate-100 text-brand-dark sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Día</th>
-                    <th className="px-4 py-3 font-semibold text-center">Tipo de Tiempo</th>
-                    <th className="px-4 py-3 font-semibold">Mes</th>
-                    <th className="px-4 py-3 font-semibold">Fecha</th>
-                    <th className="px-4 py-3 font-semibold">Cédula del Proyecto</th>
-                    <th className="px-4 py-3 font-semibold">Nombre del Proyecto</th>
-                    <th className="px-4 py-3 font-semibold">Hora Inicio</th>
-                    <th className="px-4 py-3 font-semibold">Hora Fin</th>
-                    <th className="px-4 py-3 font-semibold text-center">Total Horas</th>
-                    <th className="px-4 py-3 font-semibold">Apellido - Nombre</th>
-                    <th className="px-4 py-3 font-semibold">Actividad - Cargo</th>
-                    <th className="px-4 py-3 font-semibold text-center">Estado</th>
-                    <th className="px-4 py-3 font-semibold">Observación</th>
-                    <th className="px-4 py-3 font-semibold text-center">Acciones</th>
+                    <th className="px-3 py-3 w-24 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Día</th>
+                    <th className="px-2.5 py-3 w-24 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Tipo</th>
+                    <th className="px-3 py-3 w-24 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Mes</th>
+                    <th className="px-3 py-3 w-28 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Fecha</th>
+                    <th className="px-3 py-3 w-32 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Cédula</th>
+                    <th className="px-4 py-3 min-w-[200px] text-xs font-bold uppercase tracking-wider">Nombre del Proyecto</th>
+                    <th className="px-2.5 py-3 w-20 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Inicio</th>
+                    <th className="px-2.5 py-3 w-20 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Fin</th>
+                    <th className="px-2.5 py-3 w-20 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Horas</th>
+                    <th className="px-4 py-3 min-w-[150px] text-xs font-bold uppercase tracking-wider whitespace-nowrap">Colaborador</th>
+                    <th className="px-4 py-3 min-w-[220px] text-xs font-bold uppercase tracking-wider">Actividad - Cargo</th>
+                    <th className="px-3 py-3 w-28 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Estado</th>
+                    <th className="px-4 py-3 min-w-[160px] text-xs font-bold uppercase tracking-wider">Observación</th>
+                    <th className="px-3 py-3 w-32 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-brand-dark/10">
+                <tbody className="divide-y divide-brand-dark/10 bg-white">
                   {pendientesFiltradas.map((m) => {
                     const actName = m.minuta_actividad?.nombre || m.actividad || "";
                     const empCargo = m.minuta_empleado?.cargo || "";
                     const actividadCargo = actName && empCargo ? `${actName} - ${empCargo}` : (actName || empCargo || "-");
 
                     return (
-                      <tr key={m.id} className="hover:bg-brand-accent/5 transition-colors">
-                        <td className="px-4 py-3 whitespace-nowrap font-medium">{getUTCDayName(m.fecha)}</td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          <span className="px-2 py-1 text-xs font-bold rounded-md bg-brand-primary/10 text-brand-primary/90">
+                      <tr key={m.id} className="hover:bg-amber-50/40 transition-colors">
+                        <td className="px-3 py-3 whitespace-nowrap font-medium text-xs text-brand-dark/80">{getUTCDayName(m.fecha)}</td>
+                        <td className="px-2.5 py-3 text-center whitespace-nowrap">
+                          <span className="px-2 py-0.5 text-xs font-extrabold rounded-md bg-amber-100 text-amber-800">
                             Tipo O
                           </span>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap font-medium">{getUTCMonthName(m.fecha)}</td>
-                        <td className="px-4 py-3 whitespace-nowrap font-medium">{getUTCDateString(m.fecha)}</td>
-                        <td className="px-4 py-3 font-medium whitespace-nowrap">{m.minuta_proyecto?.code || m.proyecto || "-"}</td>
-                        <td className="px-4 py-3 text-brand-dark/70 max-w-xs truncate" title={m.minuta_proyecto?.nombre || ""}>
+                        <td className="px-3 py-3 whitespace-nowrap font-medium text-xs text-brand-dark/80">{getUTCMonthName(m.fecha)}</td>
+                        <td className="px-3 py-3 whitespace-nowrap font-semibold text-xs text-brand-dark">{getUTCDateString(m.fecha)}</td>
+                        <td className="px-3 py-3 font-mono font-semibold text-brand-dark text-xs whitespace-nowrap">{m.minuta_proyecto?.code || m.proyecto || "-"}</td>
+                        <td className="px-4 py-3 text-xs text-brand-dark font-medium leading-relaxed break-words" title={m.minuta_proyecto?.nombre || ""}>
                           {m.minuta_proyecto?.nombre || "-"}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-semibold">
+                        <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
                           {formatTime24(m.hora_inicio)}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-semibold">
+                        <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
                           {formatTime24(m.hora_fin)}
                         </td>
-                        <td className="px-4 py-3 text-center font-bold text-brand-dark">
+                        <td className="px-2.5 py-3 text-center font-bold text-brand-primary text-xs whitespace-nowrap">
                           {calculateHours(m.hora_inicio, m.hora_fin).toFixed(2)}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-brand-dark/90 font-medium">
+                        <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-medium text-xs">
                           {m.minuta_empleado?.apellido_nombre || m.empleado}
                         </td>
-                        <td className="px-4 py-3 text-brand-dark/80 max-w-xs truncate" title={actividadCargo}>
+                        <td className="px-4 py-3 text-xs text-brand-dark/90 leading-relaxed break-words" title={actividadCargo}>
                           {actividadCargo}
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">
+                        <td className="px-3 py-3 text-center whitespace-nowrap">
+                          <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800">
                             Pendiente
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-xs italic text-brand-dark/70 max-w-xs truncate" title={m.observacion || ""}>
+                        <td className="px-4 py-3 text-xs italic text-brand-dark/75 leading-relaxed break-words" title={m.observacion || ""}>
                           {m.observacion || "-"}
                         </td>
-                        <td className="px-4 py-3 w-32 text-center">
+                        <td className="px-3 py-3 w-32 text-center whitespace-nowrap">
                           <AdminActionButtons id={m.id} />
                         </td>
                       </tr>
@@ -487,74 +487,74 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
               No hay registros procesados que coincidan con los filtros.
             </div>
           ) : (
-            <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
-              <table className="w-full text-left text-sm text-brand-dark/80">
-                <thead className="bg-slate-100 text-brand-dark sticky top-0 z-10">
+            <div className="overflow-x-auto max-h-[650px] overflow-y-auto">
+              <table className="w-full text-left text-sm text-brand-dark/80 table-auto">
+                <thead className="bg-slate-100 text-brand-dark sticky top-0 z-10 shadow-sm">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Día</th>
-                    <th className="px-4 py-3 font-semibold text-center">Tipo de Tiempo</th>
-                    <th className="px-4 py-3 font-semibold">Mes</th>
-                    <th className="px-4 py-3 font-semibold">Fecha</th>
-                    <th className="px-4 py-3 font-semibold">Cédula del Proyecto</th>
-                    <th className="px-4 py-3 font-semibold">Nombre del Proyecto</th>
-                    <th className="px-4 py-3 font-semibold">Hora Inicio</th>
-                    <th className="px-4 py-3 font-semibold">Hora Fin</th>
-                    <th className="px-4 py-3 font-semibold text-center">Total Horas</th>
-                    <th className="px-4 py-3 font-semibold">Apellido - Nombre</th>
-                    <th className="px-4 py-3 font-semibold">Actividad - Cargo</th>
-                    <th className="px-4 py-3 font-semibold text-center">Estado</th>
-                    <th className="px-4 py-3 font-semibold">Observación</th>
+                    <th className="px-3 py-3 w-24 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Día</th>
+                    <th className="px-2.5 py-3 w-24 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Tipo</th>
+                    <th className="px-3 py-3 w-24 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Mes</th>
+                    <th className="px-3 py-3 w-28 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Fecha</th>
+                    <th className="px-3 py-3 w-32 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Cédula</th>
+                    <th className="px-4 py-3 min-w-[200px] text-xs font-bold uppercase tracking-wider">Nombre del Proyecto</th>
+                    <th className="px-2.5 py-3 w-20 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Inicio</th>
+                    <th className="px-2.5 py-3 w-20 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Fin</th>
+                    <th className="px-2.5 py-3 w-20 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Horas</th>
+                    <th className="px-4 py-3 min-w-[150px] text-xs font-bold uppercase tracking-wider whitespace-nowrap">Colaborador</th>
+                    <th className="px-4 py-3 min-w-[220px] text-xs font-bold uppercase tracking-wider">Actividad - Cargo</th>
+                    <th className="px-3 py-3 w-28 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Estado</th>
+                    <th className="px-4 py-3 min-w-[160px] text-xs font-bold uppercase tracking-wider">Observación</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-brand-dark/10">
+                <tbody className="divide-y divide-brand-dark/10 bg-white">
                   {procesadasRaw.map((m) => {
                     const actName = m.minuta_actividad?.nombre || m.actividad || "";
                     const empCargo = m.minuta_empleado?.cargo || "";
                     const actividadCargo = actName && empCargo ? `${actName} - ${empCargo}` : (actName || empCargo || "-");
 
                     return (
-                      <tr key={m.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-2 whitespace-nowrap font-medium">{getUTCDayName(m.fecha)}</td>
-                        <td className="px-4 py-2 text-center whitespace-nowrap">
-                          <span className="px-2 py-1 text-xs font-bold rounded-md bg-brand-primary/10 text-brand-primary/90">
+                      <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-3 py-3 whitespace-nowrap font-medium text-xs text-brand-dark/80">{getUTCDayName(m.fecha)}</td>
+                        <td className="px-2.5 py-3 text-center whitespace-nowrap">
+                          <span className="px-2 py-0.5 text-xs font-extrabold rounded-md bg-brand-primary/10 text-brand-primary/90">
                             Tipo O
                           </span>
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap font-medium">{getUTCMonthName(m.fecha)}</td>
-                        <td className="px-4 py-2 whitespace-nowrap font-medium">{getUTCDateString(m.fecha)}</td>
-                        <td className="px-4 py-2 font-medium whitespace-nowrap">{m.minuta_proyecto?.code || m.proyecto || "-"}</td>
-                        <td className="px-4 py-2 text-xs truncate max-w-xs" title={m.minuta_proyecto?.nombre || ""}>
+                        <td className="px-3 py-3 whitespace-nowrap font-medium text-xs text-brand-dark/80">{getUTCMonthName(m.fecha)}</td>
+                        <td className="px-3 py-3 whitespace-nowrap font-semibold text-xs text-brand-dark">{getUTCDateString(m.fecha)}</td>
+                        <td className="px-3 py-3 font-mono font-semibold text-brand-dark text-xs whitespace-nowrap">{m.minuta_proyecto?.code || m.proyecto || "-"}</td>
+                        <td className="px-4 py-3 text-xs text-brand-dark font-medium leading-relaxed break-words" title={m.minuta_proyecto?.nombre || ""}>
                           {m.minuta_proyecto?.nombre || "-"}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-brand-dark font-semibold">
+                        <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
                           {formatTime24(m.hora_inicio)}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-brand-dark font-semibold">
+                        <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
                           {formatTime24(m.hora_fin)}
                         </td>
-                        <td className="px-4 py-2 text-center font-bold text-brand-dark">
+                        <td className="px-2.5 py-3 text-center font-bold text-brand-primary text-xs whitespace-nowrap">
                           {calculateHours(m.hora_inicio, m.hora_fin).toFixed(2)}
                         </td>
-                        <td className="px-4 py-2 whitespace-nowrap text-brand-dark/90 font-medium">
+                        <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-medium text-xs">
                           {m.minuta_empleado?.apellido_nombre || m.empleado}
                         </td>
-                        <td className="px-4 py-2 text-brand-dark/80 max-w-xs truncate" title={actividadCargo}>
+                        <td className="px-4 py-3 text-xs text-brand-dark/90 leading-relaxed break-words" title={actividadCargo}>
                           {actividadCargo}
                         </td>
-                        <td className="px-4 py-2 text-center whitespace-nowrap">
+                        <td className="px-3 py-3 text-center whitespace-nowrap">
                           {m.aprobado === "SI" ? (
-                            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800">
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                            <span className="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-800">
+                              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
                               Aprobado
                             </span>
                           ) : (
-                            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-800">
-                              <XCircle className="w-3 h-3 mr-1" />
+                            <span className="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-800">
+                              <XCircle className="w-3.5 h-3.5 mr-1" />
                               Rechazado
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-2 text-xs italic truncate max-w-xs" title={m.observacion || ""}>
+                        <td className="px-4 py-3 text-xs italic text-brand-dark/75 leading-relaxed break-words" title={m.observacion || ""}>
                           {m.observacion || "-"}
                         </td>
                       </tr>
