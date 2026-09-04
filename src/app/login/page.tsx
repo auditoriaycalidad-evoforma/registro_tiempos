@@ -1,5 +1,6 @@
 import { AlertCircle, Clock } from "lucide-react";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { CredentialsSignInForm } from "@/components/CredentialsSignInForm";
 
 type LoginPageProps = {
   searchParams?: {
@@ -13,9 +14,12 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   const getErrorMessage = () => {
     if (!authError) return "";
     if (authError === "AccessDenied") {
-      return "Tu cuenta de Google no esta registrada en el sistema.";
+      return "Tu cuenta no está registrada o está inactiva en el sistema.";
     }
-    return "No fue posible iniciar sesion con Google. Intentalo de nuevo.";
+    if (authError === "CredentialsSignin") {
+      return "Usuario o contraseña incorrectos.";
+    }
+    return "No fue posible iniciar sesion. Intentalo de nuevo.";
   };
 
   return (
@@ -44,6 +48,17 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           )}
 
           <GoogleSignInButton />
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-brand-dark/10" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-brand-dark/50">o</span>
+            </div>
+          </div>
+
+          <CredentialsSignInForm />
         </div>
       </div>
     </div>

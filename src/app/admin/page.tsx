@@ -13,7 +13,7 @@ export default async function AdminPage() {
 
   const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
   const userEmail = session.user.email?.toLowerCase();
-  const isAdmin = !!(userEmail && allowedEmails.includes(userEmail));
+  const isAdmin = session.user.rol === "ADMIN" || !!(userEmail && allowedEmails.includes(userEmail));
 
   // Consultar minuta_empleado para saber si es líder
   const empleado = await prisma.minuta_empleado.findUnique({

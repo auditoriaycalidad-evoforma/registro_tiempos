@@ -27,6 +27,8 @@ model minuta_empleado {
   apellido_nombre           String                      @db.VarChar(255)
   cargo                     String?                     @db.VarChar(255)
   email                     String?                     @unique @db.VarChar(255)
+  username                  String?                     @unique @db.VarChar(64)
+  password_hash             String?                     @db.VarChar(255)
   activo                    String?                     @db.VarChar(10)
   es_lider                  String?                     @db.VarChar(1)
   area_lider                String[]                    @db.VarChar(64)
