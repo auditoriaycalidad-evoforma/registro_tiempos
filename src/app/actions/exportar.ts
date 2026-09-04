@@ -4,7 +4,6 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import {
   getOrCreateSpreadsheet,
-  replaceSpreadsheetValues,
   ensureSheetExists,
   replaceSheetValues,
   getSheetValues,
@@ -62,10 +61,6 @@ type SyncResult = {
   url: string;
 };
 
-function sanitizeFilePart(value: string) {
-  return value.replace(/[<>:"/\\|?*\u0000-\u001F]/g, " ").replace(/\s+/g, " ").trim();
-}
-
 function sanitizeSheetTitle(title: string): string {
   let sanitized = title
     .replace(/[\\/\?\*:\[\]]/g, " ")
@@ -90,7 +85,7 @@ function formatDate(date: Date) {
 
 function calculateHours(start: Date, end: Date): number {
   const diff = end.getTime() - start.getTime();
-  return Math.round((diff / 36e5) * 100) / 100;
+  return Math.max(0, Math.round((diff / 36e5) * 100) / 100);
 }
 
 function getCurrentYearRange() {
@@ -114,11 +109,17 @@ async function ensureCanExport() {
   }
 }
 
+/**
+ * Sincronización unidireccional (PostgreSQL -> Google Sheets).
+ * Actualiza las filas existentes con los datos oficiales de la Base de Datos,
+ * preserva columnas manuales a la derecha (índice >= 14) y filas manuales sin ID,
+ * y agrega los nuevos registros provenientes de PostgreSQL.
+ * NUNCA modifica la base de datos PostgreSQL.
+ */
 function mergeMinutasWithSheetValues(
   dbMinutas: any[],
   existingValues: (string | number)[][]
 ): (string | number)[][] {
-  // Construir mapa de registros de la base de datos indexado por su ID
   const dbRowsMap = new Map<string, (string | number)[]>();
 
   dbMinutas.forEach((minuta) => {
@@ -140,14 +141,14 @@ function mergeMinutasWithSheetValues(
       actividadCargo,
       minuta.aprobado ?? "NO",
       minuta.observacion ?? "",
-      minuta.id, // ID_REGISTRO column (index 13)
+      minuta.id,
     ];
 
     dbRowsMap.set(minuta.id.toString(), row);
   });
 
-  if (existingValues.length <= 1) {
-    // Si la hoja está vacía o solo tiene encabezado
+  // Si la hoja está vacía o solo tiene encabezado
+  if (!existingValues || existingValues.length <= 1) {
     return [HEADERS, ...Array.from(dbRowsMap.values())];
   }
 
@@ -155,30 +156,29 @@ function mergeMinutasWithSheetValues(
   const processedDbIds = new Set<string>();
 
   // 1. Recorrer las filas existentes en la hoja de cálculo
-  existingValues.slice(1).forEach((existingRow) => {
+  for (const existingRow of existingValues.slice(1)) {
     const rawId = existingRow[13]?.toString().trim();
 
-    // Caso A: Fila con ID generado por la app que coincide con un registro en la BD
     if (rawId && dbRowsMap.has(rawId)) {
+      // Registro originado en la App: sobreescribir con el estado oficial de la BD
       const updatedRow = [...dbRowsMap.get(rawId)!];
-      // Preservar cualquier columna adicional manual (índice >= 14) que exista en la hoja
+      // Preservar columnas manuales adicionales de Google Sheets (a la derecha de ID_REGISTRO)
       if (existingRow.length > 14) {
         updatedRow.push(...existingRow.slice(14));
       }
       resultRows.push(updatedRow);
       processedDbIds.add(rawId);
-    } 
-    // Caso B: Fila con ID de la app que no está en el conjunto actual de BD (conservar intacta)
-    // Caso C: Fila manual (sin ID o con ID vacío) -> CONSERVAR TOTALMENTE INTACTA
-    else {
+    } else {
+      // Filas manuales en Sheets sin ID o cuyo ID no está en el lote actual -> conservar intactas
       resultRows.push([...existingRow]);
     }
-  });
+  }
 
-  // 2. Agregar los nuevos registros de la BD cuyos IDs no estaban en la hoja
-  dbRowsMap.forEach((row, id) => {
-    if (!processedDbIds.has(id)) {
-      resultRows.push(row);
+  // 2. Agregar los nuevos registros de la BD que aún no estaban en la hoja
+  dbMinutas.forEach((minuta) => {
+    const idStr = minuta.id.toString();
+    if (!processedDbIds.has(idStr)) {
+      resultRows.push(dbRowsMap.get(idStr)!);
     }
   });
 
@@ -191,12 +191,18 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
   }
 
   const { year, start, end } = getCurrentYearRange();
+
+  // 1. Obtener fecha de la última sincronización
+  const lastSyncAudit = await prisma.minuta_auditoria.findFirst({
+    where: { campo: "sync_sheets" },
+    orderBy: { fecha_cambio: "desc" },
+  });
+  const lastSyncTime = lastSyncAudit ? lastSyncAudit.fecha_cambio : new Date(0);
+
+  // 2. Cargar datos maestros de la BD
   const minutas = await prisma.minuta_registro_actividad.findMany({
     where: {
-      fecha: {
-        gte: start,
-        lt: end,
-      },
+      fecha: { gte: start, lt: end },
     },
     orderBy: [{ fecha: "asc" }, { hora_inicio: "asc" }],
     include: {
@@ -209,7 +215,6 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
   const results: SyncResult[] = [];
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
 
-  // Determinar la hoja de cálculo objetivo
   let targetSpreadsheetId = spreadsheetId;
   let isNewFile = false;
   let newFileUrl = "";
@@ -222,7 +227,7 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
     newFileUrl = spreadsheet.url;
   }
 
-  // 1. Sincronizar Pestaña Historial General
+  // 3. Sincronización unidireccional de la pestaña Historial
   const sheetTitle = "Historial";
   await ensureSheetExists(targetSpreadsheetId, sheetTitle);
   const existingValues = await getSheetValues(targetSpreadsheetId, sheetTitle);
@@ -236,20 +241,12 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
     url: isNewFile ? newFileUrl : `https://docs.google.com/spreadsheets/d/${targetSpreadsheetId}/edit`,
   });
 
-  // 2. Sincronizar por Cargo de Colaborador
+  // 4. Sincronización unidireccional por Cargo
   const cargoGroups = new Map<string, typeof minutas>();
-
   minutas.forEach((minuta) => {
     const cargoRaw = minuta.minuta_empleado?.cargo;
     const cargo = cargoRaw ? cargoRaw.trim() : "";
-
-    if (!cargo) {
-      console.error(
-        `Advertencia de sincronización: El colaborador ${minuta.minuta_empleado?.apellido_nombre || minuta.empleado} no tiene un cargo identificado para el registro ID ${minuta.id}.`
-      );
-      return;
-    }
-
+    if (!cargo) return;
     if (!cargoGroups.has(cargo)) {
       cargoGroups.set(cargo, []);
     }
@@ -258,10 +255,7 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
 
   for (const [cargo, cargoMinutas] of Array.from(cargoGroups.entries())) {
     const cargoSheetTitle = sanitizeSheetTitle(cargo);
-    if (!cargoSheetTitle) {
-      console.error(`Error de sincronización: El cargo "${cargo}" no produce un nombre de pestaña válido.`);
-      continue;
-    }
+    if (!cargoSheetTitle) continue;
 
     try {
       await ensureSheetExists(targetSpreadsheetId, cargoSheetTitle);
@@ -273,14 +267,32 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
         cargo: cargo,
         rows: cargoValues.length - 1,
         fileName: `Pestaña: ${cargoSheetTitle}`,
-        url: `https://docs.google.com/spreadsheets/d/${targetSpreadsheetId}/edit#gid=${cargoSheetTitle}`, // link directly or general sheet URL
+        url: `https://docs.google.com/spreadsheets/d/${targetSpreadsheetId}/edit#gid=${cargoSheetTitle}`,
       });
     } catch (err) {
       console.error(`Error de sincronización al procesar el cargo "${cargo}":`, err);
     }
   }
 
-  revalidatePath("/exportar");
+  // 5. Registrar la marca de sincronización en auditoría
+  await prisma.minuta_auditoria.create({
+    data: {
+      registro_id: 0,
+      usuario: "SYSTEM_SYNC",
+      campo: "sync_sheets",
+      valor_anterior: lastSyncTime.toISOString(),
+      valor_nuevo: new Date().toISOString(),
+    },
+  });
+
+  try {
+    revalidatePath("/exportar");
+    revalidatePath("/dashboard");
+    revalidatePath("/admin");
+    revalidatePath("/pwa");
+  } catch (e) {
+    // Ignore when executed outside Next.js request context
+  }
 
   return {
     success: true,

@@ -308,79 +308,79 @@ export function HistorialTiempos({
           <p className="font-medium text-sm">No se encontraron registros que coincidan con la búsqueda.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
-          <table className="w-full text-left text-sm text-brand-dark/80">
-            <thead className="bg-slate-100 text-brand-dark border-b border-brand-dark/10 sticky top-0 z-10">
+        <div className="overflow-x-auto max-h-[680px] overflow-y-auto">
+          <table className="w-full text-left text-sm text-brand-dark/80 table-auto">
+            <thead className="bg-slate-100 text-brand-dark border-b border-brand-dark/10 sticky top-0 z-10 shadow-sm">
               <tr>
-                <th className="px-4 py-3 font-bold">Día</th>
-                <th className="px-4 py-3 font-bold text-center">Tipo de Tiempo</th>
-                <th className="px-4 py-3 font-bold">Mes</th>
-                <th className="px-4 py-3 font-bold select-none cursor-pointer hover:bg-brand-dark/10 transition-colors" onClick={() => setSortAsc(!sortAsc)}>
+                <th className="px-3 py-3 w-24 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Día</th>
+                <th className="px-2.5 py-3 w-24 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Tipo</th>
+                <th className="px-3 py-3 w-24 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Mes</th>
+                <th className="px-3 py-3 w-28 text-xs font-bold uppercase tracking-wider select-none cursor-pointer hover:bg-brand-dark/10 transition-colors whitespace-nowrap" onClick={() => setSortAsc(!sortAsc)}>
                   <div className="flex items-center gap-1">
                     Fecha
-                    <ArrowUpDown className="w-3.5 h-3.5" />
+                    <ArrowUpDown className="w-3 h-3" />
                   </div>
                 </th>
-                <th className="px-4 py-3 font-bold">Cédula del Proyecto</th>
-                <th className="px-4 py-3 font-bold">Nombre del Proyecto</th>
-                <th className="px-4 py-3 font-bold">Hora Inicio</th>
-                <th className="px-4 py-3 font-bold">Hora Fin</th>
-                <th className="px-4 py-3 font-bold text-center">Total Horas</th>
-                <th className="px-4 py-3 font-bold">Apellido - Nombre</th>
-                <th className="px-4 py-3 font-bold">Actividad - Cargo</th>
-                <th className="px-4 py-3 font-bold text-center">Estado</th>
-                <th className="px-4 py-3 font-bold">Observación</th>
-                {canEditHistory && <th className="px-4 py-3 font-bold text-center">Acción</th>}
+                <th className="px-3 py-3 w-32 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Cédula</th>
+                <th className="px-4 py-3 min-w-[200px] text-xs font-bold uppercase tracking-wider">Nombre del Proyecto</th>
+                <th className="px-2.5 py-3 w-20 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Inicio</th>
+                <th className="px-2.5 py-3 w-20 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Fin</th>
+                <th className="px-2.5 py-3 w-20 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Horas</th>
+                <th className="px-4 py-3 min-w-[150px] text-xs font-bold uppercase tracking-wider whitespace-nowrap">Colaborador</th>
+                <th className="px-4 py-3 min-w-[220px] text-xs font-bold uppercase tracking-wider">Actividad - Cargo</th>
+                <th className="px-3 py-3 w-28 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Estado</th>
+                <th className="px-4 py-3 min-w-[160px] text-xs font-bold uppercase tracking-wider">Observación</th>
+                {canEditHistory && <th className="px-2.5 py-3 w-16 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Acción</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-brand-dark/10">
+            <tbody className="divide-y divide-brand-dark/10 bg-white">
               {sortedTiempos.map((t) => {
                 const actName = t.minuta_actividad?.nombre || t.actividad || "";
                 const empCargo = t.minuta_empleado?.cargo || "";
                 const actividadCargo = actName && empCargo ? `${actName} - ${empCargo}` : (actName || empCargo || "-");
 
                 return (
-                  <tr key={t.id} className="hover:bg-brand-dark/5 transition-colors duration-150">
-                    <td className="px-4 py-3 whitespace-nowrap font-medium">{getUTCDayName(t.fecha)}</td>
-                    <td className="px-4 py-3 text-center whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-bold rounded-md ${t.tipo_minuta === 'A' ? 'bg-brand-primary/10 text-brand-primary' : 'bg-brand-primary/10 text-brand-primary/90'}`}>
+                  <tr key={t.id} className="hover:bg-slate-50/80 transition-colors duration-150">
+                    <td className="px-3 py-3 whitespace-nowrap font-medium text-xs text-brand-dark/80">{getUTCDayName(t.fecha)}</td>
+                    <td className="px-2.5 py-3 text-center whitespace-nowrap">
+                      <span className={`px-2 py-0.5 text-xs font-extrabold rounded-md ${t.tipo_minuta === 'A' ? 'bg-brand-primary/10 text-brand-primary' : 'bg-amber-100 text-amber-800'}`}>
                         Tipo {t.tipo_minuta}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap font-medium">{getUTCMonthName(t.fecha)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap font-medium">{getUTCDateString(t.fecha)}</td>
-                    <td className="px-4 py-3 font-medium text-brand-dark/95 whitespace-nowrap">
+                    <td className="px-3 py-3 whitespace-nowrap font-medium text-xs text-brand-dark/80">{getUTCMonthName(t.fecha)}</td>
+                    <td className="px-3 py-3 whitespace-nowrap font-semibold text-xs text-brand-dark">{getUTCDateString(t.fecha)}</td>
+                    <td className="px-3 py-3 font-mono font-semibold text-brand-dark text-xs whitespace-nowrap">
                       {t.minuta_proyecto?.code || t.proyecto || "-"}
                     </td>
-                    <td className="px-4 py-3 text-brand-dark/70 max-w-xs truncate" title={t.minuta_proyecto?.nombre || ""}>
+                    <td className="px-4 py-3 text-xs text-brand-dark font-medium leading-relaxed break-words" title={t.minuta_proyecto?.nombre || ""}>
                       {t.minuta_proyecto?.nombre || "-"}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-semibold">
+                    <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
                       {formatTime24(t.hora_inicio)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-semibold">
+                    <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
                       {formatTime24(t.hora_fin)}
                     </td>
-                    <td className="px-4 py-3 text-center font-bold text-brand-dark">
+                    <td className="px-2.5 py-3 text-center font-bold text-brand-primary text-xs whitespace-nowrap">
                       {calculateHours(t.hora_inicio, t.hora_fin).toFixed(2)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-brand-dark/90 font-medium">
+                    <td className="px-4 py-3 whitespace-nowrap text-brand-dark font-medium text-xs">
                       {t.minuta_empleado?.apellido_nombre || t.empleado}
                     </td>
-                    <td className="px-4 py-3 text-brand-dark/80 max-w-xs truncate" title={actividadCargo}>
+                    <td className="px-4 py-3 text-xs text-brand-dark/90 leading-relaxed break-words" title={actividadCargo}>
                       {actividadCargo}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         {getStatusIcon(t.tipo_minuta, t.aprobado)}
                         {getStatusBadge(t.tipo_minuta, t.aprobado)}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs italic text-brand-dark/70 max-w-xs truncate" title={t.observacion || ""}>
+                    <td className="px-4 py-3 text-xs italic text-brand-dark/75 leading-relaxed break-words" title={t.observacion || ""}>
                       {t.observacion || "-"}
                     </td>
                     {canEditHistory && (
-                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                      <td className="px-2.5 py-3 text-center whitespace-nowrap">
                         <button
                           onClick={() => handleStartEdit(t)}
                           className="p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/10 transition-colors"

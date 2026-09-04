@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { MinutaForm } from "@/components/MinutaForm";
-import { HistorialTiempos } from "@/components/HistorialTiempos";
+import { DashboardPanels } from "@/components/DashboardPanels";
 import { Clock } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -89,25 +89,13 @@ export default async function DashboardPage() {
       </div>
 
       {isAdmin ? (
-        <div className="space-y-8">
-          <div className="w-full">
-            <MinutaForm 
-              proyectos={proyectos} 
-              actividades={actividades} 
-              empleados={empleados} 
-              canSelectEmpleado={true}
-              defaultEmpleadoId={session.user.id}
-            />
-          </div>
-          <div className="w-full">
-            <HistorialTiempos 
-              tiempos={minutas} 
-              proyectos={proyectos} 
-              actividades={actividades}
-              empleados={empleados}
-            />
-          </div>
-        </div>
+        <DashboardPanels
+          proyectos={proyectos}
+          actividades={actividades}
+          empleados={empleados}
+          defaultEmpleadoId={session.user.id}
+          minutas={minutas}
+        />
       ) : esLiderN ? (
         <div className="max-w-3xl mx-auto w-full">
           <MinutaForm 

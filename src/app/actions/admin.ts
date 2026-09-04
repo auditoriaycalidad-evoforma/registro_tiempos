@@ -35,10 +35,21 @@ export async function approveMinuta(id: number, decision: "SI" | "RE") {
       return { error: "No tiene permisos para modificar tiempos aprobados." };
     }
 
-    await prisma.minuta_registro_actividad.update({
-      where: { id },
-      data: { aprobado: decision },
-    });
+    await prisma.$transaction([
+      prisma.minuta_auditoria.create({
+        data: {
+          registro_id: id,
+          usuario: userEmail || "ADMIN",
+          campo: "aprobado",
+          valor_anterior: record.aprobado,
+          valor_nuevo: decision,
+        },
+      }),
+      prisma.minuta_registro_actividad.update({
+        where: { id },
+        data: { aprobado: decision },
+      }),
+    ]);
 
     revalidatePath("/admin");
 

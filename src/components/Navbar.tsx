@@ -19,7 +19,7 @@ export default function Navbar() {
 
   return (
     <nav className="bg-third border-b color-white border-brand-light/10 shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex px-2 lg:px-0">
             <div className="flex-shrink-0 flex items-center">

@@ -205,8 +205,10 @@ export async function ensureSheetExists(spreadsheetId: string, sheetTitle: strin
   );
 
   const sheetTitles = metadata.sheets?.map((s) => s.properties.title) ?? [];
+  const normalizedTarget = sheetTitle.trim().toLowerCase();
+  const exists = sheetTitles.some((t) => t.trim().toLowerCase() === normalizedTarget);
 
-  if (!sheetTitles.includes(sheetTitle)) {
+  if (!exists) {
     await googleFetch(
       `${SHEETS_URL}/${spreadsheetId}:batchUpdate`,
       accessToken,
@@ -233,17 +235,10 @@ export async function replaceSheetValues(
   sheetTitle: string,
   values: (string | number)[][]
 ) {
+  if (!values || values.length === 0) return;
+
   const config = getGoogleConfig();
   const accessToken = await requestAccessToken(config);
-
-  const range = `'${sheetTitle}'!A:ZZ`;
-  const encodedRange = encodeURIComponent(range);
-
-  await googleFetch(
-    `${SHEETS_URL}/${spreadsheetId}/values/${encodedRange}:clear`,
-    accessToken,
-    { method: "POST", body: JSON.stringify({}) }
-  );
 
   const updateRange = `'${sheetTitle}'!A1`;
   const encodedUpdateRange = encodeURIComponent(updateRange);
