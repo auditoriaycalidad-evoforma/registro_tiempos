@@ -205,8 +205,10 @@ export async function ensureSheetExists(spreadsheetId: string, sheetTitle: strin
   );
 
   const sheetTitles = metadata.sheets?.map((s) => s.properties.title) ?? [];
+  const normalizedTarget = sheetTitle.trim().toLowerCase();
+  const exists = sheetTitles.some((t) => t.trim().toLowerCase() === normalizedTarget);
 
-  if (!sheetTitles.includes(sheetTitle)) {
+  if (!exists) {
     await googleFetch(
       `${SHEETS_URL}/${spreadsheetId}:batchUpdate`,
       accessToken,
