@@ -1,8 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/prisma";
-import { verifyPassword } from "@/lib/password";
 
 const getRoleForEmployee = (email: string | null | undefined, esLider: string | null | undefined) => {
   const adminEmails = process.env.ADMIN_EMAILS
@@ -14,9 +12,6 @@ const getRoleForEmployee = (email: string | null | undefined, esLider: string | 
 
   return "EMPLEADO";
 };
-
-const isEmpleadoActivo = (activo: string | null | undefined) =>
-  !activo || activo.toUpperCase() !== "N";
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -30,47 +25,9 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
-    CredentialsProvider({
-      id: "credentials",
-      name: "Usuario y contraseña",
-      credentials: {
-        username: { label: "Usuario", type: "text" },
-        password: { label: "Contraseña", type: "password" },
-      },
-      async authorize(credentials) {
-        const username = credentials?.username?.trim();
-        const password = credentials?.password;
-        if (!username || !password) return null;
-
-        const empleado = await prisma.minuta_empleado.findFirst({
-          where: {
-            username: {
-              equals: username,
-              mode: "insensitive",
-            },
-          },
-        });
-
-        if (!empleado?.password_hash) return null;
-        if (!isEmpleadoActivo(empleado.activo)) return null;
-
-        const valid = await verifyPassword(password, empleado.password_hash);
-        if (!valid) return null;
-
-        return {
-          id: empleado.id,
-          email: empleado.email,
-          name: empleado.apellido_nombre,
-          rol: getRoleForEmployee(empleado.email, empleado.es_lider),
-        };
-      },
-    }),
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      // El proveedor de credenciales ya valida usuario/contraseña en authorize().
-      if (account?.provider === "credentials") return true;
-
       if (account?.provider !== "google") return false;
       if (!user.email) return false;
 
@@ -87,7 +44,6 @@ export const authOptions: NextAuthOptions = {
       });
 
       if (!empleado?.email) return false;
-      if (!isEmpleadoActivo(empleado.activo)) return false;
 
       user.id = empleado.id;
       user.email = empleado.email;
