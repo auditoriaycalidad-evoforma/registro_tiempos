@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { isAuthorizedAuditor } from "@/app/actions/minuta";
+import { isAuthorizedAuditor, deleteMinuta } from "@/app/actions/minuta";
 import { formatTime24 } from "@/lib/formatTime";
 import { revalidatePath } from "next/cache";
 import { syncMinutasToSheets } from "@/app/actions/exportar";
@@ -313,11 +313,6 @@ export async function GET() {
 
 export async function DELETE(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     let idStr = searchParams.get("id");
     if (!idStr) {
@@ -330,40 +325,13 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "ID de registro inválido" }, { status: 400 });
     }
 
-    const record = await prisma.minuta_registro_actividad.findUnique({
-      where: { id },
-    });
+    const result = await deleteMinuta(id);
 
-    if (!record || record.empleado !== session.user.id) {
-      return NextResponse.json({ error: "Registro no encontrado o no autorizado." }, { status: 404 });
+    if (result?.error) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
-    const userEmail = session.user.email?.toLowerCase();
-    const isSpecialUser = userEmail && allowedEmails.includes(userEmail);
-
-    if (record.tipo_minuta === "O" && record.aprobado === "SI" && !isSpecialUser) {
-      return NextResponse.json(
-        { error: "No puedes eliminar un registro de horas extra que ya ha sido aprobado." },
-        { status: 403 }
-      );
-    }
-
-    await prisma.minuta_registro_actividad.delete({
-      where: { id },
-    });
-
-    revalidatePath("/dashboard");
-    revalidatePath("/admin");
-    revalidatePath("/pwa");
-
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-      syncMinutasToSheets({ skipAuth: true }).catch((err) => {
-        console.error("Error al actualizar Google Sheets en segundo plano tras eliminar:", err);
-      });
-    }
-
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json(result, { status: 200 });
   } catch (error) {
     console.error("Error en DELETE /api/minuta:", error);
     return NextResponse.json({ error: "Error al eliminar el registro." }, { status: 500 });

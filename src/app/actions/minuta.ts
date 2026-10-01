@@ -439,3 +439,66 @@ export async function updateMinutaHistory(
     return { error: "Error de servidor al modificar el registro histórico" };
   }
 }
+
+export async function deleteMinuta(id: number) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return { error: "No autorizado. Inicie sesión de nuevo." };
+  }
+
+  const userEmail = session.user.email?.toLowerCase().trim();
+  const envAdminEmails = process.env.ADMIN_EMAILS
+    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase())
+    : [];
+  const defaultAdminEmails = ["auditoriaycalidad@evoforma.net", "ia.evoforma@gmail.com"];
+  const adminEmails = Array.from(new Set([...envAdminEmails, ...defaultAdminEmails]));
+  const isAdmin = session.user.rol === "ADMIN" || (userEmail && adminEmails.includes(userEmail));
+
+  try {
+    const record = await prisma.minuta_registro_actividad.findUnique({
+      where: { id },
+    });
+
+    if (!record) {
+      return { error: "Registro no encontrado." };
+    }
+
+    // Si no es admin, solo puede eliminar sus propios registros y no puede eliminar registros tipo O aprobados
+    if (!isAdmin) {
+      if (record.empleado !== session.user.id) {
+        return { error: "No autorizado para eliminar este registro." };
+      }
+      if (record.tipo_minuta === "O" && record.aprobado === "SI") {
+        return { error: "No puedes eliminar un registro de horas extra que ya ha sido aprobado." };
+      }
+    }
+
+    // Eliminar registros de auditoría asociados y el registro en una transacción
+    await prisma.$transaction([
+      prisma.minuta_auditoria.deleteMany({
+        where: { registro_id: id },
+      }),
+      prisma.minuta_registro_actividad.delete({
+        where: { id },
+      }),
+    ]);
+
+    revalidatePath("/dashboard");
+    revalidatePath("/admin");
+    revalidatePath("/pwa");
+
+    // Sincronizar Google Sheets en segundo plano si está configurado
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
+      syncMinutasToSheets({ skipAuth: true }).catch((err) => {
+        console.error("Error al actualizar Google Sheets en segundo plano tras eliminar:", err);
+      });
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error al eliminar registro:", error);
+    return { error: "Error de servidor al eliminar el registro." };
+  }
+}
+

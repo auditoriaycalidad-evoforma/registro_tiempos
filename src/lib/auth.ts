@@ -3,9 +3,11 @@ import GoogleProvider from "next-auth/providers/google";
 import prisma from "@/lib/prisma";
 
 const getRoleForEmployee = (email: string | null | undefined, esLider: string | null | undefined) => {
-  const adminEmails = process.env.ADMIN_EMAILS
+  const envAdminEmails = process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((adminEmail) => adminEmail.trim().toLowerCase())
-    : ["admin@minutas.local"];
+    : [];
+  const defaultAdminEmails = ["auditoriaycalidad@evoforma.net", "ia.evoforma@gmail.com"];
+  const adminEmails = Array.from(new Set([...envAdminEmails, ...defaultAdminEmails]));
 
   if (email && adminEmails.includes(email.toLowerCase())) return "ADMIN";
   if (esLider?.toUpperCase() === "S") return "LIDER";

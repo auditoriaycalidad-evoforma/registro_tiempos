@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { syncMinutasToSheets } from "./exportar";
 import { formatTime24 } from "@/lib/formatTime";
 
-import { isAuthorizedAuditor } from "./minuta";
+import { isAuthorizedAuditor, deleteMinuta } from "./minuta";
 
 // Interfaz para recibir los intervalos desde la PWA
 export interface PwaInterval {
@@ -263,48 +263,5 @@ export async function getPwaHistory() {
 }
 
 export async function deleteMinutaPwa(id: number) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-    return { error: "No autorizado" };
-  }
-
-  try {
-    const record = await prisma.minuta_registro_actividad.findUnique({
-      where: { id },
-    });
-
-    if (!record || record.empleado !== session.user.id) {
-      return { error: "Registro no encontrado o no autorizado." };
-    }
-
-    const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
-    const userEmail = session.user.email?.toLowerCase();
-    const isSpecialUser = userEmail && allowedEmails.includes(userEmail);
-
-    // Bloquear eliminación si es horas extra O y ya está aprobado
-    if (record.tipo_minuta === "O" && record.aprobado === "SI" && !isSpecialUser) {
-      return { error: "No puedes eliminar un registro de horas extra que ya ha sido aprobado." };
-    }
-
-    await prisma.minuta_registro_actividad.delete({
-      where: { id },
-    });
-
-    revalidatePath("/dashboard");
-    revalidatePath("/admin");
-    revalidatePath("/pwa");
-
-    // Sincronizar Google Sheets
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-      syncMinutasToSheets({ skipAuth: true }).catch((err) => {
-        console.error("Error al actualizar Google Sheets en segundo plano tras eliminar:", err);
-      });
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error al eliminar registro PWA:", error);
-    return { error: "Error al eliminar el registro." };
-  }
+  return deleteMinuta(id);
 }

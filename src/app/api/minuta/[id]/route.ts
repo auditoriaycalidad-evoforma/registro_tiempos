@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { updateMinutaHistory } from "@/app/actions/minuta";
-import { deleteMinutaPwa } from "@/app/actions/pwa";
+import { updateMinutaHistory, deleteMinuta } from "@/app/actions/minuta";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +40,7 @@ export async function DELETE(
       return NextResponse.json({ error: "ID de registro inválido." }, { status: 400 });
     }
 
-    const result = await deleteMinutaPwa(id);
+    const result = await deleteMinuta(id);
 
     if (result?.error) {
       return NextResponse.json({ error: result.error }, { status: 400 });
