@@ -629,6 +629,102 @@ export function HistorialTiempos({
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-brand-dark/10 overflow-hidden animate-scaleIn">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-brand-dark/10 bg-red-50/50 flex justify-between items-center">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-red-100 text-red-600 rounded-xl">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-red-900">Eliminar Registro de Tiempo</h3>
+                  <p className="text-xs text-red-700/80">Esta acción no se puede deshacer.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDeletingRecord(null)}
+                disabled={isDeleting}
+                className="text-brand-dark/40 hover:text-brand-dark hover:bg-brand-dark/5 p-1.5 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Error Message */}
+            {deleteError && (
+              <div className="mx-6 mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-md text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            {/* Body */}
+            <div className="p-6 space-y-3">
+              <p className="text-xs text-brand-dark/80">
+                ¿Estás seguro de que deseas eliminar permanentemente este registro de tiempo?
+              </p>
+
+              <div className="bg-slate-50 border border-brand-dark/10 rounded-xl p-3.5 space-y-1.5 text-xs text-brand-dark">
+                <div className="flex justify-between">
+                  <span className="text-brand-dark/60 font-medium">Registro ID:</span>
+                  <span className="font-mono font-bold">#{deletingRecord.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-brand-dark/60 font-medium">Colaborador:</span>
+                  <span className="font-bold">{deletingRecord.minuta_empleado?.apellido_nombre || deletingRecord.empleado}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-brand-dark/60 font-medium">Fecha:</span>
+                  <span className="font-semibold">{getUTCDateString(deletingRecord.fecha)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-brand-dark/60 font-medium">Horario:</span>
+                  <span className="font-semibold font-mono">
+                    {formatTime24(deletingRecord.hora_inicio)} - {formatTime24(deletingRecord.hora_fin)} ({calculateHours(deletingRecord.hora_inicio, deletingRecord.hora_fin).toFixed(2)}h)
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-brand-dark/60 font-medium">Proyecto:</span>
+                  <span className="font-medium max-w-[200px] truncate text-right">{deletingRecord.minuta_proyecto?.code || deletingRecord.proyecto || "-"} - {deletingRecord.minuta_proyecto?.nombre || ""}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-brand-dark/60 font-medium">Actividad:</span>
+                  <span className="font-medium max-w-[200px] truncate text-right">{deletingRecord.minuta_actividad?.nombre || deletingRecord.actividad || "-"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-brand-dark/60 font-medium">Tipo:</span>
+                  <span className="font-bold">Tipo {deletingRecord.tipo_minuta}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-brand-dark/10 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeletingRecord(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 border border-brand-dark/25 hover:bg-slate-100 text-brand-dark text-sm font-semibold rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteRecord}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Trash2 className="w-4 h-4" />
+                {isDeleting ? "Eliminando..." : "Eliminar Registro"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
