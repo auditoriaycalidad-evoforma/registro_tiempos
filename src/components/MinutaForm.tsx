@@ -1,16 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Calendar, Folder, BookOpen, Clock, AlertCircle, User } from "lucide-react";
+import { Plus, Trash2, Calendar, Folder, BookOpen, Clock, AlertCircle, User, Lock } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { SearchableSelect } from "./SearchableSelect";
+import { TimePicker12 } from "./TimePicker12";
+import { formatTime12 } from "@/lib/formatTime";
 
 interface TimeRange {
   id: string;
   proyecto: string;
   actividad: string;
-  horaInicio: string;
-  horaFin: string;
+  horaInicio: string; // 24h format "HH:MM"
+  horaFin: string;    // 24h format "HH:MM"
   observacion: string;
 }
 
@@ -25,18 +28,34 @@ export function MinutaForm({
   actividades,
   empleados = [],
   canSelectEmpleado = false,
-  defaultEmpleadoId = ""
+  defaultEmpleadoId = "",
+  isAdmin: propIsAdmin,
 }: { 
   proyectos: any[]; 
   actividades: any[];
   empleados?: EmpleadoOption[];
   canSelectEmpleado?: boolean;
   defaultEmpleadoId?: string;
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
+  const { data: session } = useSession();
+
+  const userEmail = session?.user?.email?.toLowerCase().trim();
+  const allowedAdminEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+  const isAdmin = propIsAdmin ?? (session?.user?.rol === "ADMIN" || (userEmail ? allowedAdminEmails.includes(userEmail) : false));
+
+  const getTodayLocal = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const [selectedEmpleado, setSelectedEmpleado] = useState<string>(defaultEmpleadoId);
   const [tipo, setTipo] = useState<string>("");
-  const [fecha, setFecha] = useState<string>("");
+  const [fecha, setFecha] = useState<string>(getTodayLocal());
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -45,33 +64,26 @@ export function MinutaForm({
   ]);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Calcular la fecha mínima y máxima permitida (hoy - 2 días a hoy + 2 días)
-  const hoy = new Date();
-  
-  const hoyMin = new Date(hoy);
-  hoyMin.setDate(hoyMin.getDate() - 2);
-  const yyyyMin = hoyMin.getFullYear();
-  const mmMin = String(hoyMin.getMonth() + 1).padStart(2, '0');
-  const ddMin = String(hoyMin.getDate()).padStart(2, '0');
-  const minDate = `${yyyyMin}-${mmMin}-${ddMin}`;
-
-  const hoyMax = new Date(hoy);
-  hoyMax.setDate(hoyMax.getDate() + 2);
-  const yyyyMax = hoyMax.getFullYear();
-  const mmMax = String(hoyMax.getMonth() + 1).padStart(2, '0');
-  const ddMax = String(hoyMax.getDate()).padStart(2, '0');
-  const maxDate = `${yyyyMax}-${mmMax}-${ddMax}`;
+  // Asegurar que para usuarios estándar la fecha esté siempre sincronizada con hoy
+  useEffect(() => {
+    if (!isAdmin) {
+      setFecha(getTodayLocal());
+    }
+  }, [isAdmin]);
 
   const addRange = () => {
     if (ranges.length < 7) {
-      setRanges([...ranges, { 
-        id: Math.random().toString(), 
-        proyecto: "", 
-        actividad: "", 
-        horaInicio: "", 
-        horaFin: "", 
-        observacion: "" 
-      }]);
+      setRanges([
+        ...ranges, 
+        { 
+          id: Math.random().toString(), 
+          proyecto: "", 
+          actividad: "", 
+          horaInicio: "", 
+          horaFin: "", 
+          observacion: "" 
+        }
+      ]);
     }
   };
 
@@ -84,18 +96,7 @@ export function MinutaForm({
   const handleRangeFieldChange = (id: string, field: keyof TimeRange, value: string) => {
     setRanges(prev => prev.map(r => {
       if (r.id === id) {
-        let finalVal = value;
-        if (field === "horaInicio" || field === "horaFin") {
-          let cleanVal = value.replace(/[^0-9:]/g, "");
-          if (cleanVal.length === 2 && !cleanVal.includes(":")) {
-            cleanVal = cleanVal + ":";
-          }
-          if (cleanVal.length > 5) {
-            cleanVal = cleanVal.slice(0, 5);
-          }
-          finalVal = cleanVal;
-        }
-        return { ...r, [field]: finalVal };
+        return { ...r, [field]: value };
       }
       return r;
     }));
@@ -127,7 +128,7 @@ export function MinutaForm({
         }
         
         if (!timePattern.test(r.horaInicio) || !timePattern.test(r.horaFin)) {
-          return `Las horas en el rango #${i + 1} deben tener un formato de 24 horas válido (Ej: 08:30).`;
+          return `Debe seleccionar una hora de inicio y fin válida para el rango #${i + 1}.`;
         }
         
         const [sh, sm] = r.horaInicio.split(":").map(Number);
@@ -136,7 +137,7 @@ export function MinutaForm({
         const endMin = eh * 60 + em;
         
         if (endMin <= startMin) {
-          return `En el rango #${i + 1}, la hora de fin debe ser posterior a la de inicio.`;
+          return `En el rango #${i + 1}, la hora de fin (${formatTime12(r.horaFin)}) debe ser posterior a la de inicio (${formatTime12(r.horaInicio)}).`;
         }
       }
     }
@@ -164,7 +165,7 @@ export function MinutaForm({
       for (let j = i + 1; j < validRanges.length; j++) {
         const rangeJ = validRanges[j];
         if (rangeI.start < rangeJ.end && rangeJ.start < rangeI.end) {
-          return `El rango #${rangeI.index + 1} (${rangeI.rawStart} - ${rangeI.rawEnd}) se solapa con el rango #${rangeJ.index + 1} (${rangeJ.rawStart} - ${rangeJ.rawEnd}).`;
+          return `El rango #${rangeI.index + 1} (${formatTime12(rangeI.rawStart)} - ${formatTime12(rangeI.rawEnd)}) se solapa con el rango #${rangeJ.index + 1} (${formatTime12(rangeJ.rawStart)} - ${formatTime12(rangeJ.rawEnd)}).`;
         }
       }
     }
@@ -176,8 +177,10 @@ export function MinutaForm({
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
+    const finalFecha = isAdmin ? fecha : getTodayLocal();
+
     // Validar campos principales
-    if (!tipo || !fecha) {
+    if (!tipo || !finalFecha) {
       setError("Todos los campos principales son obligatorios (Tipo de Tiempo y Fecha).");
       return;
     }
@@ -202,24 +205,6 @@ export function MinutaForm({
       return;
     }
 
-    // Validar fecha en el cliente también
-    if (fecha) {
-      const hoyVal = new Date();
-      const hoySoloFecha = new Date(hoyVal.getFullYear(), hoyVal.getMonth(), hoyVal.getDate());
-      const limiteMinimo = new Date(hoySoloFecha);
-      limiteMinimo.setDate(limiteMinimo.getDate() - 2);
-      const limiteMaximo = new Date(hoySoloFecha);
-      limiteMaximo.setDate(limiteMaximo.getDate() + 2);
-      
-      const [year, month, day] = fecha.split("-").map(Number);
-      const fechaIngresada = new Date(year, month - 1, day);
-      
-      if (fechaIngresada < limiteMinimo || fechaIngresada > limiteMaximo) {
-        setError("La fecha seleccionada no está permitida");
-        return;
-      }
-    }
-
     if (canSelectEmpleado && !selectedEmpleado) {
       setError("Debe seleccionar un colaborador (Apellido - Nombre).");
       return;
@@ -232,7 +217,7 @@ export function MinutaForm({
     const payload = {
       empleado: canSelectEmpleado ? selectedEmpleado : defaultEmpleadoId || undefined,
       tipo,
-      fecha,
+      fecha: finalFecha,
       intervals: ranges.map((r) => ({
         proyecto: r.proyecto.trim(),
         actividad: r.actividad.trim(),
@@ -258,7 +243,9 @@ export function MinutaForm({
       } else {
         setSuccess(true);
         setTipo("");
-        setFecha("");
+        if (isAdmin) {
+          setFecha(getTodayLocal());
+        }
         setSelectedEmpleado(defaultEmpleadoId);
         setRanges([{ id: Math.random().toString(), proyecto: "", actividad: "", horaInicio: "", horaFin: "", observacion: "" }]);
         router.refresh();
@@ -313,6 +300,7 @@ export function MinutaForm({
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Tipo de Tiempo */}
           <div>
             <label className="block text-sm font-semibold text-brand-dark/90 mb-1.5 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-primary"></span>
@@ -326,32 +314,53 @@ export function MinutaForm({
               className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50 text-sm"
             >
               <option value="">Seleccione un tipo</option>
-              <option value="A">Tipo A</option>
+              <option value="P">Tipo P</option>
               <option value="O">Tipo O</option>
             </select>
           </div>
+
+          {/* Fecha */}
           <div>
-            <label className="block text-sm font-semibold text-brand-dark/90 mb-1.5 flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-brand-primary" />
-              Fecha
+            <label className="block text-sm font-semibold text-brand-dark/90 mb-1.5 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-brand-primary" />
+                <span>Fecha</span>
+              </div>
+              {!isAdmin && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                  <Lock className="w-3 h-3" /> Solo lectura (Hoy)
+                </span>
+              )}
             </label>
-            <input 
-              type="date" 
-              name="fecha" 
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              required 
-              min={minDate}
-              max={maxDate}
-              className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-brand-light/50 text-sm" 
-            />
+
+            {isAdmin ? (
+              <input 
+                type="date" 
+                name="fecha" 
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                required 
+                className="w-full rounded-lg border border-brand-dark/20 px-3.5 py-2.5 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-white text-sm" 
+              />
+            ) : (
+              <div className="relative">
+                <input 
+                  type="date" 
+                  name="fecha" 
+                  value={getTodayLocal()}
+                  readOnly
+                  disabled
+                  className="w-full rounded-lg border border-brand-dark/15 px-3.5 py-2.5 text-brand-dark/70 bg-slate-100 cursor-not-allowed text-sm font-medium select-none" 
+                />
+              </div>
+            )}
           </div>
         </div>
 
         {/* Sección agrupada de Rangos de Tiempo */}
         <div className="bg-slate-50 rounded-xl p-5 border border-brand-dark/10 space-y-4">
           <div className="flex justify-between items-center border-b border-brand-dark/10 pb-3">
-            <h3 className="text-sm font-bold text-brand-dark/90 tracking-wide uppercase">Rangos de Tiempo</h3>
+            <h3 className="text-sm font-bold text-brand-dark/90 tracking-wide uppercase">Rangos de Tiempo (Horario 12 Horas)</h3>
             <span className="text-xs bg-brand-primary/10 text-brand-primary px-2.5 py-1 rounded-full font-semibold">
               Máx. 7 rangos
             </span>
@@ -410,7 +419,7 @@ export function MinutaForm({
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Actividad */}
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-1 lg:col-span-1">
                     <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Actividad</label>
                     <SearchableSelect
                       name={`actividad_${index}`}
@@ -426,36 +435,26 @@ export function MinutaForm({
                     />
                   </div>
 
-                  {/* Horario */}
-                  <div className="grid grid-cols-2 gap-2">
+                  {/* Horario 12H */}
+                  <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Inicio</label>
-                      <input
-                        type="text"
+                      <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Inicio (12h)</label>
+                      <TimePicker12
+                        id={`horaInicio_${index}`}
                         name={`horaInicio_${index}`}
-                        placeholder="Ej: 08:00"
                         value={r.horaInicio}
-                        onChange={(e) => handleRangeFieldChange(r.id, "horaInicio", e.target.value)}
-                        pattern="^([01]\d|2[0-3]):[0-5]\d$"
-                        maxLength={5}
-                        inputMode="numeric"
+                        onChange={(val) => handleRangeFieldChange(r.id, "horaInicio", val)}
                         required
-                        className="w-full h-9 rounded-md border border-brand-dark/20 px-2.5 py-1 text-xs text-brand-dark focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Fin</label>
-                      <input
-                        type="text"
+                      <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Fin (12h)</label>
+                      <TimePicker12
+                        id={`horaFin_${index}`}
                         name={`horaFin_${index}`}
-                        placeholder="Ej: 17:30"
                         value={r.horaFin}
-                        onChange={(e) => handleRangeFieldChange(r.id, "horaFin", e.target.value)}
-                        pattern="^([01]\d|2[0-3]):[0-5]\d$"
-                        maxLength={5}
-                        inputMode="numeric"
+                        onChange={(val) => handleRangeFieldChange(r.id, "horaFin", val)}
                         required
-                        className="w-full h-9 rounded-md border border-brand-dark/20 px-2.5 py-1 text-xs text-brand-dark focus:outline-none focus:ring-1 focus:ring-brand-primary focus:border-brand-primary"
                       />
                     </div>
                   </div>

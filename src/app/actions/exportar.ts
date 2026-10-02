@@ -129,7 +129,7 @@ function mergeMinutasWithSheetValues(
 
     const row = [
       DAYS_OF_WEEK[minuta.fecha.getUTCDay()],
-      `Tipo ${minuta.tipo_minuta}`,
+      `Tipo ${minuta.tipo_minuta === 'A' ? 'P' : minuta.tipo_minuta}`,
       MONTHS[minuta.fecha.getUTCMonth()],
       formatDate(minuta.fecha),
       minuta.minuta_proyecto?.code ?? minuta.proyecto ?? "",

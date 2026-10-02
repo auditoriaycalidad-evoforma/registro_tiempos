@@ -89,6 +89,7 @@ export function DashboardPanels({
               empleados={empleados}
               canSelectEmpleado={true}
               defaultEmpleadoId={defaultEmpleadoId}
+              isAdmin={true}
             />
           </div>
         ) : (

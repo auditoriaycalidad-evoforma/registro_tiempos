@@ -7,8 +7,9 @@ import {
   History, PlusCircle, Search, AlertCircle, CheckCircle2, 
   Smartphone, Sparkles, X, ChevronRight, RefreshCw
 } from "lucide-react";
-import { formatTime24 } from "@/lib/formatTime";
+import { formatTime24, formatTime12 } from "@/lib/formatTime";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { TimePicker12 } from "@/components/TimePicker12";
 
 export interface PwaInterval {
   proyecto: string;
@@ -120,12 +121,12 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
   // Form State
   const [fecha, setFecha] = useState<string>(() => {
     const today = new Date();
-    // Ajustar por zona horaria local
-    const tzOffset = today.getTimezoneOffset() * 60000;
-    const localISOTime = (new Date(Date.now() - tzOffset)).toISOString().slice(0, 10);
-    return localISOTime;
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   });
-  const [tipoMinuta, setTipoMinuta] = useState<string>("A"); // "A" = Ordinaria, "O" = Extrar
+  const [tipoMinuta, setTipoMinuta] = useState<string>("P"); // "P" = Habitual, "O" = Extra
 interface PwaIntervalForm {
   proyecto: string;
   proyectoText: string;
@@ -515,6 +516,10 @@ interface PwaIntervalForm {
       observacion: inv.observacion
     }));
 
+    const today = new Date();
+    const todayLocalStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const finalFecha = isAdmin ? fecha : todayLocalStr;
+
     try {
       const response = await fetch("/api/minuta", {
         method: "POST",
@@ -523,7 +528,7 @@ interface PwaIntervalForm {
         },
         body: JSON.stringify({
           empleado: isAuditor && selectedEmpleado ? selectedEmpleado : undefined,
-          fecha,
+          fecha: finalFecha,
           tipo: tipoMinuta,
           intervals: dataToSubmit,
         }),
@@ -707,37 +712,57 @@ interface PwaIntervalForm {
                 </div>
               )}
               {/* Date */}
+              {/* Date */}
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1.5">
-                  Fecha de Registro
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1.5 flex items-center justify-between">
+                  <span>Fecha de Registro</span>
+                  {!isAdmin && (
+                    <span className="text-[10px] lowercase font-semibold text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-full">
+                      Solo lectura (hoy)
+                    </span>
+                  )}
                 </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
+                {isAdmin ? (
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Calendar className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input 
+                        type="date"
+                        value={fecha}
+                        onChange={(e) => setFecha(e.target.value)}
+                        className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-brand-primary transition-all font-semibold"
+                      />
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setQuickDate("hoy")}
+                      className={`px-3 py-3 rounded-2xl text-xs font-bold border transition-all ${fecha === new Date().toISOString().slice(0, 10) ? 'bg-brand-primary text-white border-brand-primary' : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-600 dark:text-slate-300'}`}
+                    >
+                      Hoy
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setQuickDate("ayer")}
+                      className="px-3 py-3 rounded-2xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-transparent active:bg-slate-200 dark:active:bg-slate-700 transition-all"
+                    >
+                      Ayer
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
                     <Calendar className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input 
                       type="date"
-                      value={fecha}
-                      min={minDateStr}
-                      max={maxDateStr}
-                      onChange={(e) => setFecha(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-brand-primary transition-all font-semibold"
+                      value={(() => {
+                        const today = new Date();
+                        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+                      })()}
+                      readOnly
+                      disabled
+                      className="w-full bg-slate-100 dark:bg-[#16171d] border border-slate-200/60 dark:border-slate-800/60 rounded-2xl pl-10 pr-4 py-3 text-sm font-semibold opacity-75 cursor-not-allowed text-slate-700 dark:text-slate-300 select-none"
                     />
                   </div>
-                  <button 
-                    type="button"
-                    onClick={() => setQuickDate("hoy")}
-                    className={`px-3 py-3 rounded-2xl text-xs font-bold border transition-all ${fecha === new Date().toISOString().slice(0, 10) ? 'bg-brand-primary text-white border-brand-primary' : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-600 dark:text-slate-300'}`}
-                  >
-                    Hoy
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setQuickDate("ayer")}
-                    className="px-3 py-3 rounded-2xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-transparent active:bg-slate-200 dark:active:bg-slate-700 transition-all"
-                  >
-                    Ayer
-                  </button>
-                </div>
+                )}
               </div>
 
               {/* Segmented Button (Type) */}
@@ -748,10 +773,10 @@ interface PwaIntervalForm {
                 <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-[#1a1b22] rounded-2xl">
                   <button
                     type="button"
-                    onClick={() => setTipoMinuta("A")}
-                    className={`py-2.5 rounded-xl text-xs font-bold transition-all ${tipoMinuta === "A" ? "bg-white dark:bg-[#252630] text-brand-primary shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
+                    onClick={() => setTipoMinuta("P")}
+                    className={`py-2.5 rounded-xl text-xs font-bold transition-all ${tipoMinuta === "P" ? "bg-white dark:bg-[#252630] text-brand-primary shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
                   >
-                    Tipo A
+                    Tipo P
                   </button>
                   <button
                     type="button"
@@ -838,61 +863,29 @@ interface PwaIntervalForm {
                     </div>
 
                     {/* Time Pickers (Inicio / Fin) */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       {/* Hora Inicio */}
                       <div>
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
-                          Hora Inicio
+                          Hora Inicio (12h)
                         </label>
-                        <input 
-                          type="text"
-                          placeholder="e.g. 8"
+                        <TimePicker12
                           value={inv.horaInicio}
-                          onChange={(e) => updateInterval(index, "horaInicio", e.target.value)}
-                          onBlur={(e) => handleTimeBlur(index, "horaInicio", e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-2.5 text-xs font-bold text-center focus:outline-none focus:border-brand-primary placeholder:font-normal"
+                          onChange={(val) => updateInterval(index, "horaInicio", val)}
+                          required
                         />
-                        {/* Quick hour chips */}
-                        <div className="flex flex-wrap gap-1 mt-1.5 justify-center">
-                          {["08:00", "12:00", "13:00", "17:00", "Ahora"].map((opt) => (
-                            <button
-                              key={opt}
-                              type="button"
-                              onClick={() => handleQuickHour(index, "horaInicio", opt)}
-                              className="px-1.5 py-0.5 rounded-lg text-[9px] font-bold bg-slate-100 dark:bg-[#1e2029] hover:bg-brand-primary/10 hover:text-brand-primary transition-colors text-slate-500 dark:text-slate-400"
-                            >
-                              {opt}
-                            </button>
-                          ))}
-                        </div>
                       </div>
 
                       {/* Hora Fin */}
                       <div>
                         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
-                          Hora Fin
+                          Hora Fin (12h)
                         </label>
-                        <input 
-                          type="text"
-                          placeholder="e.g. 17"
+                        <TimePicker12
                           value={inv.horaFin}
-                          onChange={(e) => updateInterval(index, "horaFin", e.target.value)}
-                          onBlur={(e) => handleTimeBlur(index, "horaFin", e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-2.5 text-xs font-bold text-center focus:outline-none focus:border-brand-primary placeholder:font-normal"
+                          onChange={(val) => updateInterval(index, "horaFin", val)}
+                          required
                         />
-                        {/* Quick hour chips */}
-                        <div className="flex flex-wrap gap-1 mt-1.5 justify-center">
-                          {["08:00", "12:00", "13:00", "17:00", "Ahora"].map((opt) => (
-                            <button
-                              key={opt}
-                              type="button"
-                              onClick={() => handleQuickHour(index, "horaFin", opt)}
-                              className="px-1.5 py-0.5 rounded-lg text-[9px] font-bold bg-slate-100 dark:bg-[#1e2029] hover:bg-brand-primary/10 hover:text-brand-primary transition-colors text-slate-500 dark:text-slate-400"
-                            >
-                              {opt}
-                            </button>
-                          ))}
-                        </div>
                       </div>
                     </div>
 
@@ -986,7 +979,7 @@ interface PwaIntervalForm {
                             </>
                           ) : (
                             <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
-                              Tipo A
+                              Tipo {item.tipo_minuta === "A" ? "P" : item.tipo_minuta}
                             </span>
                           )}
                         </div>
@@ -1011,7 +1004,7 @@ interface PwaIntervalForm {
                         {/* Action buttons + Hour count */}
                         <div className="flex flex-col items-end justify-between self-stretch">
                           <span className="text-xs font-black text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">
-                            {startStr} - {endStr}
+                            {formatTime12(item.hora_inicio)} - {formatTime12(item.hora_fin)}
                           </span>
                           
                           {/* Only show delete option if not approved or if type A */}

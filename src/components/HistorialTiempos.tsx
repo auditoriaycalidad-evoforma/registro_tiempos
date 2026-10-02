@@ -4,10 +4,11 @@ import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CheckCircle2, Clock, XCircle, Search, SlidersHorizontal, ArrowUpDown, Edit2, Save, X, AlertCircle, Trash2 } from "lucide-react";
-import { formatTime24 } from "@/lib/formatTime";
+import { formatTime24, formatTime12 } from "@/lib/formatTime";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { SearchableSelect } from "./SearchableSelect";
+import { TimePicker12 } from "./TimePicker12";
 
 const DAYS_OF_WEEK = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
 const MONTHS = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
@@ -123,7 +124,7 @@ export function HistorialTiempos({
   const canEditHistory = isAdmin;
 
   const getStatusIcon = (tipo: string, aprobado: string | null) => {
-    if (tipo === "A") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Horario Habitual" />;
+    if (tipo === "P" || tipo === "A") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Horario Habitual" />;
     if (tipo === "O") {
       if (aprobado === "SI") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Aprobado" />;
       if (aprobado === "NO" || aprobado === "RE") return <XCircle className="h-5 w-5 text-red-500" aria-label="Rechazado" />;
@@ -133,7 +134,7 @@ export function HistorialTiempos({
   };
 
   const getStatusBadge = (tipo: string, aprobado: string | null) => {
-    if (tipo === "A") return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Regular</span>;
+    if (tipo === "P" || tipo === "A") return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Regular</span>;
     if (tipo === "O") {
       if (aprobado === "SI") return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Aprobado</span>;
       if (aprobado === "NO" || aprobado === "RE") return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rechazado</span>;
@@ -153,11 +154,13 @@ export function HistorialTiempos({
       (t.minuta_empleado?.apellido_nombre?.toLowerCase().includes(searchLower) || false) ||
       (t.empleado?.toLowerCase().includes(searchLower) || false);
 
-    const matchesTipo = tipoFilter ? t.tipo_minuta === tipoFilter : true;
+    const matchesTipo = tipoFilter 
+      ? (tipoFilter === "P" ? (t.tipo_minuta === "P" || t.tipo_minuta === "A") : t.tipo_minuta === tipoFilter)
+      : true;
     
     let matchesEstado = true;
     if (estadoFilter) {
-      if (t.tipo_minuta === "A") {
+      if (t.tipo_minuta === "P" || t.tipo_minuta === "A") {
         matchesEstado = estadoFilter === "SI"; // regular is approved/validated
       } else {
         matchesEstado = t.aprobado === estadoFilter;
@@ -300,7 +303,7 @@ export function HistorialTiempos({
               className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
             >
               <option value="">Todos los tipos</option>
-              <option value="A">Tipo A</option>
+              <option value="P">Tipo P</option>
               <option value="O">Tipo O</option>
             </select>
           </div>
@@ -376,8 +379,8 @@ export function HistorialTiempos({
                   <tr key={t.id} className="hover:bg-slate-50/80 transition-colors duration-150">
                     <td className="px-3 py-3 whitespace-nowrap font-medium text-xs text-brand-dark/80">{getUTCDayName(t.fecha)}</td>
                     <td className="px-2.5 py-3 text-center whitespace-nowrap">
-                      <span className={`px-2 py-0.5 text-xs font-extrabold rounded-md ${t.tipo_minuta === 'A' ? 'bg-brand-primary/10 text-brand-primary' : 'bg-amber-100 text-amber-800'}`}>
-                        Tipo {t.tipo_minuta}
+                      <span className={`px-2 py-0.5 text-xs font-extrabold rounded-md ${t.tipo_minuta === 'O' ? 'bg-amber-100 text-amber-800' : 'bg-brand-primary/10 text-brand-primary'}`}>
+                        Tipo {t.tipo_minuta === 'A' ? 'P' : t.tipo_minuta}
                       </span>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap font-medium text-xs text-brand-dark/80">{getUTCMonthName(t.fecha)}</td>
@@ -389,10 +392,10 @@ export function HistorialTiempos({
                       {t.minuta_proyecto?.nombre || "-"}
                     </td>
                     <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
-                      {formatTime24(t.hora_inicio)}
+                      {formatTime12(t.hora_inicio)}
                     </td>
                     <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
-                      {formatTime24(t.hora_fin)}
+                      {formatTime12(t.hora_fin)}
                     </td>
                     <td className="px-2.5 py-3 text-center font-bold text-brand-primary text-xs whitespace-nowrap">
                       {calculateHours(t.hora_inicio, t.hora_fin).toFixed(2)}
@@ -505,11 +508,11 @@ export function HistorialTiempos({
                 <div>
                   <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Tipo de Horas</label>
                   <select
-                    value={editForm.tipo_minuta}
+                    value={editForm.tipo_minuta === "A" ? "P" : editForm.tipo_minuta}
                     onChange={(e) => setEditForm({ ...editForm, tipo_minuta: e.target.value })}
                     className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
                   >
-                    <option value="A">Tipo A</option>
+                    <option value="P">Tipo P</option>
                     <option value="O">Tipo O</option>
                   </select>
                 </div>
@@ -518,27 +521,19 @@ export function HistorialTiempos({
               <div className="grid grid-cols-2 gap-4">
                 {/* Hora Inicio */}
                 <div>
-                  <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Inicio (HH:MM)</label>
-                  <input
-                    type="text"
-                    placeholder="HH:MM"
-                    maxLength={5}
+                  <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Inicio (12h)</label>
+                  <TimePicker12
                     value={editForm.hora_inicio}
-                    onChange={(e) => setEditForm({ ...editForm, hora_inicio: e.target.value })}
-                    className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
+                    onChange={(val) => setEditForm({ ...editForm, hora_inicio: val })}
                   />
                 </div>
 
                 {/* Hora Fin */}
                 <div>
-                  <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Fin (HH:MM)</label>
-                  <input
-                    type="text"
-                    placeholder="HH:MM"
-                    maxLength={5}
+                  <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Hora Fin (12h)</label>
+                  <TimePicker12
                     value={editForm.hora_fin}
-                    onChange={(e) => setEditForm({ ...editForm, hora_fin: e.target.value })}
-                    className="w-full rounded-lg border border-brand-dark/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
+                    onChange={(val) => setEditForm({ ...editForm, hora_fin: val })}
                   />
                 </div>
               </div>
@@ -684,7 +679,7 @@ export function HistorialTiempos({
                 <div className="flex justify-between">
                   <span className="text-brand-dark/60 font-medium">Horario:</span>
                   <span className="font-semibold font-mono">
-                    {formatTime24(deletingRecord.hora_inicio)} - {formatTime24(deletingRecord.hora_fin)} ({calculateHours(deletingRecord.hora_inicio, deletingRecord.hora_fin).toFixed(2)}h)
+                    {formatTime12(deletingRecord.hora_inicio)} - {formatTime12(deletingRecord.hora_fin)} ({calculateHours(deletingRecord.hora_inicio, deletingRecord.hora_fin).toFixed(2)}h)
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -697,7 +692,7 @@ export function HistorialTiempos({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-brand-dark/60 font-medium">Tipo:</span>
-                  <span className="font-bold">Tipo {deletingRecord.tipo_minuta}</span>
+                  <span className="font-bold">Tipo {deletingRecord.tipo_minuta === 'A' ? 'P' : deletingRecord.tipo_minuta}</span>
                 </div>
               </div>
             </div>

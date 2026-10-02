@@ -64,23 +64,22 @@ export async function createMinuta(formData: FormData) {
     return { error: "Todos los campos principales son obligatorios" };
   }
 
-  if (data.tipo !== "A" && data.tipo !== "O") {
+  if (data.tipo !== "P" && data.tipo !== "O" && data.tipo !== "A") {
     return { error: "Tipo de tiempo no permitido" };
   }
 
-  // Validar que la fecha no sea inferior a dos días antes ni superior a dos días después del día en curso
-  const hoy = new Date();
-  const hoySoloFecha = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-  const limiteMinimo = new Date(hoySoloFecha);
-  limiteMinimo.setDate(limiteMinimo.getDate() - 2);
-  const limiteMaximo = new Date(hoySoloFecha);
-  limiteMaximo.setDate(limiteMaximo.getDate() + 2);
+  // Validación condicional de fecha: Administradores pueden registrar cualquier fecha; usuarios estándar solo hoy.
+  if (!isAuditor) {
+    const hoy = new Date();
+    const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+    const [year, month, day] = data.fecha.split("-").map(Number);
+    const fechaIngresada = new Date(year, month - 1, day);
+    const hoySolo = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    const diffDays = Math.abs((fechaIngresada.getTime() - hoySolo.getTime()) / (1000 * 3600 * 24));
 
-  const [year, month, day] = data.fecha.split("-").map(Number);
-  const fechaIngresada = new Date(year, month - 1, day);
-
-  if (fechaIngresada < limiteMinimo || fechaIngresada > limiteMaximo) {
-    return { error: "La fecha seleccionada no está permitida" };
+    if (diffDays > 0.5 && data.fecha !== hoyStr) {
+      return { error: "Los usuarios estándar solo pueden registrar tiempos en la fecha de hoy." };
+    }
   }
 
   // Extraer y procesar múltiples rangos de horario
@@ -284,7 +283,7 @@ export async function updateMinutaHistory(
     return { error: "Todos los campos principales son obligatorios" };
   }
 
-  if (data.tipo_minuta !== "A" && data.tipo_minuta !== "O") {
+  if (data.tipo_minuta !== "P" && data.tipo_minuta !== "O" && data.tipo_minuta !== "A") {
     return { error: "Tipo de tiempo no permitido" };
   }
 

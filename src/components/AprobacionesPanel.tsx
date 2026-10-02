@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Clock, CheckCircle2, XCircle, Search } from "lucide-react";
 import { AdminActionButtons } from "@/components/AdminActionButtons";
-import { formatTime24 } from "@/lib/formatTime";
+import { formatTime24, formatTime12 } from "@/lib/formatTime";
 
 const DAYS_OF_WEEK = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
 const MONTHS = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
@@ -436,10 +436,10 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
                           {m.minuta_proyecto?.nombre || "-"}
                         </td>
                         <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
-                          {formatTime24(m.hora_inicio)}
+                          {formatTime12(m.hora_inicio)}
                         </td>
                         <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
-                          {formatTime24(m.hora_fin)}
+                          {formatTime12(m.hora_fin)}
                         </td>
                         <td className="px-2.5 py-3 text-center font-bold text-brand-primary text-xs whitespace-nowrap">
                           {calculateHours(m.hora_inicio, m.hora_fin).toFixed(2)}
@@ -527,10 +527,10 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
                           {m.minuta_proyecto?.nombre || "-"}
                         </td>
                         <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
-                          {formatTime24(m.hora_inicio)}
+                          {formatTime12(m.hora_inicio)}
                         </td>
                         <td className="px-2.5 py-3 whitespace-nowrap text-center text-brand-dark font-semibold font-mono text-xs">
-                          {formatTime24(m.hora_fin)}
+                          {formatTime12(m.hora_fin)}
                         </td>
                         <td className="px-2.5 py-3 text-center font-bold text-brand-primary text-xs whitespace-nowrap">
                           {calculateHours(m.hora_inicio, m.hora_fin).toFixed(2)}

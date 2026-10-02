@@ -153,14 +153,14 @@ export function ReportesPanel({ minutas }: ReportesPanelProps) {
         case "empleado": return m.minuta_empleado?.apellido_nombre || m.empleado;
         case "mes": return getMesLabel(m.fecha);
         case "fecha": return m.fecha.split("T")[0];
-        case "tipo": return m.tipo_minuta === "A" ? "Tipo A (Habitual)" : "Tipo O (Extra)";
+        case "tipo": return m.tipo_minuta === "P" || m.tipo_minuta === "A" ? "Tipo P (Habitual)" : "Tipo O (Extra)";
         default: return "Total";
       }
     };
 
     const getColGroupKey = (m: MinutaRecord): string => {
       switch (colGrouping) {
-        case "tipo": return m.tipo_minuta === "A" ? "Tipo A" : "Tipo O";
+        case "tipo": return m.tipo_minuta === "P" || m.tipo_minuta === "A" ? "Tipo P" : "Tipo O";
         case "mes": return getMesLabel(m.fecha);
         default: return "Total Horas";
       }
@@ -252,7 +252,7 @@ export function ReportesPanel({ minutas }: ReportesPanelProps) {
     const map = new Map<string, number>();
     filteredMinutas.forEach((m) => {
       const key = rowGrouping === "tipo" 
-        ? (m.tipo_minuta === "A" ? "Tipo A" : "Tipo O")
+        ? (m.tipo_minuta === "P" || m.tipo_minuta === "A" ? "Tipo P" : "Tipo O")
         : (m.minuta_actividad?.area || "SIN ÁREA");
       const hours = calculateHours(m.hora_inicio, m.hora_fin);
       map.set(key, (map.get(key) ?? 0) + hours);
@@ -392,7 +392,7 @@ export function ReportesPanel({ minutas }: ReportesPanelProps) {
               className="px-3 py-2 w-full text-xs rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white font-medium"
             >
               <option value="">Todos</option>
-              <option value="A">Tipo A (Habitual)</option>
+              <option value="P">Tipo P (Habitual)</option>
               <option value="O">Tipo O (Extra)</option>
             </select>
           </div>

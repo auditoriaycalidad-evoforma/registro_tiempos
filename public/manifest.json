@@ -1,6 +1,6 @@
 {
-  "name": "Evoforma - Registro de Tiempos PWA",
-  "short_name": "EvoTiempos",
+  "name": "Evoforma - Registro PWA",
+  "short_name": "EvoRegistro",
   "description": "Registro ágil y móvil de horas de trabajo para técnicos y personal de campo.",
   "start_url": "/pwa",
   "display": "standalone",

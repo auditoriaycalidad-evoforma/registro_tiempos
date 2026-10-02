@@ -5,6 +5,8 @@ import { MinutaForm } from "@/components/MinutaForm";
 import { DashboardPanels } from "@/components/DashboardPanels";
 import { Clock } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
@@ -102,6 +104,7 @@ export default async function DashboardPage() {
             proyectos={proyectos} 
             actividades={actividades} 
             canSelectEmpleado={false}
+            isAdmin={false}
           />
         </div>
       ) : (
@@ -111,6 +114,7 @@ export default async function DashboardPage() {
               proyectos={proyectos} 
               actividades={actividades} 
               canSelectEmpleado={false}
+              isAdmin={false}
             />
           </div>
 

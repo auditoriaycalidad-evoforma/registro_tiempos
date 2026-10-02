@@ -90,29 +90,28 @@ export async function POST(request: Request) {
       );
     }
 
-    if (tipo !== "A" && tipo !== "O") {
+    if (tipo !== "P" && tipo !== "O" && tipo !== "A") {
       return NextResponse.json(
         { error: "Tipo de tiempo no permitido" },
         { status: 400 }
       );
     }
 
-    // Validar que la fecha no sea inferior a dos días antes ni superior a dos días después del día en curso
-    const hoy = new Date();
-    const hoySoloFecha = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-    const limiteMinimo = new Date(hoySoloFecha);
-    limiteMinimo.setDate(limiteMinimo.getDate() - 2);
-    const limiteMaximo = new Date(hoySoloFecha);
-    limiteMaximo.setDate(limiteMaximo.getDate() + 2);
+    // Validación condicional de fecha: Administradores pueden registrar cualquier fecha; usuarios estándar solo hoy.
+    if (!isAuditor) {
+      const hoy = new Date();
+      const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+      const [year, month, day] = fecha.split("-").map(Number);
+      const fechaIngresada = new Date(year, month - 1, day);
+      const hoySolo = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+      const diffDays = Math.abs((fechaIngresada.getTime() - hoySolo.getTime()) / (1000 * 3600 * 24));
 
-    const [year, month, day] = fecha.split("-").map(Number);
-    const fechaIngresada = new Date(year, month - 1, day);
-
-    if (fechaIngresada < limiteMinimo || fechaIngresada > limiteMaximo) {
-      return NextResponse.json(
-        { error: "La fecha seleccionada no está permitida" },
-        { status: 400 }
-      );
+      if (diffDays > 0.5 && fecha !== hoyStr) {
+        return NextResponse.json(
+          { error: "Los usuarios estándar solo pueden registrar tiempos en la fecha de hoy." },
+          { status: 400 }
+        );
+      }
     }
 
     const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
