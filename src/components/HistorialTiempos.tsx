@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CheckCircle2, Clock, XCircle, Search, SlidersHorizontal, ArrowUpDown, Edit2, Save, X, AlertCircle } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, Search, SlidersHorizontal, ArrowUpDown, Edit2, Save, X, AlertCircle, Trash2 } from "lucide-react";
 import { formatTime24 } from "@/lib/formatTime";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -112,9 +112,15 @@ export function HistorialTiempos({
   const [editError, setEditError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Delete states
+  const [deletingRecord, setDeletingRecord] = useState<TiempoRecord | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const sessionEmail = session?.user?.email?.toLowerCase();
   const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
-  const canEditHistory = sessionEmail && allowedEmails.includes(sessionEmail);
+  const isAdmin = session?.user?.rol === "ADMIN" || (sessionEmail && allowedEmails.includes(sessionEmail));
+  const canEditHistory = isAdmin;
 
   const getStatusIcon = (tipo: string, aprobado: string | null) => {
     if (tipo === "A") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Horario Habitual" />;
@@ -239,6 +245,33 @@ export function HistorialTiempos({
     }
   };
 
+  const handleDeleteRecord = async () => {
+    if (!deletingRecord) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch(`/api/minuta/${deletingRecord.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        setDeleteError(data?.error || "Error al eliminar el registro");
+        setIsDeleting(false);
+      } else {
+        setIsDeleting(false);
+        setDeletingRecord(null);
+        router.refresh();
+      }
+    } catch (err: any) {
+      setDeleteError(err?.message || "Error de conexión al eliminar el registro");
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md border border-brand-dark/10 overflow-hidden hover:shadow-lg transition-shadow duration-300">
       <div className="p-6 border-b border-brand-dark/10 bg-slate-50/50">
@@ -330,7 +363,7 @@ export function HistorialTiempos({
                 <th className="px-4 py-3 min-w-[220px] text-xs font-bold uppercase tracking-wider">Actividad - Cargo</th>
                 <th className="px-3 py-3 w-28 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Estado</th>
                 <th className="px-4 py-3 min-w-[160px] text-xs font-bold uppercase tracking-wider">Observación</th>
-                {canEditHistory && <th className="px-2.5 py-3 w-16 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Acción</th>}
+                {canEditHistory && <th className="px-2.5 py-3 w-20 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Acciones</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-dark/10 bg-white">
@@ -381,13 +414,25 @@ export function HistorialTiempos({
                     </td>
                     {canEditHistory && (
                       <td className="px-2.5 py-3 text-center whitespace-nowrap">
-                        <button
-                          onClick={() => handleStartEdit(t)}
-                          className="p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/10 transition-colors"
-                          title="Editar registro"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleStartEdit(t)}
+                            className="p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/10 transition-colors"
+                            title="Editar registro"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeletingRecord(t);
+                              setDeleteError(null);
+                            }}
+                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+                            title="Eliminar registro"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
