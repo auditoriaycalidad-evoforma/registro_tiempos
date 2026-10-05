@@ -65,3 +65,22 @@ export function formatTime12(dateOrStr: Date | string | null | undefined): strin
   if (!hour) return time24;
   return `${hour}:${minute} ${period}`;
 }
+
+export function getCurrentLocalTime24(): string {
+  const d = new Date();
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+export function addMinutesToTime(time24: string, minutesToAdd: number): string {
+  if (!time24 || !time24.includes(":")) return getCurrentLocalTime24();
+  const [hStr, mStr] = time24.split(":");
+  let totalMin = parseInt(hStr, 10) * 60 + parseInt(mStr, 10) + minutesToAdd;
+  if (totalMin >= 24 * 60) totalMin = (24 * 60) - 1;
+  if (totalMin < 0) totalMin = 0;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+

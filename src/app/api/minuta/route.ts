@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     if (empleado && empleado !== session.user.id) {
       if (!isAuditor) {
         return NextResponse.json(
-          { error: "No autorizado. Solo los auditores autorizados pueden registrar tiempos de otros colaboradores." },
+          { error: "No autorizado. Solo los auditores autorizados pueden registrar actividades de otros colaboradores." },
           { status: 403 }
         );
       }
@@ -71,28 +71,28 @@ export async function POST(request: Request) {
 
     if (!fecha || !tipo) {
       return NextResponse.json(
-        { error: "La fecha y el tipo de tiempo son obligatorios." },
+        { error: "La fecha y el tipo de registro son obligatorios." },
         { status: 400 }
       );
     }
 
     if (!intervals || !Array.isArray(intervals) || intervals.length === 0) {
       return NextResponse.json(
-        { error: "Debe registrar al menos un rango de tiempo." },
+        { error: "Debe registrar al menos una actividad." },
         { status: 400 }
       );
     }
 
     if (intervals.length > 7) {
       return NextResponse.json(
-        { error: "No se permiten más de 7 rangos de tiempo." },
+        { error: "No se permiten más de 7 actividades por envío." },
         { status: 400 }
       );
     }
 
     if (tipo !== "P" && tipo !== "O" && tipo !== "A") {
       return NextResponse.json(
-        { error: "Tipo de tiempo no permitido" },
+        { error: "Tipo de registro no permitido" },
         { status: 400 }
       );
     }
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
 
       if (diffDays > 0.5 && fecha !== hoyStr) {
         return NextResponse.json(
-          { error: "Los usuarios estándar solo pueden registrar tiempos en la fecha de hoy." },
+          { error: "Los usuarios estándar solo pueden registrar actividades en la fecha de hoy." },
           { status: 400 }
         );
       }
@@ -268,7 +268,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Error en API /api/minuta:", error);
     return NextResponse.json(
-      { error: "Error interno del servidor al procesar el registro de tiempos." },
+      { error: "Error interno del servidor al procesar el registro de actividades." },
       { status: 500 }
     );
   }

@@ -30,12 +30,12 @@ export function DashboardPanels({
           <Clock className="w-6 h-6 text-brand-primary" />
           <div>
             <h2 className="text-lg font-extrabold text-brand-dark leading-tight">
-              {activeTab === "registro" ? "Nuevo Registro de Tiempo" : "Historial de Registros"}
+              {activeTab === "registro" ? "Nuevo Registro de Actividad" : "Historial de Registros"}
             </h2>
             <p className="text-xs text-brand-dark/60">
               {activeTab === "registro"
-                ? "Ingresa y guarda horas y actividades para los colaboradores."
-                : "Consulta, filtra y modifica los registros de tiempo almacenados."}
+                ? "Registra y gestiona actividades para los colaboradores."
+                : "Consulta, filtra y modifica los registros almacenados."}
             </p>
           </div>
         </div>
@@ -52,7 +52,7 @@ export function DashboardPanels({
             }`}
           >
             <History className="w-4 h-4" />
-            <span>Historial de Tiempos</span>
+            <span>Historial de Registros</span>
             <span
               className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
                 activeTab === "historial"

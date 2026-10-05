@@ -62,7 +62,7 @@ export default async function DashboardPage() {
     }
   });
 
-  // Cargar registro de tiempos
+  // Cargar registro de actividades
   // Si es administrador, carga todos los registros incluyendo al empleado
   // Si es empleado normal, no es necesario cargar registros ya que el historial solo es visible para el admin
   const minutas = isAdmin
@@ -85,7 +85,7 @@ export default async function DashboardPage() {
         <div className="color-white">
           <h1 className="text-3xl font-bold tracking-tight">Mi Panel</h1>
           <p className="mt-1">
-            {isAdmin ? "Gestión de registros de tiempo e historial general." : "Registra tu tiempo."}
+            {isAdmin ? "Gestión de registros e historial general." : "Registra tu actividad."}
           </p>
         </div>
       </div>
@@ -122,7 +122,7 @@ export default async function DashboardPage() {
             <div className="bg-white rounded-xl shadow-md border border-brand-dark/10 p-8 text-center text-brand-dark/60 h-full min-h-[300px] flex flex-col justify-center items-center">
               <Clock className="w-12 h-12 text-brand-primary/45 mb-4 animate-pulse" />
               <h3 className="text-lg font-bold text-brand-dark mb-1">Historial Privado</h3>
-              <p className="text-sm max-w-sm">El historial de registros de tiempo es restringido y únicamente visible para la administración.</p>
+              <p className="text-sm max-w-sm">El historial de registros es restringido y únicamente visible para la administración.</p>
             </div>
           </div>
         </div>

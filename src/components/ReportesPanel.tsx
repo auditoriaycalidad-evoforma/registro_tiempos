@@ -153,7 +153,7 @@ export function ReportesPanel({ minutas }: ReportesPanelProps) {
         case "empleado": return m.minuta_empleado?.apellido_nombre || m.empleado;
         case "mes": return getMesLabel(m.fecha);
         case "fecha": return m.fecha.split("T")[0];
-        case "tipo": return m.tipo_minuta === "P" || m.tipo_minuta === "A" ? "Tipo P (Habitual)" : "Tipo O (Extra)";
+        case "tipo": return m.tipo_minuta === "P" || m.tipo_minuta === "A" ? "Tipo P" : "Tipo O";
         default: return "Total";
       }
     };
@@ -383,17 +383,17 @@ export function ReportesPanel({ minutas }: ReportesPanelProps) {
             </select>
           </div>
 
-          {/* Tipo de Tiempo */}
+          {/* Tipo de Registro */}
           <div>
-            <label className="block text-xs font-bold text-brand-dark/80 uppercase mb-1.5">Tipo de Tiempo</label>
+            <label className="block text-xs font-bold text-brand-dark/80 uppercase mb-1.5">Tipo de Registro</label>
             <select
               value={tipoFilter}
               onChange={(e) => setTipoFilter(e.target.value)}
               className="px-3 py-2 w-full text-xs rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white font-medium"
             >
               <option value="">Todos</option>
-              <option value="P">Tipo P (Habitual)</option>
-              <option value="O">Tipo O (Extra)</option>
+              <option value="P">Tipo P</option>
+              <option value="O">Tipo O</option>
             </select>
           </div>
 
@@ -437,7 +437,7 @@ export function ReportesPanel({ minutas }: ReportesPanelProps) {
                 { value: "empleado", label: "Empleado" },
                 { value: "mes", label: "Mes" },
                 { value: "fecha", label: "Fecha" },
-                { value: "tipo", label: "Tipo de tiempo" },
+                { value: "tipo", label: "Tipo de Registro" },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -459,7 +459,7 @@ export function ReportesPanel({ minutas }: ReportesPanelProps) {
             <div className="flex flex-wrap gap-2">
               {[
                 { value: "none", label: "Ninguno (Totales)" },
-                { value: "tipo", label: "Tipo de Tiempo" },
+                { value: "tipo", label: "Tipo de Registro" },
                 { value: "mes", label: "Mes" },
               ].map((opt) => (
                 <button
@@ -705,7 +705,7 @@ export function ReportesPanel({ minutas }: ReportesPanelProps) {
               <thead className="bg-brand-dark/5 text-brand-dark font-bold border-b border-brand-dark/15">
                 <tr>
                   <th className="px-4 py-3 bg-brand-dark/5 capitalize border-r border-brand-dark/10">
-                    {rowGrouping === "tipo" ? "Tipo de tiempo" : rowGrouping}
+                    {rowGrouping === "tipo" ? "Tipo de Registro" : rowGrouping}
                   </th>
                   {pivotData.cols.map((colKey) => (
                     <th key={colKey} className="px-4 py-3 text-center border-r border-brand-dark/10 last:border-0 min-w-[80px]">

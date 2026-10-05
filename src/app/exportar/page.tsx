@@ -52,7 +52,7 @@ export default async function ExportarPage() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="color-white">
-          <h1 className="text-3xl font-bold tracking-tight">Exportar tiempos</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Exportar registros</h1>
           <p className="mt-1 text-brand-light/75">
             Crea y actualiza archivos de Google Sheets por cargo para el año {year}.
           </p>
@@ -107,7 +107,7 @@ export default async function ExportarPage() {
 
         {grouped.length === 0 ? (
           <div className="p-8 text-center text-brand-dark/60">
-            No hay tiempos registrados para {year}.
+            No hay registros para {year}.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -123,7 +123,7 @@ export default async function ExportarPage() {
                 {grouped.map(([cargo, total]) => (
                   <tr key={cargo} className="hover:bg-brand-dark/5 transition-colors">
                     <td className="px-4 py-3 font-medium text-brand-dark">{cargo}</td>
-                    <td className="px-4 py-3">Tiempos {year} - {cargo}</td>
+                    <td className="px-4 py-3">Registros {year} - {cargo}</td>
                     <td className="px-4 py-3 text-right font-semibold">{total}</td>
                   </tr>
                 ))}

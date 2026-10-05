@@ -35,7 +35,7 @@ export async function createMinutasPwa(data: {
 
   if (data.empleado && data.empleado !== session.user.id) {
     if (!isAuditor) {
-      return { error: "No autorizado. Solo los auditores autorizados pueden registrar tiempos de otros colaboradores." };
+      return { error: "No autorizado. Solo los auditores autorizados pueden registrar actividades de otros colaboradores." };
     }
     const targetEmpleado = await prisma.minuta_empleado.findUnique({
       where: { id: data.empleado },
@@ -51,15 +51,15 @@ export async function createMinutasPwa(data: {
   const { fecha, tipo, intervals } = data;
 
   if (!fecha || !tipo) {
-    return { error: "La fecha y el tipo de tiempo son obligatorios." };
+    return { error: "La fecha y el tipo de registro son obligatorios." };
   }
 
   if (!intervals || intervals.length === 0) {
-    return { error: "Debe registrar al menos un rango de tiempo." };
+    return { error: "Debe registrar al menos una actividad." };
   }
 
   if (tipo !== "P" && tipo !== "O" && tipo !== "A") {
-    return { error: "Tipo de tiempo no permitido" };
+    return { error: "Tipo de registro no permitido" };
   }
 
   // Validación condicional de fecha: Administradores pueden registrar cualquier fecha; usuarios estándar solo hoy.
@@ -72,7 +72,7 @@ export async function createMinutasPwa(data: {
     const diffDays = Math.abs((fechaIngresada.getTime() - hoySolo.getTime()) / (1000 * 3600 * 24));
 
     if (diffDays > 0.5 && fecha !== hoyStr) {
-      return { error: "Los usuarios estándar solo pueden registrar tiempos en la fecha de hoy." };
+      return { error: "Los usuarios estándar solo pueden registrar actividades en la fecha de hoy." };
     }
   }
 
@@ -219,7 +219,7 @@ export async function createMinutasPwa(data: {
     return { success: true };
 
   } catch (error) {
-    console.error("Error al registrar tiempo desde PWA:", error);
+    console.error("Error al registrar actividad desde PWA:", error);
     return { error: "Error interno al guardar los registros." };
   }
 }

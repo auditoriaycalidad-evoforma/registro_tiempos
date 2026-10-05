@@ -7,8 +7,8 @@ import Navbar from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Evoforma - Tiempos",
-  description: "Gestión de Tiempos de Actividades",
+  title: "Evoforma - Minuta",
+  description: "Gestión de Registros de Actividades",
 };
 
 export default function RootLayout({

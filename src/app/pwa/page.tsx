@@ -4,8 +4,8 @@ import prisma from "@/lib/prisma";
 import { PwaContainer } from "./PwaContainer";
 
 export const metadata = {
-  title: "Evoforma - Registro de Tiempos",
-  description: "Registro rápido de tiempos de actividades (PWA)",
+  title: "Evoforma - Registro de Actividades",
+  description: "Registro rápido de actividades (PWA)",
   manifest: "/manifest.json",
   appleWebAppCapable: "yes",
   appleWebAppStatusBarStyle: "default",

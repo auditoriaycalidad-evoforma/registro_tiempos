@@ -43,7 +43,7 @@ export function AdminActionButtons({
       return;
     }
 
-    if (!window.confirm("¿Estás seguro de que deseas eliminar este registro de tiempo de forma permanente?")) {
+    if (!window.confirm("¿Estás seguro de que deseas eliminar este registro de forma permanente?")) {
       return;
     }
 

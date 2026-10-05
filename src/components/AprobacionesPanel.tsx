@@ -392,7 +392,7 @@ export function AprobacionesPanel({ minutasO, esLider, isAdmin, leaderAreas, isS
 
           {pendientesFiltradas.length === 0 ? (
             <div className="p-8 text-center text-brand-dark/60 text-sm">
-              No hay tiempos O pendientes de aprobación que coincidan con los filtros.
+              No hay registros Tipo O pendientes de aprobación que coincidan con los filtros.
             </div>
           ) : (
             <div className="overflow-x-auto max-h-[650px] overflow-y-auto">

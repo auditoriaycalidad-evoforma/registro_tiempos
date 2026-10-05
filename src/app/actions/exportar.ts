@@ -14,7 +14,7 @@ import { revalidatePath } from "next/cache";
 
 const HEADERS = [
   "DÍA",
-  "TIPO DE TIEMPO",
+  "TIPO DE REGISTRO",
   "MES",
   "FECHA",
   "CÉDULA DEL PROYECTO",
@@ -220,7 +220,7 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
   let newFileUrl = "";
 
   if (!targetSpreadsheetId) {
-    const fileName = `Tiempos ${year} - Historial`;
+    const fileName = `Registros ${year} - Historial`;
     const spreadsheet = await getOrCreateSpreadsheet(fileName);
     targetSpreadsheetId = spreadsheet.id;
     isNewFile = true;
@@ -237,7 +237,7 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
   results.push({
     cargo: "TODOS",
     rows: values.length - 1,
-    fileName: isNewFile ? `Archivo: Tiempos ${year} - Historial` : `Pestaña: ${sheetTitle}`,
+    fileName: isNewFile ? `Archivo: Registros ${year} - Historial` : `Pestaña: ${sheetTitle}`,
     url: isNewFile ? newFileUrl : `https://docs.google.com/spreadsheets/d/${targetSpreadsheetId}/edit`,
   });
 

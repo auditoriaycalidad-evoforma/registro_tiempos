@@ -24,7 +24,7 @@ export async function approveMinuta(id: number, decision: "SI" | "RE") {
     }
 
     if (record.tipo_minuta !== "O") {
-      return { error: "Solo se pueden aprobar tiempos de tipo O." };
+      return { error: "Solo se pueden aprobar registros de tipo O." };
     }
 
     const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
@@ -32,7 +32,7 @@ export async function approveMinuta(id: number, decision: "SI" | "RE") {
     const isSpecialUser = userEmail && allowedEmails.includes(userEmail);
 
     if (record.aprobado === "SI" && !isSpecialUser) {
-      return { error: "No tiene permisos para modificar tiempos aprobados." };
+      return { error: "No tiene permisos para modificar registros aprobados." };
     }
 
     await prisma.$transaction([
@@ -62,7 +62,7 @@ export async function approveMinuta(id: number, decision: "SI" | "RE") {
 
     return { success: true };
   } catch (error) {
-    return { error: "Error de servidor al aprobar el registro de tiempo" };
+    return { error: "Error de servidor al aprobar el registro de actividad" };
   }
 }
 

@@ -28,7 +28,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             </div>
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-brand-dark tracking-tight">
-            TIME TRACKING SYSTEM
+            EVOFORMA ACTIVIDADES
           </h2>
           <p className="mt-2 text-center text-sm text-brand-dark/70">
             Ingresa al sistema de registro de actividades

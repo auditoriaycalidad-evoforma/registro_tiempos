@@ -124,7 +124,7 @@ export function HistorialTiempos({
   const canEditHistory = isAdmin;
 
   const getStatusIcon = (tipo: string, aprobado: string | null) => {
-    if (tipo === "P" || tipo === "A") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Horario Habitual" />;
+    if (tipo === "P" || tipo === "A") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Tipo P" />;
     if (tipo === "O") {
       if (aprobado === "SI") return <CheckCircle2 className="h-5 w-5 text-green-500" aria-label="Aprobado" />;
       if (aprobado === "NO" || aprobado === "RE") return <XCircle className="h-5 w-5 text-red-500" aria-label="Rechazado" />;
@@ -278,8 +278,8 @@ export function HistorialTiempos({
   return (
     <div className="bg-white rounded-xl shadow-md border border-brand-dark/10 overflow-hidden hover:shadow-lg transition-shadow duration-300">
       <div className="p-6 border-b border-brand-dark/10 bg-slate-50/50">
-        <h2 className="text-xl font-bold text-brand-dark">Historial de Tiempos</h2>
-        <p className="text-xs text-brand-dark/60 mt-1">Busca, filtra y consulta tus registros de tiempo.</p>
+        <h2 className="text-xl font-bold text-brand-dark">Historial de Registros</h2>
+        <p className="text-xs text-brand-dark/60 mt-1">Busca, filtra y consulta tus registros.</p>
         
         {/* Barra de Filtros */}
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -636,7 +636,7 @@ export function HistorialTiempos({
                   <Trash2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-red-900">Eliminar Registro de Tiempo</h3>
+                  <h3 className="text-base font-bold text-red-900">Eliminar Registro</h3>
                   <p className="text-xs text-red-700/80">Esta acción no se puede deshacer.</p>
                 </div>
               </div>
@@ -660,7 +660,7 @@ export function HistorialTiempos({
             {/* Body */}
             <div className="p-6 space-y-3">
               <p className="text-xs text-brand-dark/80">
-                ¿Estás seguro de que deseas eliminar permanentemente este registro de tiempo?
+                ¿Estás seguro de que deseas eliminar permanentemente este registro?
               </p>
 
               <div className="bg-slate-50 border border-brand-dark/10 rounded-xl p-3.5 space-y-1.5 text-xs text-brand-dark">

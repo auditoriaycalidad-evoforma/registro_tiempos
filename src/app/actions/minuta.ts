@@ -41,7 +41,7 @@ export async function createMinuta(formData: FormData) {
 
   if (requestedEmpleado && requestedEmpleado !== session.user.id) {
     if (!isAuditor) {
-      return { error: "No autorizado. Solo los auditores autorizados pueden registrar tiempos de otros colaboradores." };
+      return { error: "No autorizado. Solo los auditores autorizados pueden registrar actividades de otros colaboradores." };
     }
     const targetEmpleado = await prisma.minuta_empleado.findUnique({
       where: { id: requestedEmpleado },
@@ -65,7 +65,7 @@ export async function createMinuta(formData: FormData) {
   }
 
   if (data.tipo !== "P" && data.tipo !== "O" && data.tipo !== "A") {
-    return { error: "Tipo de tiempo no permitido" };
+    return { error: "Tipo de registro no permitido" };
   }
 
   // Validación condicional de fecha: Administradores pueden registrar cualquier fecha; usuarios estándar solo hoy.
@@ -78,7 +78,7 @@ export async function createMinuta(formData: FormData) {
     const diffDays = Math.abs((fechaIngresada.getTime() - hoySolo.getTime()) / (1000 * 3600 * 24));
 
     if (diffDays > 0.5 && data.fecha !== hoyStr) {
-      return { error: "Los usuarios estándar solo pueden registrar tiempos en la fecha de hoy." };
+      return { error: "Los usuarios estándar solo pueden registrar actividades en la fecha de hoy." };
     }
   }
 
@@ -129,7 +129,7 @@ export async function createMinuta(formData: FormData) {
   }
 
   if (intervals.length === 0) {
-    return { error: "Debe registrar al menos un rango de tiempo." };
+    return { error: "Debe registrar al menos una actividad." };
   }
 
   // Función para convertir HH:MM a minutos desde la medianoche
@@ -147,7 +147,7 @@ export async function createMinuta(formData: FormData) {
       const endJ = timeToMinutes(intervals[j].horaFin);
       
       if (startI < endJ && startJ < endI) {
-        return { error: `Los rangos ingresados se solapan entre sí: ${intervals[i].horaInicio}-${intervals[i].horaFin} y ${intervals[j].horaInicio}-${intervals[j].horaFin}` };
+        return { error: `Las actividades ingresadas se solapan entre sí: ${intervals[i].horaInicio}-${intervals[i].horaFin} y ${intervals[j].horaInicio}-${intervals[j].horaFin}` };
       }
     }
   }
@@ -176,7 +176,7 @@ export async function createMinuta(formData: FormData) {
 
         if (startMin < recEndMin && recStartMin < endMin) {
           return {
-            error: `El rango ${interval.horaInicio} - ${interval.horaFin} se solapa con una actividad ya registrada para este colaborador en este día (${recStartStr} - ${recEndStr})`
+            error: `La actividad ${interval.horaInicio} - ${interval.horaFin} se solapa con un registro guardado para este colaborador en este día (${recStartStr} - ${recEndStr})`
           };
         }
       }
@@ -251,8 +251,8 @@ export async function createMinuta(formData: FormData) {
     return { success: true };
 
   } catch (error) {
-    console.error("Error al registrar el tiempo:", error);
-    return { error: "Error de servidor al registrar el tiempo" };
+    console.error("Error al registrar la actividad:", error);
+    return { error: "Error de servidor al registrar la actividad" };
   }
 }
 
@@ -284,7 +284,7 @@ export async function updateMinutaHistory(
   }
 
   if (data.tipo_minuta !== "P" && data.tipo_minuta !== "O" && data.tipo_minuta !== "A") {
-    return { error: "Tipo de tiempo no permitido" };
+    return { error: "Tipo de registro no permitido" };
   }
 
   const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
