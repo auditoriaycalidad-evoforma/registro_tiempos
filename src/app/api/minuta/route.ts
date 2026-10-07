@@ -283,15 +283,12 @@ export async function GET() {
 
     const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
     const userEmail = session.user.email?.toLowerCase();
-    const isAdmin = userEmail && allowedEmails.includes(userEmail);
+    const isAdmin = session?.user?.rol === "ADMIN" || (userEmail && allowedEmails.includes(userEmail));
     if (!isAdmin) {
       return NextResponse.json({ history: [] }, { status: 200 });
     }
 
     const history = await prisma.minuta_registro_actividad.findMany({
-      where: {
-        empleado: session.user.id,
-      },
       orderBy: [
         { fecha: "desc" },
         { hora_inicio: "desc" },
@@ -299,8 +296,9 @@ export async function GET() {
       include: {
         minuta_proyecto: true,
         minuta_actividad: true,
+        minuta_empleado: true,
       },
-      take: 50,
+      take: 100,
     });
 
     return NextResponse.json({ history }, { status: 200 });

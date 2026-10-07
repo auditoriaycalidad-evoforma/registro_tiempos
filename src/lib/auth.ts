@@ -36,6 +36,13 @@ export const authOptions: NextAuthOptions = {
       const googleProfile = profile as { email_verified?: boolean } | undefined;
       if (googleProfile?.email_verified === false) return false;
 
+      const defaultAdminEmails = ["auditoriaycalidad@evoforma.net", "ia.evoforma@gmail.com"];
+      const envAdminEmails = process.env.ADMIN_EMAILS
+        ? process.env.ADMIN_EMAILS.split(",").map((adminEmail) => adminEmail.trim().toLowerCase())
+        : [];
+      const adminEmails = Array.from(new Set([...envAdminEmails, ...defaultAdminEmails]));
+      const isGlobalAdmin = user.email && adminEmails.includes(user.email.toLowerCase());
+
       const empleado = await prisma.minuta_empleado.findFirst({
         where: {
           email: {
@@ -45,12 +52,12 @@ export const authOptions: NextAuthOptions = {
         },
       });
 
-      if (!empleado?.email) return false;
+      if (!empleado?.email && !isGlobalAdmin) return false;
 
-      user.id = empleado.id;
-      user.email = empleado.email;
-      user.name = empleado.apellido_nombre;
-      user.rol = getRoleForEmployee(empleado.email, empleado.es_lider);
+      user.id = empleado?.id || user.email;
+      user.email = empleado?.email || user.email;
+      user.name = empleado?.apellido_nombre || (isGlobalAdmin ? "Administrador Global" : (user.name || user.email));
+      user.rol = isGlobalAdmin ? "ADMIN" : getRoleForEmployee(empleado?.email, empleado?.es_lider);
 
       return true;
     },

@@ -64,9 +64,6 @@ export default async function PwaPage() {
   
   if (session?.user?.id && isAdmin) {
     const rawHistory = await prisma.minuta_registro_actividad.findMany({
-      where: {
-        empleado: session.user.id,
-      },
       orderBy: [
         { fecha: "desc" },
         { hora_inicio: "desc" },
@@ -74,8 +71,9 @@ export default async function PwaPage() {
       include: {
         minuta_proyecto: true,
         minuta_actividad: true,
+        minuta_empleado: true,
       },
-      take: 50,
+      take: 100,
     });
 
     // Parsear fechas para evitar problemas de serialización en componentes cliente
@@ -90,6 +88,11 @@ export default async function PwaPage() {
       tipo_minuta: item.tipo_minuta,
       aprobado: item.aprobado,
       observacion: item.observacion,
+      minuta_empleado: item.minuta_empleado ? {
+        id: item.minuta_empleado.id,
+        apellido_nombre: item.minuta_empleado.apellido_nombre,
+        cargo: item.minuta_empleado.cargo,
+      } : null,
       minuta_proyecto: item.minuta_proyecto ? {
         code: item.minuta_proyecto.code,
         nombre: item.minuta_proyecto.nombre

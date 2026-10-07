@@ -15,17 +15,15 @@ const AUTHORIZED_AUDITOR_EMAILS = [
 
 export async function isAuthorizedAuditor(session: any): Promise<boolean> {
   const email = session?.user?.email?.toLowerCase().trim();
-  if (!email || !AUTHORIZED_AUDITOR_EMAILS.includes(email)) {
-    return false;
+  const envAdminEmails = process.env.ADMIN_EMAILS
+    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase())
+    : [];
+  const adminEmails = Array.from(new Set([...envAdminEmails, ...AUTHORIZED_AUDITOR_EMAILS]));
+
+  if (session?.user?.rol === "ADMIN" || (email && adminEmails.includes(email))) {
+    return true;
   }
-  const emp = await prisma.minuta_empleado.findFirst({
-    where: {
-      email: { equals: email, mode: "insensitive" },
-    },
-  });
-  if (!emp) return false;
-  if (emp.activo && emp.activo.toUpperCase() === "N") return false;
-  return true;
+  return false;
 }
 
 export async function createMinuta(formData: FormData) {

@@ -3,7 +3,11 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CheckCircle2, Clock, XCircle, Search, SlidersHorizontal, ArrowUpDown, Edit2, Save, X, AlertCircle, Trash2 } from "lucide-react";
+import { 
+  CheckCircle2, Clock, XCircle, Search, SlidersHorizontal, 
+  ArrowUpDown, Edit2, Save, X, AlertCircle, Trash2, Calendar, 
+  RotateCcw, User, Briefcase, FileSpreadsheet, Layers
+} from "lucide-react";
 import { formatTime24, formatTime12 } from "@/lib/formatTime";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -11,7 +15,10 @@ import { SearchableSelect } from "./SearchableSelect";
 import { TimePicker12 } from "./TimePicker12";
 
 const DAYS_OF_WEEK = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
-const MONTHS = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+const MONTHS = [
+  "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", 
+  "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"
+];
 
 const getUTCDayName = (dateInput: Date | string) => {
   const date = new Date(dateInput);
@@ -80,12 +87,18 @@ export function HistorialTiempos({
   const { data: session } = useSession();
   const router = useRouter();
 
+  // Filter States
   const [search, setSearch] = useState("");
+  const [mesFilter, setMesFilter] = useState(""); // "" = Todos, "0".."11" = Mes
+  const [diaSemanaFilter, setDiaSemanaFilter] = useState(""); // "" = Todos, "1" = Lunes, etc.
+  const [diaMesFilter, setDiaMesFilter] = useState(""); // "" = Todos, "1".."31" = Día del mes
+  const [empleadoFilter, setEmpleadoFilter] = useState(""); // "" = Todos
   const [tipoFilter, setTipoFilter] = useState("");
   const [estadoFilter, setEstadoFilter] = useState("");
   const [cargoFilter, setCargoFilter] = useState("");
   const [sortAsc, setSortAsc] = useState(false); // Default desc
 
+  // Dynamic Options derived from data
   const cargosDisponibles = useMemo(() => {
     const set = new Set<string>();
     tiempos.forEach((t) => {
@@ -95,6 +108,18 @@ export function HistorialTiempos({
       }
     });
     return Array.from(set).sort();
+  }, [tiempos]);
+
+  const empleadosDisponibles = useMemo(() => {
+    const map = new Map<string, string>();
+    tiempos.forEach((t) => {
+      const id = t.minuta_empleado?.id || t.empleado;
+      const nombre = t.minuta_empleado?.apellido_nombre || t.empleado;
+      if (id && nombre) {
+        map.set(id, nombre);
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], "es"));
   }, [tiempos]);
 
   // Edit states
@@ -118,9 +143,9 @@ export function HistorialTiempos({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const sessionEmail = session?.user?.email?.toLowerCase();
+  const sessionEmail = session?.user?.email?.toLowerCase()?.trim();
   const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
-  const isAdmin = session?.user?.rol === "ADMIN" || (sessionEmail && allowedEmails.includes(sessionEmail));
+  const isAdmin = session?.user?.rol === "ADMIN" || (sessionEmail ? allowedEmails.includes(sessionEmail) : false);
   const canEditHistory = isAdmin;
 
   const getStatusIcon = (tipo: string, aprobado: string | null) => {
@@ -143,50 +168,125 @@ export function HistorialTiempos({
     return null;
   };
 
-  // Filter records
-  const filteredTiempos = tiempos.filter((t) => {
-    const searchLower = search.toLowerCase();
-    const matchesSearch =
-      (t.minuta_proyecto?.nombre?.toLowerCase().includes(searchLower) || false) ||
-      (t.minuta_proyecto?.code?.toLowerCase().includes(searchLower) || false) ||
-      (t.proyecto?.toLowerCase().includes(searchLower) || false) ||
-      (t.minuta_actividad?.nombre?.toLowerCase().includes(searchLower) || false) ||
-      (t.minuta_empleado?.apellido_nombre?.toLowerCase().includes(searchLower) || false) ||
-      (t.empleado?.toLowerCase().includes(searchLower) || false);
+  // Count active filters
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (search.trim()) count++;
+    if (mesFilter !== "") count++;
+    if (diaSemanaFilter !== "") count++;
+    if (diaMesFilter !== "") count++;
+    if (empleadoFilter !== "") count++;
+    if (tipoFilter !== "") count++;
+    if (estadoFilter !== "") count++;
+    if (cargoFilter !== "") count++;
+    return count;
+  }, [search, mesFilter, diaSemanaFilter, diaMesFilter, empleadoFilter, tipoFilter, estadoFilter, cargoFilter]);
 
-    const matchesTipo = tipoFilter 
-      ? (tipoFilter === "P" ? (t.tipo_minuta === "P" || t.tipo_minuta === "A") : t.tipo_minuta === tipoFilter)
-      : true;
-    
-    let matchesEstado = true;
-    if (estadoFilter) {
-      if (t.tipo_minuta === "P" || t.tipo_minuta === "A") {
-        matchesEstado = estadoFilter === "SI"; // regular is approved/validated
+  const handleResetFilters = () => {
+    setSearch("");
+    setMesFilter("");
+    setDiaSemanaFilter("");
+    setDiaMesFilter("");
+    setEmpleadoFilter("");
+    setTipoFilter("");
+    setEstadoFilter("");
+    setCargoFilter("");
+  };
+
+  // Filter records with independent Month and Day filtering
+  const filteredTiempos = useMemo(() => {
+    return tiempos.filter((t) => {
+      const dateObj = new Date(t.fecha);
+
+      // Search matching
+      const searchLower = search.toLowerCase().trim();
+      const matchesSearch = !searchLower || (
+        (t.minuta_proyecto?.nombre?.toLowerCase().includes(searchLower) || false) ||
+        (t.minuta_proyecto?.code?.toLowerCase().includes(searchLower) || false) ||
+        (t.proyecto?.toLowerCase().includes(searchLower) || false) ||
+        (t.minuta_actividad?.nombre?.toLowerCase().includes(searchLower) || false) ||
+        (t.minuta_actividad?.code?.toLowerCase().includes(searchLower) || false) ||
+        (t.minuta_empleado?.apellido_nombre?.toLowerCase().includes(searchLower) || false) ||
+        (t.empleado?.toLowerCase().includes(searchLower) || false) ||
+        (t.observacion?.toLowerCase().includes(searchLower) || false)
+      );
+
+      // Month Filter (0 to 11) - Independent
+      const matchesMes = mesFilter === "" || dateObj.getUTCMonth() === parseInt(mesFilter, 10);
+
+      // Day of Week Filter (0 = Dom, 1 = Lun, 2 = Mar, ...) - Independent
+      const matchesDiaSemana = diaSemanaFilter === "" || dateObj.getUTCDay() === parseInt(diaSemanaFilter, 10);
+
+      // Day of Month Filter (1 to 31) - Independent
+      const matchesDiaMes = diaMesFilter === "" || dateObj.getUTCDate() === parseInt(diaMesFilter, 10);
+
+      // Employee Filter
+      const matchesEmpleado = empleadoFilter === "" || (
+        t.minuta_empleado?.id === empleadoFilter || t.empleado === empleadoFilter
+      );
+
+      // Type Filter
+      const matchesTipo = tipoFilter === "" 
+        ? true 
+        : (tipoFilter === "P" ? (t.tipo_minuta === "P" || t.tipo_minuta === "A") : t.tipo_minuta === tipoFilter);
+
+      // Status Filter
+      let matchesEstado = true;
+      if (estadoFilter !== "") {
+        if (t.tipo_minuta === "P" || t.tipo_minuta === "A") {
+          matchesEstado = estadoFilter === "SI";
+        } else {
+          matchesEstado = t.aprobado === estadoFilter;
+        }
+      }
+
+      // Role / Cargo Filter
+      const matchesCargo = cargoFilter === "" || t.minuta_empleado?.cargo?.trim() === cargoFilter;
+
+      return matchesSearch && matchesMes && matchesDiaSemana && matchesDiaMes && matchesEmpleado && matchesTipo && matchesEstado && matchesCargo;
+    });
+  }, [tiempos, search, mesFilter, diaSemanaFilter, diaMesFilter, empleadoFilter, tipoFilter, estadoFilter, cargoFilter]);
+
+  // Sort records by date/start time
+  const sortedTiempos = useMemo(() => {
+    return [...filteredTiempos].sort((a, b) => {
+      const dateA = new Date(a.fecha).getTime();
+      const dateB = new Date(b.fecha).getTime();
+      
+      if (dateA !== dateB) {
+        return sortAsc ? dateA - dateB : dateB - dateA;
+      }
+      
+      const startA = formatTime24(a.hora_inicio);
+      const startB = formatTime24(b.hora_inicio);
+      return sortAsc ? startA.localeCompare(startB) : startB.localeCompare(startA);
+    });
+  }, [filteredTiempos, sortAsc]);
+
+  // Metrics summary
+  const metrics = useMemo(() => {
+    let totalHours = 0;
+    let hoursP = 0;
+    let hoursO = 0;
+
+    for (const t of filteredTiempos) {
+      const h = calculateHours(t.hora_inicio, t.hora_fin);
+      totalHours += h;
+      if (t.tipo_minuta === "O") {
+        hoursO += h;
       } else {
-        matchesEstado = t.aprobado === estadoFilter;
+        hoursP += h;
       }
     }
 
-    const matchesCargo = cargoFilter
-      ? t.minuta_empleado?.cargo?.trim() === cargoFilter
-      : true;
-
-    return matchesSearch && matchesTipo && matchesEstado && matchesCargo;
-  });
-
-  // Sort records by date/start time
-  const sortedTiempos = [...filteredTiempos].sort((a, b) => {
-    const dateA = new Date(a.fecha).getTime();
-    const dateB = new Date(b.fecha).getTime();
-    
-    if (dateA !== dateB) {
-      return sortAsc ? dateA - dateB : dateB - dateA;
-    }
-    
-    const startA = formatTime24(a.hora_inicio);
-    const startB = formatTime24(b.hora_inicio);
-    return sortAsc ? startA.localeCompare(startB) : startB.localeCompare(startA);
-  });
+    return {
+      totalRecords: filteredTiempos.length,
+      allRecordsCount: tiempos.length,
+      totalHours: Math.round(totalHours * 100) / 100,
+      hoursP: Math.round(hoursP * 100) / 100,
+      hoursO: Math.round(hoursO * 100) / 100,
+    };
+  }, [filteredTiempos, tiempos.length]);
 
   // Edit methods
   const handleStartEdit = (t: TiempoRecord) => {
@@ -276,77 +376,204 @@ export function HistorialTiempos({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-brand-dark/10 overflow-hidden hover:shadow-lg transition-shadow duration-300">
-      <div className="p-6 border-b border-brand-dark/10 bg-slate-50/50">
-        <h2 className="text-xl font-bold text-brand-dark">Historial de Registros</h2>
-        <p className="text-xs text-brand-dark/60 mt-1">Busca, filtra y consulta tus registros.</p>
-        
-        {/* Barra de Filtros */}
-        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="relative">
+    <div className="bg-white rounded-2xl shadow-md border border-brand-dark/10 overflow-hidden hover:shadow-lg transition-shadow duration-300 space-y-0">
+      
+      {/* 1. Header & Dynamic Filters Toolbar */}
+      <div className="p-6 border-b border-brand-dark/10 bg-slate-50/70 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-extrabold text-brand-dark flex items-center gap-2">
+              <Clock className="w-5 h-5 text-brand-primary" />
+              Historial de Registros
+            </h2>
+            <p className="text-xs text-brand-dark/60 mt-0.5">
+              Panel de control y filtros dinámicos independientes por mes, día, colaborador y tipo.
+            </p>
+          </div>
+
+          {activeFiltersCount > 0 && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold transition-all active:scale-95 self-start sm:self-auto shadow-xs"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-brand-primary" />
+              <span>Limpiar Filtros ({activeFiltersCount})</span>
+            </button>
+          )}
+        </div>
+
+        {/* 2. Barra de Filtros Avanzados */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-2.5">
+          
+          {/* Búsqueda General */}
+          <div className="relative xl:col-span-2">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-brand-dark/40" />
+              <Search className="h-3.5 w-3.5 text-brand-dark/40" />
             </span>
             <input
               type="text"
-              placeholder="Buscar por empleado, proyecto o actividad..."
+              placeholder="Buscar proyecto, actividad, notas..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
+              className="pl-8 pr-3 py-2 w-full text-xs font-medium rounded-xl border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white shadow-2xs"
             />
           </div>
 
+          {/* Filtro Dinámico de Mes (Independiente) */}
+          <div className="relative">
+            <select
+              value={mesFilter}
+              onChange={(e) => setMesFilter(e.target.value)}
+              className={`px-3 py-2 w-full text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white shadow-2xs ${
+                mesFilter !== "" ? "border-brand-primary text-brand-primary bg-orange-50/30" : "border-brand-dark/20 text-brand-dark"
+              }`}
+            >
+              <option value="">📅 Todos los meses</option>
+              {MONTHS.map((mesNombre, idx) => (
+                <option key={mesNombre} value={String(idx)}>
+                  {mesNombre.charAt(0) + mesNombre.slice(1).toLowerCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filtro Dinámico de Día de la Semana (Independiente) */}
+          <div className="relative">
+            <select
+              value={diaSemanaFilter}
+              onChange={(e) => setDiaSemanaFilter(e.target.value)}
+              className={`px-3 py-2 w-full text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white shadow-2xs ${
+                diaSemanaFilter !== "" ? "border-brand-primary text-brand-primary bg-orange-50/30" : "border-brand-dark/20 text-brand-dark"
+              }`}
+            >
+              <option value="">🗓️ Todos los días (Semana)</option>
+              <option value="1">Lunes</option>
+              <option value="2">Martes</option>
+              <option value="3">Miércoles</option>
+              <option value="4">Jueves</option>
+              <option value="5">Viernes</option>
+              <option value="6">Sábado</option>
+              <option value="0">Domingo</option>
+            </select>
+          </div>
+
+          {/* Filtro Dinámico de Día del Mes (1 a 31) (Independiente) */}
+          <div className="relative">
+            <select
+              value={diaMesFilter}
+              onChange={(e) => setDiaMesFilter(e.target.value)}
+              className={`px-3 py-2 w-full text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white shadow-2xs ${
+                diaMesFilter !== "" ? "border-brand-primary text-brand-primary bg-orange-50/30" : "border-brand-dark/20 text-brand-dark"
+              }`}
+            >
+              <option value="">🔢 Día del mes (1-31)</option>
+              {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
+                <option key={d} value={d}>
+                  Día {d.padStart(2, "0")}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filtro por Colaborador */}
+          <div className="relative">
+            <select
+              value={empleadoFilter}
+              onChange={(e) => setEmpleadoFilter(e.target.value)}
+              className={`px-3 py-2 w-full text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white shadow-2xs ${
+                empleadoFilter !== "" ? "border-brand-primary text-brand-primary bg-orange-50/30" : "border-brand-dark/20 text-brand-dark"
+              }`}
+            >
+              <option value="">👤 Colaboradores</option>
+              {empleadosDisponibles.map(([id, nombre]) => (
+                <option key={id} value={id}>
+                  {nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filtro por Tipo */}
           <div className="relative">
             <select
               value={tipoFilter}
               onChange={(e) => setTipoFilter(e.target.value)}
-              className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
+              className={`px-3 py-2 w-full text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white shadow-2xs ${
+                tipoFilter !== "" ? "border-brand-primary text-brand-primary bg-orange-50/30" : "border-brand-dark/20 text-brand-dark"
+              }`}
             >
-              <option value="">Todos los tipos</option>
-              <option value="P">Tipo P</option>
-              <option value="O">Tipo O</option>
+              <option value="">🏷️ Todos los tipos</option>
+              <option value="P">Tipo P (Habitual)</option>
+              <option value="O">Tipo O (Extra)</option>
             </select>
           </div>
 
+          {/* Filtro por Estado */}
           <div className="relative">
             <select
               value={estadoFilter}
               onChange={(e) => setEstadoFilter(e.target.value)}
-              className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
+              className={`px-3 py-2 w-full text-xs font-semibold rounded-xl border focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white shadow-2xs ${
+                estadoFilter !== "" ? "border-brand-primary text-brand-primary bg-orange-50/30" : "border-brand-dark/20 text-brand-dark"
+              }`}
             >
-              <option value="">Todos los estados</option>
+              <option value="">⚡ Estados</option>
               <option value="SI">Aprobado / Regular</option>
               <option value="PE">Pendiente</option>
               <option value="RE">Rechazado</option>
             </select>
           </div>
+        </div>
 
-          <div className="relative">
-            <select
-              value={cargoFilter}
-              onChange={(e) => setCargoFilter(e.target.value)}
-              className="px-3 py-2 w-full text-sm rounded-lg border border-brand-dark/20 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-white"
-            >
-              <option value="">Todos los cargos</option>
-              {cargosDisponibles.map((cargo) => (
-                <option key={cargo} value={cargo}>
-                  {cargo}
-                </option>
-              ))}
-            </select>
+        {/* 3. Strip de Métricas y Resumen en Vivo */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs border-t border-brand-dark/10">
+          <div className="flex flex-wrap items-center gap-4 text-slate-600 font-semibold">
+            <span className="flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-brand-primary" />
+              Mostrando: <strong className="text-slate-900 font-black">{metrics.totalRecords}</strong> de {metrics.allRecordsCount} registros
+            </span>
+            <span className="hidden sm:inline text-slate-300">•</span>
+            <span className="flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-brand-primary" />
+              Total Horas: <strong className="text-slate-900 font-black">{metrics.totalHours.toFixed(2)}h</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 font-bold text-[11px]">
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+              Tipo P: {metrics.hoursP.toFixed(2)}h
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
+              Tipo O: {metrics.hoursO.toFixed(2)}h
+            </span>
           </div>
         </div>
       </div>
 
+      {/* 4. Tabla de Registros */}
       {sortedTiempos.length === 0 ? (
-        <div className="p-10 text-center text-brand-dark/60">
-          <SlidersHorizontal className="w-8 h-8 mx-auto text-brand-dark/30 mb-2" />
-          <p className="font-medium text-sm">No se encontraron registros que coincidan con la búsqueda.</p>
+        <div className="p-12 text-center text-brand-dark/60 space-y-3">
+          <SlidersHorizontal className="w-10 h-10 mx-auto text-brand-dark/30 animate-pulse" />
+          <p className="font-extrabold text-sm text-slate-800">No se encontraron registros con los filtros seleccionados.</p>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Prueba a cambiar el mes, día o colaborador seleccionado, o restablece los filtros.
+          </p>
+          {activeFiltersCount > 0 && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="px-4 py-2 rounded-xl bg-brand-primary text-white text-xs font-bold hover:bg-brand-primary/90 transition-all shadow-sm inline-flex items-center gap-1.5"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Restablecer todos los filtros
+            </button>
+          )}
         </div>
       ) : (
-        <div className="overflow-x-auto max-h-[680px] overflow-y-auto">
+        <div className="overflow-x-auto max-h-[720px] overflow-y-auto">
           <table className="w-full text-left text-sm text-brand-dark/80 table-auto">
-            <thead className="bg-slate-100 text-brand-dark border-b border-brand-dark/10 sticky top-0 z-10 shadow-sm">
+            <thead className="bg-slate-100 text-brand-dark border-b border-brand-dark/10 sticky top-0 z-10 shadow-xs">
               <tr>
                 <th className="px-3 py-3 w-24 text-xs font-bold uppercase tracking-wider whitespace-nowrap">Día</th>
                 <th className="px-2.5 py-3 w-24 text-center text-xs font-bold uppercase tracking-wider whitespace-nowrap">Tipo</th>
@@ -446,7 +673,7 @@ export function HistorialTiempos({
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* 5. Edit Modal */}
       {editingRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-brand-dark/10 overflow-hidden animate-scaleIn">
@@ -454,7 +681,7 @@ export function HistorialTiempos({
             <div className="px-6 py-4 border-b border-brand-dark/10 bg-slate-50 flex justify-between items-center">
               <div>
                 <h3 className="text-lg font-bold text-brand-dark">Modificar Registro Histórico</h3>
-                <p className="text-xs text-brand-dark/60 mt-0.5">Editando registro #{editingRecord.id} del empleado {editingRecord.minuta_empleado?.apellido_nombre || editingRecord.empleado}</p>
+                <p className="text-xs text-brand-dark/60 mt-0.5">Editando registro #{editingRecord.id} del colaborador {editingRecord.minuta_empleado?.apellido_nombre || editingRecord.empleado}</p>
               </div>
               <button
                 onClick={() => setEditingRecord(null)}
@@ -625,7 +852,7 @@ export function HistorialTiempos({
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* 6. Delete Confirmation Modal */}
       {deletingRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-brand-dark/10 overflow-hidden animate-scaleIn">

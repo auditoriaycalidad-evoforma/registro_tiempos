@@ -9,11 +9,10 @@ export default function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const canApprove = session?.user.rol === "ADMIN" || session?.user.rol === "LIDER";
-  const isAdmin = session?.user.rol === "ADMIN" || session?.user?.email?.toLowerCase() === "auditoriaycalidad@evoforma.net";
-  
-  const allowedReportEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
-  const userEmail = session?.user?.email?.toLowerCase();
-  const showReportes = !!(userEmail && allowedReportEmails.includes(userEmail));
+  const allowedAdminEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+  const userEmail = session?.user?.email?.toLowerCase()?.trim();
+  const isAdmin = session?.user.rol === "ADMIN" || !!(userEmail && allowedAdminEmails.includes(userEmail));
+  const showReportes = isAdmin;
 
   if (!session || pathname.startsWith("/pwa")) return null;
 

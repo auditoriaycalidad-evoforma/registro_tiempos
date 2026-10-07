@@ -7,10 +7,11 @@ import {
   History, CheckCircle2, AlertCircle,
   Smartphone, X, RefreshCw, Play, Check, 
   Wifi, WifiOff, ListFilter, Activity as ActivityIcon, ArrowRight,
-  MapPin
+  MapPin, Clock, ShieldCheck, Save, RotateCcw, User
 } from "lucide-react";
-import { getCurrentLocalTime24, addMinutesToTime } from "@/lib/formatTime";
+import { getCurrentLocalTime24, addMinutesToTime, formatTime12 } from "@/lib/formatTime";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { TimePicker12 } from "@/components/TimePicker12";
 import { useGeolocation } from "@/lib/useGeolocation";
 
 export interface PwaActiveTask {
@@ -66,10 +67,15 @@ interface PwaContainerProps {
   session: any;
 }
 
+const MONTHS = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+];
+
 export function PwaContainer({ proyectos, actividades, empleados = [], initialHistory, session }: PwaContainerProps) {
   const allowedAuditorEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
-  const userEmail = session?.user?.email?.toLowerCase();
-  const isAdmin = !!(userEmail && allowedAuditorEmails.includes(userEmail));
+  const userEmail = session?.user?.email?.toLowerCase()?.trim();
+  const isAdmin = session?.user?.rol === "ADMIN" || !!(userEmail && allowedAuditorEmails.includes(userEmail));
   const isAuditor = isAdmin;
 
   // --- STATE ---
@@ -98,12 +104,16 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
   });
   const [tipoMinuta, setTipoMinuta] = useState<string>("P"); // "P" = Habitual, "O" = Extra
 
+  // Open Fields for Admin (Hora Inicio & Hora Fin)
+  const [adminHoraInicio, setAdminHoraInicio] = useState<string>("08:00");
+  const [adminHoraFin, setAdminHoraFin] = useState<string>("17:00");
+
   // Selection state for starting/changing activity
   const [selectedProyecto, setSelectedProyecto] = useState<string>("");
   const [selectedActividad, setSelectedActividad] = useState<string>("");
   const [observacionInput, setObservacionInput] = useState<string>("");
 
-  // In-Progress Active Task State (Automated Timer)
+  // In-Progress Active Task State (For standard employees using automated timer)
   const [activeTask, setActiveTask] = useState<PwaActiveTask | null>(null);
 
   // Session Log of Completed Activities on this device
@@ -112,13 +122,21 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
   // Live timer for elapsed minutes
   const [elapsedMinutes, setElapsedMinutes] = useState<number>(0);
 
-  // Geolocalización automática en tiempo real
+  // Geolocalización automática en tiempo real (Opcional/Exenta para admins)
   const {
     ubicacion,
     loading: geoLoading,
     error: geoError,
     refreshLocation,
-  } = useGeolocation();
+  } = useGeolocation(!isAdmin);
+
+  // --- FILTROS DE HISTORIAL PWA ---
+  const [pwaHistSearch, setPwaHistSearch] = useState<string>("");
+  const [pwaHistMes, setPwaHistMes] = useState<string>(""); // "" = Todos, "0".."11"
+  const [pwaHistDiaSemana, setPwaHistDiaSemana] = useState<string>(""); // "" = Todos, "1" = Lun, etc.
+  const [pwaHistDiaMes, setPwaHistDiaMes] = useState<string>(""); // "" = Todos, "1".."31"
+  const [pwaHistEmpleado, setPwaHistEmpleado] = useState<string>(""); // "" = Todos
+  const [pwaHistTipo, setPwaHistTipo] = useState<string>(""); // "" = Todos
 
   // --- PERSISTENCE: INITIAL LOAD & SYNCHRONIZATION ---
   useEffect(() => {
@@ -139,35 +157,36 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
       setDarkMode(true);
     }
 
-    // 3. Restore Active Task & Session Log from LocalStorage
-    try {
-      const savedActiveTask = localStorage.getItem("minuta_pwa_active_task");
-      if (savedActiveTask) {
-        const parsed = JSON.parse(savedActiveTask);
-        if (parsed && parsed.actividad && parsed.horaInicio) {
-          const today = new Date();
-          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-          
-          // If task is from a previous day, auto-finalize it cleanly
-          if (parsed.fecha && parsed.fecha !== todayStr && !isAdmin) {
-            autoFinalizeOldTask(parsed);
-          } else {
-            setActiveTask(parsed);
-            if (parsed.tipoMinuta) setTipoMinuta(parsed.tipoMinuta);
-            if (parsed.empleado && isAuditor) setSelectedEmpleado(parsed.empleado);
+    // 3. Restore Active Task & Session Log from LocalStorage (for standard real-time timer)
+    if (!isAdmin) {
+      try {
+        const savedActiveTask = localStorage.getItem("minuta_pwa_active_task");
+        if (savedActiveTask) {
+          const parsed = JSON.parse(savedActiveTask);
+          if (parsed && parsed.actividad && parsed.horaInicio) {
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+            
+            if (parsed.fecha && parsed.fecha !== todayStr) {
+              autoFinalizeOldTask(parsed);
+            } else {
+              setActiveTask(parsed);
+              if (parsed.tipoMinuta) setTipoMinuta(parsed.tipoMinuta);
+              if (parsed.empleado && isAuditor) setSelectedEmpleado(parsed.empleado);
+            }
           }
         }
-      }
 
-      const savedCompleted = localStorage.getItem("minuta_pwa_completed_tasks");
-      if (savedCompleted) {
-        const parsedCompleted = JSON.parse(savedCompleted);
-        if (Array.isArray(parsedCompleted)) {
-          setCompletedTasks(parsedCompleted);
+        const savedCompleted = localStorage.getItem("minuta_pwa_completed_tasks");
+        if (savedCompleted) {
+          const parsedCompleted = JSON.parse(savedCompleted);
+          if (Array.isArray(parsedCompleted)) {
+            setCompletedTasks(parsedCompleted);
+          }
         }
+      } catch (e) {
+        console.error("Error al restaurar estado de actividad PWA:", e);
       }
-    } catch (e) {
-      console.error("Error al restaurar estado de actividad PWA:", e);
     }
 
     // 4. Initial sync of offline queue
@@ -211,32 +230,10 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
     setElapsedMinutes(calculateElapsed());
     const interval = setInterval(() => {
       setElapsedMinutes(calculateElapsed());
-    }, 30000); // update every 30s
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [activeTask]);
-
-  // Persist Active Task immediately whenever it changes
-  useEffect(() => {
-    try {
-      if (activeTask) {
-        localStorage.setItem("minuta_pwa_active_task", JSON.stringify(activeTask));
-      } else {
-        localStorage.removeItem("minuta_pwa_active_task");
-      }
-    } catch (e) {
-      console.error("Error al guardar actividad activa en LocalStorage:", e);
-    }
-  }, [activeTask]);
-
-  // Persist Completed Tasks list
-  useEffect(() => {
-    try {
-      localStorage.setItem("minuta_pwa_completed_tasks", JSON.stringify(completedTasks));
-    } catch (e) {
-      console.error("Error al guardar actividades completadas:", e);
-    }
-  }, [completedTasks]);
 
   // Helper Toast Notification
   const showToast = (message: string, type: "success" | "error" | "info" = "info") => {
@@ -258,12 +255,11 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    console.log(`Instalación PWA: ${outcome}`);
     setDeferredPrompt(null);
     setShowInstallBanner(false);
   };
 
-  // --- REPAIR & RESOLVE CODES ---
+  // Resolve codes
   const resolveCodes = (pCodeInput: string, aCodeInput: string) => {
     let pCode = pCodeInput;
     let aCode = aCodeInput;
@@ -289,7 +285,7 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
     return { resolvedProject: pCode, resolvedActividad: aCode };
   };
 
-  // --- SAVE RECORD TO SERVER (WITH OFFLINE QUEUE BACKUP) ---
+  // Save record to server with offline backup
   const dispatchRecordToServer = async (payload: {
     empleado?: string;
     fecha: string;
@@ -316,7 +312,6 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
 
       return { success: true };
     } catch (err: any) {
-      // Queue offline
       try {
         const rawQueue = localStorage.getItem("minuta_offline_queue");
         const queue = rawQueue ? JSON.parse(rawQueue) : [];
@@ -329,7 +324,7 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
     }
   };
 
-  // --- OFFLINE QUEUE SYNC ---
+  // Sync offline queue
   const syncOfflineQueue = async () => {
     try {
       const rawQueue = localStorage.getItem("minuta_offline_queue");
@@ -353,8 +348,7 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
 
       if (remaining.length === 0) {
         localStorage.removeItem("minuta_offline_queue");
-        showToast("¡Actividades guardadas sin conexión sincronizadas con el servidor!", "success");
-        // Mark completed tasks as synced
+        showToast("¡Actividades offline sincronizadas con el servidor!", "success");
         setCompletedTasks((prev) => prev.map((t) => ({ ...t, synced: true })));
       } else {
         localStorage.setItem("minuta_offline_queue", JSON.stringify(remaining));
@@ -364,7 +358,7 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
     }
   };
 
-  // Auto finalize an old task from another day
+  // Auto finalize an old task
   const autoFinalizeOldTask = async (oldTask: PwaActiveTask) => {
     const safeEnd = addMinutesToTime(oldTask.horaInicio, 30);
     const taskUbicacion = oldTask.ubicacion || ubicacion;
@@ -407,44 +401,79 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
     await dispatchRecordToServer(payload);
   };
 
-  // --- AUTOMATED ACTIVITY LIFECYCLE HANDLERS ---
-
-  // 1. INICIAR O CAMBIAR ACTIVIDAD
-  const handleStartOrChangeActivity = async () => {
+  // ==========================================
+  // ADMIN DIRECT OPEN-FIELDS SUBMISSION
+  // ==========================================
+  const handleAdminPwaDirectSubmit = async () => {
     if (!selectedProyecto.trim()) {
       showToast("Seleccione o ingrese un proyecto válido.", "error");
       return;
     }
-
     if (!selectedActividad.trim()) {
-      showToast("Seleccione una actividad de la lista.", "error");
+      showToast("Seleccione una actividad.", "error");
+      return;
+    }
+    if (!adminHoraInicio || !adminHoraFin) {
+      showToast("Ingrese hora de inicio y fin.", "error");
+      return;
+    }
+    if (adminHoraFin <= adminHoraInicio) {
+      showToast("La hora de fin debe ser posterior a la de inicio.", "error");
       return;
     }
 
     const { resolvedProject, resolvedActividad } = resolveCodes(selectedProyecto, selectedActividad);
-
-    // Validate existence
-    const projMatch = proyectos.find((p) => p.code === resolvedProject);
-    if (!projMatch) {
-      showToast("El proyecto seleccionado no es válido en la base de datos.", "error");
-      return;
-    }
-
-    const actMatch = actividades.find((a) => a.code === resolvedActividad);
-    if (!actMatch) {
-      showToast("La actividad seleccionada no es válida.", "error");
-      return;
-    }
-
-    const nowTime = getCurrentLocalTime24();
-    const today = new Date();
-    const todayLocalStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const effectiveDate = isAdmin ? fecha : todayLocalStr;
     const targetEmp = isAuditor && selectedEmpleado ? selectedEmpleado : session?.user?.id;
 
     setIsLoading(true);
 
-    // Si ya había una actividad en curso -> FINALIZARLA AUTOMÁTICAMENTE
+    const payload = {
+      empleado: targetEmp,
+      fecha: fecha,
+      tipo: tipoMinuta,
+      intervals: [{
+        proyecto: resolvedProject,
+        actividad: resolvedActividad,
+        horaInicio: adminHoraInicio.trim(),
+        horaFin: adminHoraFin.trim(),
+        observacion: observacionInput.trim(),
+      }],
+    };
+
+    const result = await dispatchRecordToServer(payload);
+    setIsLoading(false);
+
+    if (result.success) {
+      showToast("¡Registro de actividad guardado exitosamente!", "success");
+      setObservacionInput("");
+      handleRefreshHistory();
+    } else if (result.offline) {
+      showToast("Registro guardado en el dispositivo (offline).", "info");
+      setObservacionInput("");
+    } else {
+      showToast(result.error || "Error al guardar el registro.", "error");
+    }
+  };
+
+  // Standard Real-Time Handlers
+  const handleStartOrChangeActivity = async () => {
+    if (!selectedProyecto.trim()) {
+      showToast("Seleccione un proyecto.", "error");
+      return;
+    }
+    if (!selectedActividad.trim()) {
+      showToast("Seleccione una actividad.", "error");
+      return;
+    }
+
+    const { resolvedProject, resolvedActividad } = resolveCodes(selectedProyecto, selectedActividad);
+    const nowTime = getCurrentLocalTime24();
+    const today = new Date();
+    const todayLocalStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const targetEmp = session?.user?.id;
+
+    setIsLoading(true);
+
     if (activeTask) {
       let closeTime = nowTime;
       if (activeTask.horaInicio && closeTime <= activeTask.horaInicio) {
@@ -472,12 +501,10 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
         completedAt: Date.now(),
       };
 
-      // Add to local completed list
       setCompletedTasks((prev) => [completedItem, ...prev]);
 
-      // Dispatch previous task to backend
       const payload = {
-        empleado: isAuditor && activeTask.empleado ? activeTask.empleado : undefined,
+        empleado: activeTask.empleado,
         fecha: activeTask.fecha,
         tipo: activeTask.tipoMinuta,
         intervals: [{
@@ -495,14 +522,13 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
       }
     }
 
-    // INICIAR NUEVA ACTIVIDAD CON HORA DE INICIO AUTOMÁTICA
     const newTask: PwaActiveTask = {
       proyecto: resolvedProject,
       actividad: resolvedActividad,
       horaInicio: nowTime,
       startTimeStamp: Date.now(),
       observacion: observacionInput.trim(),
-      fecha: effectiveDate,
+      fecha: todayLocalStr,
       tipoMinuta: tipoMinuta,
       empleado: targetEmp,
       ubicacion: ubicacion || undefined,
@@ -511,16 +537,9 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
     setActiveTask(newTask);
     setObservacionInput("");
     setIsLoading(false);
-
-    showToast(
-      activeTask
-        ? `Actividad anterior finalizada. Iniciada: ${actMatch.nombre}`
-        : `Actividad iniciada: ${actMatch.nombre}`,
-      "success"
-    );
+    showToast("Actividad iniciada en tiempo real.", "success");
   };
 
-  // 2. FINALIZAR ACTIVIDAD ACTUAL (Cierre explícito sin iniciar otra inmediatamente)
   const handleFinalizeCurrentActivity = async () => {
     if (!activeTask) return;
 
@@ -531,7 +550,6 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
     }
 
     setIsLoading(true);
-
     const taskUbicacion = activeTask.ubicacion || ubicacion;
     let formattedObs = activeTask.observacion ? activeTask.observacion.trim() : "";
     if (taskUbicacion && !formattedObs.includes(taskUbicacion)) {
@@ -557,7 +575,7 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
     setActiveTask(null);
 
     const payload = {
-      empleado: isAuditor && activeTask.empleado ? activeTask.empleado : undefined,
+      empleado: activeTask.empleado,
       fecha: activeTask.fecha,
       tipo: activeTask.tipoMinuta,
       intervals: [{
@@ -574,28 +592,23 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
 
     if (result.success) {
       completedItem.synced = true;
-      showToast("Actividad finalizada y guardada exitosamente en el servidor.", "success");
-    } else if (result.offline) {
-      showToast("Actividad guardada en el dispositivo (se sincronizará al tener conexión).", "info");
+      showToast("Actividad finalizada y guardada.", "success");
     } else {
-      showToast(result.error || "Actividad guardada localmente.", "info");
+      showToast("Actividad guardada localmente.", "info");
     }
   };
 
-  // 3. ACTUALIZAR OBSERVACIÓN DE LA ACTIVIDAD EN CURSO
   const handleUpdateActiveObservation = (newObs: string) => {
     setActiveTask((prev) => (prev ? { ...prev, observacion: newObs } : null));
   };
 
-  // Refresh user history (Tab 2)
+  // Refresh history
   const handleRefreshHistory = async () => {
     setIsRefreshing(true);
     try {
       const res = await fetch("/api/minuta").then((r) => r.json());
       setIsRefreshing(false);
-      if (res?.error) {
-        showToast("No se pudo actualizar el historial.", "error");
-      } else if (res?.history) {
+      if (res?.history) {
         setHistory(res.history);
         showToast("Historial actualizado.", "success");
       }
@@ -605,7 +618,7 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
     }
   };
 
-  // Delete from Admin History
+  // Delete entry
   const handleDeleteHistoryEntry = async (id: number) => {
     if (!window.confirm("¿Seguro que deseas eliminar este registro?")) return;
 
@@ -614,19 +627,65 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
       const res = await response.json();
 
       if (!response.ok || res.error) {
-        showToast(res.error || "Error al eliminar el registro.", "error");
+        showToast(res.error || "Error al eliminar.", "error");
       } else {
         showToast("Registro eliminado.", "success");
         setHistory((prev) => prev.filter((item) => item.id !== id));
       }
     } catch (err: any) {
-      showToast(err?.message || "Error al eliminar el registro.", "error");
+      showToast(err?.message || "Error al eliminar.", "error");
     }
+  };
+
+  // Filtered History for Tab 2
+  const filteredHistory = useMemo(() => {
+    return history.filter((item) => {
+      const d = new Date(item.fecha);
+      const searchLower = pwaHistSearch.toLowerCase().trim();
+
+      const matchesSearch = !searchLower || (
+        (item.minuta_proyecto?.nombre?.toLowerCase().includes(searchLower) || false) ||
+        (item.minuta_proyecto?.code?.toLowerCase().includes(searchLower) || false) ||
+        (item.proyecto?.toLowerCase().includes(searchLower) || false) ||
+        (item.minuta_actividad?.nombre?.toLowerCase().includes(searchLower) || false) ||
+        (item.minuta_empleado?.apellido_nombre?.toLowerCase().includes(searchLower) || false) ||
+        (item.empleado?.toLowerCase().includes(searchLower) || false)
+      );
+
+      const matchesMes = pwaHistMes === "" || d.getUTCMonth() === parseInt(pwaHistMes, 10);
+      const matchesDiaSemana = pwaHistDiaSemana === "" || d.getUTCDay() === parseInt(pwaHistDiaSemana, 10);
+      const matchesDiaMes = pwaHistDiaMes === "" || d.getUTCDate() === parseInt(pwaHistDiaMes, 10);
+      const matchesEmp = pwaHistEmpleado === "" || (item.minuta_empleado?.id === pwaHistEmpleado || item.empleado === pwaHistEmpleado);
+      const matchesTipo = pwaHistTipo === "" || (
+        pwaHistTipo === "P" ? (item.tipo_minuta === "P" || item.tipo_minuta === "A") : item.tipo_minuta === pwaHistTipo
+      );
+
+      return matchesSearch && matchesMes && matchesDiaSemana && matchesDiaMes && matchesEmp && matchesTipo;
+    });
+  }, [history, pwaHistSearch, pwaHistMes, pwaHistDiaSemana, pwaHistDiaMes, pwaHistEmpleado, pwaHistTipo]);
+
+  const pwaActiveFiltersCount = useMemo(() => {
+    let count = 0;
+    if (pwaHistSearch) count++;
+    if (pwaHistMes !== "") count++;
+    if (pwaHistDiaSemana !== "") count++;
+    if (pwaHistDiaMes !== "") count++;
+    if (pwaHistEmpleado !== "") count++;
+    if (pwaHistTipo !== "") count++;
+    return count;
+  }, [pwaHistSearch, pwaHistMes, pwaHistDiaSemana, pwaHistDiaMes, pwaHistEmpleado, pwaHistTipo]);
+
+  const resetPwaHistoryFilters = () => {
+    setPwaHistSearch("");
+    setPwaHistMes("");
+    setPwaHistDiaSemana("");
+    setPwaHistDiaMes("");
+    setPwaHistEmpleado("");
+    setPwaHistTipo("");
   };
 
   const darkClass = darkMode ? "dark" : "";
 
-  // Helper metadata lookups
   const activeProjectInfo = useMemo(() => {
     if (!activeTask) return null;
     return proyectos.find((p) => p.code === activeTask.proyecto);
@@ -687,7 +746,11 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <span className="font-black text-base tracking-tight text-brand-primary">EvoMinuta</span>
-              <span className="text-[9px] uppercase font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded-md">PWA</span>
+              {isAdmin && (
+                <span className="text-[9px] uppercase font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 px-1.5 py-0.5 rounded-md">
+                  Admin
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -735,7 +798,7 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
         <div className="bg-gradient-to-r from-brand-primary to-orange-600 text-white p-3 flex items-center justify-between text-xs font-semibold shadow-inner transition-all animate-fadeIn">
           <div className="flex items-center gap-2">
             <Smartphone className="w-4 h-4 flex-shrink-0" />
-            <span>Instala esta aplicación en tu pantalla de inicio para acceso rápido.</span>
+            <span>Instala esta aplicación en tu pantalla de inicio.</span>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
             <button 
@@ -761,432 +824,420 @@ export function PwaContainer({ proyectos, actividades, empleados = [], initialHi
         {activeTab === "actividad" && (
           <div className="space-y-5 animate-slideUp">
             
-            {/* 3.1 METADATA CARD (Colaborador / Fecha / Tipo de Registro) */}
-            <div className="bg-white dark:bg-[#121318] p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm space-y-3.5">
-              {/* Colaborador (Solo para auditores) */}
-              {isAuditor && empleados.length > 0 && (
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1.5">
-                    Apellido - Nombre (Colaborador)
-                  </label>
-                  <SearchableSelect
-                    name="pwa_empleado"
-                    value={selectedEmpleado}
-                    onChange={(val) => setSelectedEmpleado(val)}
-                    options={empleados.map((emp) => ({
-                      value: emp.id,
-                      label: emp.apellido_nombre,
-                      sublabel: emp.cargo ? `(${emp.cargo})` : undefined,
-                    }))}
-                    placeholder="Seleccione un colaborador"
-                    required
-                  />
+            {/* ADMIN MODE: OPEN FIELDS & GPS EXEMPTION */}
+            {isAdmin ? (
+              <div className="bg-white dark:bg-[#121318] p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-brand-primary" />
+                    <span className="text-xs font-black uppercase text-slate-800 dark:text-white">
+                      Registro de Actividad (Campos Libres)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                    GPS Exento
+                  </span>
                 </div>
-              )}
 
-              {/* Fecha (Lectura para técnicos, selector para admin) */}
-              {isAdmin && (
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
-                    Fecha de Registro
-                  </label>
-                  <div className="relative">
-                    <Calendar className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                {/* Colaborador */}
+                {empleados.length > 0 && (
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
+                      Colaborador
+                    </label>
+                    <SearchableSelect
+                      name="pwa_empleado_admin"
+                      value={selectedEmpleado}
+                      onChange={(val) => setSelectedEmpleado(val)}
+                      options={empleados.map((emp) => ({
+                        value: emp.id,
+                        label: emp.apellido_nombre,
+                        sublabel: emp.cargo ? `(${emp.cargo})` : undefined,
+                      }))}
+                      placeholder="Seleccione un colaborador"
+                      required
+                    />
+                  </div>
+                )}
+
+                {/* Fecha Libre & Tipo */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
+                      Fecha
+                    </label>
                     <input 
                       type="date"
                       value={fecha}
                       onChange={(e) => setFecha(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary transition-all font-semibold"
+                      className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-2 text-xs focus:outline-none focus:border-brand-primary font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
+                      Tipo
+                    </label>
+                    <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-[#1a1b22] rounded-2xl">
+                      <button
+                        type="button"
+                        onClick={() => setTipoMinuta("P")}
+                        className={`py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          tipoMinuta === "P" 
+                            ? "bg-white dark:bg-[#252630] text-brand-primary shadow-xs" 
+                            : "text-slate-500"
+                        }`}
+                      >
+                        Tipo P
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTipoMinuta("O")}
+                        className={`py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          tipoMinuta === "O" 
+                            ? "bg-white dark:bg-[#252630] text-brand-primary shadow-xs" 
+                            : "text-slate-500"
+                        }`}
+                      >
+                        Tipo O
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Horarios Libres */}
+                <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-[#1a1b22] rounded-2xl border border-slate-200/50 dark:border-slate-800">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 block">
+                      Hora Inicio
+                    </label>
+                    <TimePicker12
+                      value={adminHoraInicio}
+                      onChange={(val) => setAdminHoraInicio(val)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 block">
+                      Hora Fin
+                    </label>
+                    <TimePicker12
+                      value={adminHoraFin}
+                      onChange={(val) => setAdminHoraFin(val)}
+                      required
                     />
                   </div>
                 </div>
-              )}
 
-              {/* Tipo de Registro (Segmented Buttons) */}
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1.5">
-                  Tipo de Registro
-                </label>
-                <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-[#1a1b22] rounded-2xl">
-                  <button
-                    type="button"
-                    onClick={() => setTipoMinuta("P")}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all ${
-                      tipoMinuta === "P" 
-                        ? "bg-white dark:bg-[#252630] text-brand-primary shadow-sm" 
-                        : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-                    }`}
-                  >
-                    Tipo P
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTipoMinuta("O")}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all ${
-                      tipoMinuta === "O" 
-                        ? "bg-white dark:bg-[#252630] text-brand-primary shadow-sm" 
-                        : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-                    }`}
-                  >
-                    Tipo O
-                  </button>
-                </div>
-              </div>
-
-              {/* Ubicación Actual (Geolocalización GPS) */}
-              <div className="pt-1">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-brand-primary" />
-                    Ubicación Actual (Ciudad - Zona)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => refreshLocation()}
-                    disabled={geoLoading}
-                    className="text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-brand-primary/10 active:scale-95 transition-all disabled:opacity-50"
-                    title="Actualizar ubicación vía GPS"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${geoLoading ? "animate-spin" : ""}`} />
-                    <span>Actualizar</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2.5 p-2.5 bg-slate-50 dark:bg-[#1a1b22] rounded-2xl border border-slate-200/60 dark:border-slate-800/60">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                    geoLoading 
-                      ? "bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 animate-pulse" 
-                      : ubicacion 
-                        ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400" 
-                        : "bg-slate-200 dark:bg-slate-700 text-slate-500"
-                  }`}>
-                    <MapPin className="w-4 h-4" />
+                {/* Proyecto & Actividad */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
+                      Proyecto (Cédula o Nombre)
+                    </label>
+                    <SearchableSelect
+                      name="pwa_proj_admin"
+                      value={selectedProyecto}
+                      onChange={(val) => setSelectedProyecto(val)}
+                      options={proyectos.map((p) => ({
+                        value: p.code,
+                        label: p.code,
+                        sublabel: p.nombre,
+                      }))}
+                      placeholder="Cédula de proyecto"
+                      required
+                    />
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    {geoLoading ? (
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                        Detectando ubicación GPS...
-                      </div>
-                    ) : ubicacion ? (
-                      <div>
-                        <span className="text-xs font-black text-slate-900 dark:text-white block truncate">
-                          {ubicacion}
-                        </span>
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block">
-                          ✓ Ubicación capturada
-                        </span>
-                      </div>
-                    ) : geoError ? (
-                      <div>
-                        <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 block truncate">
-                          {geoError}
-                        </span>
-                        <span className="text-[10px] text-slate-400 block">
-                          Pulsa &quot;Actualizar&quot; para reintentar
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">
-                        Ubicación no detectada
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 3.2 CARD DE ACTIVIDAD EN CURSO (AUTOMATED TIMER CARD) */}
-            {activeTask ? (
-              <div className="relative overflow-hidden rounded-3xl border-2 border-brand-primary/30 bg-gradient-to-br from-white via-orange-50/20 to-white dark:from-[#151720] dark:via-[#1a171f] dark:to-[#121318] p-5 shadow-md animate-fadeIn">
-                
-                {/* Header Status with Pulsing Indicator */}
-                <div className="flex items-center justify-between mb-3.5">
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                      Actividad en Curso
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
-                      Tipo {activeTask.tipoMinuta}
-                    </span>
-                    {elapsedMinutes > 0 && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        {elapsedMinutes}m en curso
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Project & Activity Info */}
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    Proyecto: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{activeTask.proyecto}</span>
-                  </div>
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight">
-                    {activeProjectInfo?.nombre || activeTask.proyecto}
-                  </h3>
-                  
-                  <div className="pt-2">
-                    <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
                       Actividad
-                    </div>
-                    <div className="text-sm font-bold text-brand-primary">
-                      {activeActividadInfo?.nombre || activeTask.actividad}
-                      {activeActividadInfo?.area && (
-                        <span className="ml-1.5 text-xs text-slate-400 font-normal">({activeActividadInfo.area})</span>
-                      )}
-                    </div>
+                    </label>
+                    <SearchableSelect
+                      name="pwa_act_admin"
+                      value={selectedActividad}
+                      onChange={(val) => setSelectedActividad(val)}
+                      options={actividades.map((a) => ({
+                        value: a.code,
+                        label: a.nombre,
+                        sublabel: a.area ? `(${a.area})` : undefined,
+                      }))}
+                      placeholder="Actividad"
+                      required
+                    />
                   </div>
 
-                  {activeTask.ubicacion && (
-                    <div className="pt-1">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-[#1a1b22] border border-slate-200/50 dark:border-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">
-                        <MapPin className="w-3 h-3 text-brand-primary" />
-                        {activeTask.ubicacion}
-                      </span>
-                    </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
+                      Observación (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Notas del registro..."
+                      value={observacionInput}
+                      onChange={(e) => setObservacionInput(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-2 text-xs font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Botón Guardar Directo */}
+                <button
+                  type="button"
+                  onClick={handleAdminPwaDirectSubmit}
+                  disabled={isLoading || !selectedProyecto.trim() || !selectedActividad.trim()}
+                  className="w-full py-3.5 px-4 bg-brand-primary text-white font-bold rounded-2xl shadow-lg shadow-brand-primary/20 hover:bg-brand-primary/95 active:scale-95 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 flex items-center justify-center gap-2 transition-all mt-2"
+                >
+                  {isLoading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Guardar Registro de Actividad</span>
+                    </>
                   )}
-                </div>
-
-                {/* Editable Real-Time Note */}
-                <div className="mt-4">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
-                    Observación de la Actividad (Opcional)
-                  </label>
-                  <textarea
-                    placeholder="Notas o descripción de avance..."
-                    value={activeTask.observacion}
-                    onChange={(e) => handleUpdateActiveObservation(e.target.value)}
-                    className="w-full bg-white dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-2 text-xs focus:outline-none focus:border-brand-primary resize-none h-14 font-medium transition-all"
-                  />
-                </div>
-
-                {/* Finalize Button */}
-                <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-end">
-                  <button
-                    type="button"
-                    onClick={handleFinalizeCurrentActivity}
-                    disabled={isLoading}
-                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all active:scale-95 flex items-center gap-1.5"
-                  >
-                    <Check className="w-3.5 h-3.5 text-emerald-500" />
-                    Finalizar Actividad
-                  </button>
-                </div>
+                </button>
               </div>
             ) : (
-              <div className="bg-white dark:bg-[#121318] p-5 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm text-center space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 dark:bg-brand-primary/20 text-brand-primary flex items-center justify-center mx-auto mb-1">
-                  <Play className="w-5 h-5 ml-0.5" />
+              /* STANDARD REAL-TIME MODE */
+              <>
+                {/* Real-time active task card */}
+                {activeTask ? (
+                  <div className="relative overflow-hidden rounded-3xl border-2 border-brand-primary/30 bg-gradient-to-br from-white via-orange-50/20 to-white dark:from-[#151720] dark:via-[#1a171f] dark:to-[#121318] p-5 shadow-md animate-fadeIn">
+                    <div className="flex items-center justify-between mb-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        </span>
+                        <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                          Actividad en Curso
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
+                        Tipo {activeTask.tipoMinuta}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+                        {activeProjectInfo?.nombre || activeTask.proyecto}
+                      </h3>
+                      <div className="text-sm font-bold text-brand-primary">
+                        {activeActividadInfo?.nombre || activeTask.actividad}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleFinalizeCurrentActivity}
+                        disabled={isLoading}
+                        className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-1.5"
+                      >
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        Finalizar Actividad
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white dark:bg-[#121318] p-5 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm text-center space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 dark:bg-brand-primary/20 text-brand-primary flex items-center justify-center mx-auto mb-1">
+                      <Play className="w-5 h-5 ml-0.5" />
+                    </div>
+                    <h3 className="text-sm font-black text-slate-800 dark:text-white">
+                      Sin actividad en curso
+                    </h3>
+                  </div>
+                )}
+
+                {/* Start / Change activity in real-time */}
+                <div className="bg-white dark:bg-[#121318] p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm space-y-3.5">
+                  <SearchableSelect
+                    name="pwa_proj"
+                    value={selectedProyecto}
+                    onChange={(val) => setSelectedProyecto(val)}
+                    options={proyectos.map((p) => ({ value: p.code, label: p.code, sublabel: p.nombre }))}
+                    placeholder="Proyecto"
+                    required
+                  />
+                  <SearchableSelect
+                    name="pwa_act"
+                    value={selectedActividad}
+                    onChange={(val) => setSelectedActividad(val)}
+                    options={actividades.map((a) => ({ value: a.code, label: a.nombre, sublabel: a.area ? `(${a.area})` : undefined }))}
+                    placeholder="Actividad"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={handleStartOrChangeActivity}
+                    disabled={isLoading || !selectedProyecto.trim() || !selectedActividad.trim()}
+                    className="w-full py-3.5 px-4 bg-brand-primary text-white font-bold rounded-2xl shadow-lg shadow-brand-primary/20 flex items-center justify-center gap-2"
+                  >
+                    <Play className="w-4 h-4" />
+                    <span>Iniciar Actividad en Tiempo Real</span>
+                  </button>
                 </div>
-                <h3 className="text-sm font-black text-slate-800 dark:text-white">
-                  Sin actividad en curso
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
-                  Selecciona un proyecto y una actividad a continuación para iniciar el registro automático.
-                </p>
-              </div>
+              </>
             )}
 
-            {/* 3.3 SELECTOR DE PROYECTO Y ACTIVIDAD (INICIAR O CAMBIAR ACTIVIDAD) */}
-            <div className="bg-white dark:bg-[#121318] p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm space-y-3.5">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <ListFilter className="w-3.5 h-3.5 text-brand-primary" />
-                  {activeTask ? "Cambiar a Nueva Actividad" : "Seleccionar Actividad"}
-                </span>
-                {activeTask && (
-                  <span className="text-[10px] font-semibold text-slate-400">
-                    Auto-cierra la actual
-                  </span>
-                )}
-              </div>
-
-              {/* Selector Proyecto */}
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
-                  Proyecto (Cédula o Nombre)
-                </label>
-                <SearchableSelect
-                  name="pwa_proyecto_select"
-                  value={selectedProyecto}
-                  onChange={(val) => setSelectedProyecto(val)}
-                  options={proyectos.map((p) => ({
-                    value: p.code,
-                    label: p.code,
-                    sublabel: p.nombre,
-                  }))}
-                  placeholder="Busque o seleccione una cédula de proyecto"
-                  required
-                />
-              </div>
-
-              {/* Selector Actividad */}
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
-                  Actividad
-                </label>
-                <SearchableSelect
-                  name="pwa_actividad_select"
-                  value={selectedActividad}
-                  onChange={(val) => setSelectedActividad(val)}
-                  options={actividades.map((a) => ({
-                    value: a.code,
-                    label: a.nombre,
-                    sublabel: a.area ? `(${a.area})` : undefined,
-                  }))}
-                  placeholder="Busque o seleccione una actividad"
-                  required
-                />
-              </div>
-
-              {/* Observación para nueva actividad */}
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-1">
-                  Observación Inicial (Opcional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Detalle o descripción de la tarea..."
-                  value={observacionInput}
-                  onChange={(e) => setObservacionInput(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-2.5 text-xs focus:outline-none focus:border-brand-primary font-medium transition-all"
-                />
-              </div>
-
-              {/* Action Button: Iniciar / Cambiar Actividad */}
-              <button
-                type="button"
-                onClick={handleStartOrChangeActivity}
-                disabled={isLoading || !selectedProyecto.trim() || !selectedActividad.trim()}
-                className="w-full py-3.5 px-4 bg-brand-primary text-white font-bold rounded-2xl shadow-lg shadow-brand-primary/20 hover:bg-brand-primary/95 active:scale-95 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:shadow-none flex items-center justify-center gap-2 transition-all mt-2"
-              >
-                {isLoading ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : activeTask ? (
-                  <>
-                    <ArrowRight className="w-4 h-4" />
-                    <span>Iniciar Nueva Actividad (Finaliza la actual)</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4" />
-                    <span>Iniciar Actividad</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Bottom Spacing */}
             <div className="h-6" />
           </div>
         )}
 
-        {/* === TAB 2: HISTORIAL (SOLO ADMINS) === */}
+        {/* === TAB 2: HISTORIAL AVANZADO (SOLO ADMINS) === */}
         {activeTab === "historial" && isAdmin && (
           <div className="space-y-4 animate-slideUp">
             
             {/* Header / Refresh */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                Últimos 50 Registros
+                Historial ({filteredHistory.length} registros)
               </span>
-              <button
-                onClick={handleRefreshHistory}
-                disabled={isRefreshing}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white dark:bg-[#121318] border border-slate-200 dark:border-slate-800 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition-all text-slate-600 dark:text-slate-300"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                Actualizar
-              </button>
+              <div className="flex items-center gap-2">
+                {pwaActiveFiltersCount > 0 && (
+                  <button
+                    onClick={resetPwaHistoryFilters}
+                    className="text-[10px] font-bold text-slate-500 hover:text-brand-primary px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg"
+                  >
+                    Limpiar ({pwaActiveFiltersCount})
+                  </button>
+                )}
+                <button
+                  onClick={handleRefreshHistory}
+                  disabled={isRefreshing}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-white dark:bg-[#121318] border border-slate-200 dark:border-slate-800 rounded-full text-slate-600 dark:text-slate-300"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Actualizar
+                </button>
+              </div>
+            </div>
+
+            {/* Filtros Dinámicos PWA (Mes y Día Independientes) */}
+            <div className="p-3 bg-white dark:bg-[#121318] rounded-2xl border border-slate-200/50 dark:border-slate-800 space-y-2.5">
+              <input
+                type="text"
+                placeholder="Buscar en historial..."
+                value={pwaHistSearch}
+                onChange={(e) => setPwaHistSearch(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs font-medium"
+              />
+
+              <div className="grid grid-cols-2 gap-2">
+                {/* Mes */}
+                <select
+                  value={pwaHistMes}
+                  onChange={(e) => setPwaHistMes(e.target.value)}
+                  className="bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 text-xs font-semibold"
+                >
+                  <option value="">📅 Todos los meses</option>
+                  {MONTHS.map((m, idx) => (
+                    <option key={m} value={String(idx)}>{m}</option>
+                  ))}
+                </select>
+
+                {/* Día Semana */}
+                <select
+                  value={pwaHistDiaSemana}
+                  onChange={(e) => setPwaHistDiaSemana(e.target.value)}
+                  className="bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 text-xs font-semibold"
+                >
+                  <option value="">🗓️ Día semana</option>
+                  <option value="1">Lunes</option>
+                  <option value="2">Martes</option>
+                  <option value="3">Miércoles</option>
+                  <option value="4">Jueves</option>
+                  <option value="5">Viernes</option>
+                  <option value="6">Sábado</option>
+                  <option value="0">Domingo</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {/* Día Mes */}
+                <select
+                  value={pwaHistDiaMes}
+                  onChange={(e) => setPwaHistDiaMes(e.target.value)}
+                  className="bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 text-xs font-semibold"
+                >
+                  <option value="">🔢 Día mes (1-31)</option>
+                  {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
+                    <option key={d} value={d}>Día {d}</option>
+                  ))}
+                </select>
+
+                {/* Tipo */}
+                <select
+                  value={pwaHistTipo}
+                  onChange={(e) => setPwaHistTipo(e.target.value)}
+                  className="bg-slate-50 dark:bg-[#1a1b22] border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-1.5 text-xs font-semibold"
+                >
+                  <option value="">🏷️ Tipos</option>
+                  <option value="P">Tipo P</option>
+                  <option value="O">Tipo O</option>
+                </select>
+              </div>
             </div>
 
             {/* History List */}
-            {history.length === 0 ? (
+            {filteredHistory.length === 0 ? (
               <div className="bg-white dark:bg-[#121318] p-8 text-center text-sm text-slate-400 dark:text-slate-500 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl">
-                No hay actividades registradas en el historial.
+                No hay registros que coincidan con los filtros.
               </div>
             ) : (
               <div className="space-y-3">
-                {history.map((item) => {
+                {filteredHistory.map((item) => {
                   const isOType = item.tipo_minuta === "O";
 
                   return (
                     <div 
                       key={item.id}
-                      className="bg-white dark:bg-[#121318] p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm space-y-3"
+                      className="bg-white dark:bg-[#121318] p-4 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm space-y-2.5"
                     >
-                      {/* Row 1: Date & Type Badge */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{item.fecha}</span>
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                            {item.fecha}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          {isOType ? (
-                            <>
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400">
-                                Tipo O
-                              </span>
-                              {item.aprobado === "PE" && (
-                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400">
-                                  Pendiente
-                                </span>
-                              )}
-                              {item.aprobado === "SI" && (
-                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400">
-                                  Aprobado
-                                </span>
-                              )}
-                              {item.aprobado === "RE" && (
-                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400">
-                                  Rechazado
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
-                              Tipo {item.tipo_minuta === "A" ? "P" : item.tipo_minuta}
-                            </span>
-                          )}
-                        </div>
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                          isOType 
+                            ? "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400"
+                            : "bg-brand-primary/10 text-brand-primary"
+                        }`}>
+                          Tipo {item.tipo_minuta === "A" ? "P" : item.tipo_minuta}
+                        </span>
                       </div>
 
-                      {/* Row 2: Project & Activity Info */}
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1 flex-1 pr-3">
-                          <h4 className="text-xs font-bold leading-tight">
-                            {item.minuta_proyecto?.nombre || item.proyecto}
-                          </h4>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold tracking-wider">
-                            PROYECTO: {item.proyecto} • ACTIVIDAD: {item.minuta_actividad?.nombre || item.actividad}
+                      <div>
+                        <h4 className="text-xs font-extrabold leading-tight">
+                          {item.minuta_proyecto?.nombre || item.proyecto}
+                        </h4>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">
+                          {item.minuta_actividad?.nombre || item.actividad}
+                          {item.minuta_empleado?.apellido_nombre && ` • ${item.minuta_empleado.apellido_nombre}`}
+                        </p>
+                        {item.observacion && (
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 italic mt-1">
+                            &quot;{item.observacion}&quot;
                           </p>
-                          {item.observacion && (
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 italic">
-                              &quot;{item.observacion}&quot;
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Delete option if allowed */}
-                        {(!isOType || item.aprobado !== "SI") && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteHistoryEntry(item.id)}
-                            className="p-2 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all self-center"
-                            title="Eliminar registro"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
                         )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-mono text-slate-500">
+                        <span>
+                          {formatTime12(item.hora_inicio)} - {formatTime12(item.hora_fin)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteHistoryEntry(item.id)}
+                          className="text-red-500 p-1 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   );

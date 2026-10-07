@@ -39,7 +39,7 @@ export default async function AdminPage() {
   });
 
   const leaderAreas = empleado?.area_lider || [];
-  const isSuperAdmin = userEmail === "auditoriaycalidad@evoforma.net";
+  const isSuperAdmin = isAdmin;
 
   // Serializar fechas a cadenas ISO para Next.js Client Component
   const serializedMinutasO = minutasO.map((m) => ({

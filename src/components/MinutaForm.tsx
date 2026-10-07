@@ -4,10 +4,12 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Plus, Calendar, AlertCircle, User, Lock, Play, 
-  Check, ArrowRight, CheckCircle2, Activity as ActivityIcon, RefreshCw, MapPin 
+  Check, ArrowRight, CheckCircle2, Activity as ActivityIcon, 
+  RefreshCw, MapPin, Clock, ShieldCheck, PlusCircle, Trash2, Save
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { SearchableSelect } from "./SearchableSelect";
+import { TimePicker12 } from "./TimePicker12";
 import { getCurrentLocalTime24, addMinutesToTime } from "@/lib/formatTime";
 import { useGeolocation } from "@/lib/useGeolocation";
 
@@ -56,6 +58,15 @@ export interface DesktopCompletedTask {
   completedAt: number;
 }
 
+export interface ManualInterval {
+  id: string;
+  proyecto: string;
+  actividad: string;
+  horaInicio: string;
+  horaFin: string;
+  observacion: string;
+}
+
 export function MinutaForm({ 
   proyectos, 
   actividades,
@@ -86,42 +97,58 @@ export function MinutaForm({
     return `${year}-${month}-${day}`;
   };
 
-  // Form states
-  const [selectedEmpleado, setSelectedEmpleado] = useState<string>(defaultEmpleadoId);
+  // Base Form states
+  const [selectedEmpleado, setSelectedEmpleado] = useState<string>(defaultEmpleadoId || session?.user?.id || "");
   const [tipo, setTipo] = useState<string>("P"); // Default Tipo P
   const [fecha, setFecha] = useState<string>(getTodayLocal());
+
+  // Direct open fields for Admin (Exempt from real-time and GPS restrictions)
+  const [horaInicio, setHoraInicio] = useState<string>("08:00");
+  const [horaFin, setHoraFin] = useState<string>("17:00");
   const [selectedProyecto, setSelectedProyecto] = useState<string>("");
   const [selectedActividad, setSelectedActividad] = useState<string>("");
   const [observacionInput, setObservacionInput] = useState<string>("");
 
-  // In-Progress Active Task & Completed Log
+  // Multiple intervals builder for Admin
+  const [additionalIntervals, setAdditionalIntervals] = useState<ManualInterval[]>([]);
+  const [showMultiIntervals, setShowMultiIntervals] = useState<boolean>(false);
+
+  // In-Progress Active Task & Completed Log (For standard users using real-time)
   const [activeTask, setActiveTask] = useState<DesktopActiveTask | null>(null);
   const [completedTasks, setCompletedTasks] = useState<DesktopCompletedTask[]>([]);
   const [elapsedMinutes, setElapsedMinutes] = useState<number>(0);
 
-  // Geolocalización automática en tiempo real
+  // Geolocalización automática en tiempo real (Opcional para admin, requerida para empleados)
   const {
     ubicacion,
     loading: geoLoading,
     error: geoError,
     refreshLocation,
-  } = useGeolocation();
+  } = useGeolocation(!isAdmin);
 
   // Status & Feedback
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // --- INITIAL LOAD & LOCAL STORAGE RESTORATION ---
+  // Update default employee if provided
   useEffect(() => {
+    if (defaultEmpleadoId && !selectedEmpleado) {
+      setSelectedEmpleado(defaultEmpleadoId);
+    }
+  }, [defaultEmpleadoId, selectedEmpleado]);
+
+  // --- INITIAL LOAD & LOCAL STORAGE RESTORATION (FOR REAL-TIME TIMER) ---
+  useEffect(() => {
+    if (isAdmin) return; // Admins use open editable fields
+
     try {
       const savedTask = localStorage.getItem("minuta_desktop_active_task");
       if (savedTask) {
         const parsed = JSON.parse(savedTask);
         if (parsed && parsed.actividad && parsed.horaInicio) {
           const todayStr = getTodayLocal();
-          if (parsed.fecha && parsed.fecha !== todayStr && !isAdmin) {
-            // Task from past day
+          if (parsed.fecha && parsed.fecha !== todayStr) {
             autoFinalizeOldTask(parsed);
           } else {
             setActiveTask(parsed);
@@ -164,39 +191,6 @@ export function MinutaForm({
     return () => clearInterval(interval);
   }, [activeTask]);
 
-  // Persist active task to LocalStorage
-  useEffect(() => {
-    try {
-      if (activeTask) {
-        localStorage.setItem("minuta_desktop_active_task", JSON.stringify(activeTask));
-      } else {
-        localStorage.removeItem("minuta_desktop_active_task");
-      }
-    } catch (e) {
-      console.error("Error al guardar estado de actividad:", e);
-    }
-  }, [activeTask]);
-
-  // Persist completed tasks to LocalStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem("minuta_desktop_completed_tasks", JSON.stringify(completedTasks));
-    } catch (e) {
-      console.error("Error al guardar historial de actividades:", e);
-    }
-  }, [completedTasks]);
-
-  // Helper lookups
-  const activeProjectInfo = useMemo(() => {
-    if (!activeTask) return null;
-    return proyectos.find((p) => p.code === activeTask.proyecto);
-  }, [activeTask, proyectos]);
-
-  const activeActividadInfo = useMemo(() => {
-    if (!activeTask) return null;
-    return actividades.find((a) => a.code === activeTask.actividad);
-  }, [activeTask, actividades]);
-
   // Server Dispatch
   const dispatchRecordToServer = async (payload: {
     empleado?: string;
@@ -222,6 +216,17 @@ export function MinutaForm({
     }
     return data;
   };
+
+  // Helper lookups
+  const activeProjectInfo = useMemo(() => {
+    if (!activeTask) return null;
+    return proyectos.find((p) => p.code === activeTask.proyecto);
+  }, [activeTask, proyectos]);
+
+  const activeActividadInfo = useMemo(() => {
+    if (!activeTask) return null;
+    return actividades.find((a) => a.code === activeTask.actividad);
+  }, [activeTask, actividades]);
 
   // Auto finalize past day task
   const autoFinalizeOldTask = async (oldTask: DesktopActiveTask) => {
@@ -269,7 +274,158 @@ export function MinutaForm({
     }
   };
 
-  // 1. INICIAR O CAMBIAR ACTIVIDAD
+  // ==========================================
+  // 1. ADMIN DIRECT OPEN-FIELDS SUBMISSION
+  // ==========================================
+  const handleAdminDirectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    const targetEmp = (canSelectEmpleado || isAdmin) && selectedEmpleado 
+      ? selectedEmpleado 
+      : defaultEmpleadoId || session?.user?.id;
+
+    if (!targetEmp) {
+      setError("Debe seleccionar un colaborador.");
+      return;
+    }
+
+    if (!fecha) {
+      setError("Debe especificar una fecha de registro.");
+      return;
+    }
+
+    // Build list of intervals to submit
+    const intervalsToSubmit: {
+      proyecto: string;
+      actividad: string;
+      horaInicio: string;
+      horaFin: string;
+      observacion: string;
+    }[] = [];
+
+    // Main interval
+    if (!selectedProyecto.trim()) {
+      setError("Debe seleccionar un proyecto válido.");
+      return;
+    }
+    if (!selectedActividad.trim()) {
+      setError("Debe seleccionar una actividad.");
+      return;
+    }
+    if (!horaInicio || !horaFin) {
+      setError("Debe ingresar la hora de inicio y fin.");
+      return;
+    }
+    if (horaFin <= horaInicio) {
+      setError(`La hora de fin (${horaFin}) debe ser posterior a la hora de inicio (${horaInicio}).`);
+      return;
+    }
+
+    const projMatch = proyectos.find(
+      (p) => p.code.toLowerCase() === selectedProyecto.trim().toLowerCase() || p.nombre.toLowerCase() === selectedProyecto.trim().toLowerCase()
+    );
+    const resolvedProject = projMatch ? projMatch.code : selectedProyecto.trim();
+
+    const actMatch = actividades.find(
+      (a) => a.code.toLowerCase() === selectedActividad.trim().toLowerCase() || a.nombre.toLowerCase() === selectedActividad.trim().toLowerCase()
+    );
+    const resolvedActividad = actMatch ? actMatch.code : selectedActividad.trim();
+
+    intervalsToSubmit.push({
+      proyecto: resolvedProject,
+      actividad: resolvedActividad,
+      horaInicio: horaInicio.trim(),
+      horaFin: horaFin.trim(),
+      observacion: observacionInput.trim(),
+    });
+
+    // Additional intervals if present
+    for (let i = 0; i < additionalIntervals.length; i++) {
+      const inv = additionalIntervals[i];
+      if (!inv.proyecto || !inv.actividad || !inv.horaInicio || !inv.horaFin) {
+        setError(`Debe completar todos los campos del intervalo adicional #${i + 1}.`);
+        return;
+      }
+      if (inv.horaFin <= inv.horaInicio) {
+        setError(`En el intervalo #${i + 2}, la hora de fin debe ser posterior a la hora de inicio.`);
+        return;
+      }
+
+      const pM = proyectos.find(
+        (p) => p.code.toLowerCase() === inv.proyecto.trim().toLowerCase() || p.nombre.toLowerCase() === inv.proyecto.trim().toLowerCase()
+      );
+      const aM = actividades.find(
+        (a) => a.code.toLowerCase() === inv.actividad.trim().toLowerCase() || a.nombre.toLowerCase() === inv.actividad.trim().toLowerCase()
+      );
+
+      intervalsToSubmit.push({
+        proyecto: pM ? pM.code : inv.proyecto.trim(),
+        actividad: aM ? aM.code : inv.actividad.trim(),
+        horaInicio: inv.horaInicio.trim(),
+        horaFin: inv.horaFin.trim(),
+        observacion: inv.observacion.trim(),
+      });
+    }
+
+    setLoading(true);
+
+    try {
+      await dispatchRecordToServer({
+        empleado: targetEmp,
+        fecha: fecha,
+        tipo: tipo,
+        intervals: intervalsToSubmit,
+      });
+
+      setSuccess(`¡${intervalsToSubmit.length} registro(s) de actividad guardado(s) exitosamente!`);
+      setObservacionInput("");
+      setAdditionalIntervals([]);
+      setShowMultiIntervals(false);
+      router.refresh();
+    } catch (err: any) {
+      setError(err?.message || "Error al procesar el guardado del registro.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add an additional interval row (for admins entering a full schedule)
+  const handleAddIntervalRow = () => {
+    const lastEnd = additionalIntervals.length > 0 
+      ? additionalIntervals[additionalIntervals.length - 1].horaFin 
+      : horaFin || "12:00";
+    
+    const newEnd = addMinutesToTime(lastEnd, 60);
+
+    setAdditionalIntervals((prev) => [
+      ...prev,
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        proyecto: selectedProyecto,
+        actividad: selectedActividad,
+        horaInicio: lastEnd,
+        horaFin: newEnd,
+        observacion: "",
+      },
+    ]);
+    setShowMultiIntervals(true);
+  };
+
+  const handleRemoveIntervalRow = (id: string) => {
+    setAdditionalIntervals((prev) => prev.filter((inv) => inv.id !== id));
+  };
+
+  const handleUpdateAdditionalInterval = (id: string, field: keyof ManualInterval, val: string) => {
+    setAdditionalIntervals((prev) =>
+      prev.map((inv) => (inv.id === id ? { ...inv, [field]: val } : inv))
+    );
+  };
+
+  // ==========================================
+  // 2. STANDARD REAL-TIME TASK MANAGEMENT
+  // ==========================================
   const handleStartOrChangeActivity = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -285,11 +441,6 @@ export function MinutaForm({
       return;
     }
 
-    if (canSelectEmpleado && !selectedEmpleado) {
-      setError("Debe seleccionar un colaborador.");
-      return;
-    }
-
     const projMatch = proyectos.find((p) => p.code.toLowerCase() === selectedProyecto.trim().toLowerCase() || p.nombre.toLowerCase() === selectedProyecto.trim().toLowerCase());
     const resolvedProject = projMatch ? projMatch.code : selectedProyecto.trim();
 
@@ -297,8 +448,8 @@ export function MinutaForm({
     const resolvedActividad = actMatch ? actMatch.code : selectedActividad.trim();
 
     const nowTime = getCurrentLocalTime24();
-    const finalFecha = isAdmin ? fecha : getTodayLocal();
-    const targetEmp = canSelectEmpleado ? selectedEmpleado : defaultEmpleadoId || session?.user?.id;
+    const finalFecha = getTodayLocal();
+    const targetEmp = defaultEmpleadoId || session?.user?.id;
 
     setLoading(true);
 
@@ -334,7 +485,7 @@ export function MinutaForm({
         setCompletedTasks((prev) => [completedItem, ...prev]);
 
         await dispatchRecordToServer({
-          empleado: canSelectEmpleado && activeTask.empleado ? activeTask.empleado : defaultEmpleadoId || undefined,
+          empleado: defaultEmpleadoId || undefined,
           fecha: activeTask.fecha,
           tipo: activeTask.tipoMinuta,
           intervals: [{
@@ -377,7 +528,6 @@ export function MinutaForm({
     }
   };
 
-  // 2. FINALIZAR ACTIVIDAD ACTUAL
   const handleFinalizeCurrentActivity = async () => {
     if (!activeTask) return;
 
@@ -417,7 +567,7 @@ export function MinutaForm({
 
     try {
       await dispatchRecordToServer({
-        empleado: canSelectEmpleado && activeTask.empleado ? activeTask.empleado : defaultEmpleadoId || undefined,
+        empleado: defaultEmpleadoId || undefined,
         fecha: activeTask.fecha,
         tipo: activeTask.tipoMinuta,
         intervals: [{
@@ -439,11 +589,341 @@ export function MinutaForm({
     }
   };
 
-  // 3. ACTUALIZAR OBSERVACIÓN EN VIVO
   const handleUpdateActiveObservation = (newObs: string) => {
     setActiveTask((prev) => (prev ? { ...prev, observacion: newObs } : null));
   };
 
+  // =========================================================================
+  // RENDER: ADMIN VIEW (OPEN EDITABLE FIELDS & GPS EXEMPTION)
+  // =========================================================================
+  if (isAdmin) {
+    return (
+      <div className="w-full bg-white rounded-2xl shadow-md border border-brand-dark/10 p-6 md:p-8 hover:shadow-lg transition-shadow duration-300 space-y-6">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-brand-dark/10 pb-4 gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-brand-primary/10 flex items-center justify-center flex-shrink-0">
+              <ShieldCheck className="w-5 h-5 text-brand-primary" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-extrabold text-brand-dark leading-tight">
+                  Registro de Actividades (Administración)
+                </h2>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
+                  Campos Abiertos
+                </span>
+              </div>
+              <p className="text-xs text-brand-dark/60">
+                Edición libre de fecha, hora de inicio y fin, colaborador y exención de GPS.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-[11px] font-bold text-slate-700">
+              <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+              GPS Exento (Opcional)
+            </span>
+          </div>
+        </div>
+
+        {/* Notificaciones */}
+        {error && (
+          <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-xl text-sm flex items-start gap-2.5 animate-fadeIn">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {success && (
+          <div className="p-4 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-r-xl text-sm flex items-center gap-2.5 animate-fadeIn">
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-green-600" />
+            <span className="font-semibold">{success}</span>
+          </div>
+        )}
+
+        {/* Formulario con Campos Libres y Editables */}
+        <form onSubmit={handleAdminDirectSubmit} className="space-y-5">
+          
+          {/* Fila 1: Colaborador (Cualquier empleado) */}
+          {empleados.length > 0 && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1.5 flex items-center gap-1.5">
+                <User className="w-4 h-4 text-brand-primary" />
+                Apellido - Nombre (Colaborador)
+              </label>
+              <SearchableSelect
+                name="empleado"
+                value={selectedEmpleado}
+                onChange={(val) => setSelectedEmpleado(val)}
+                options={empleados.map((emp) => ({
+                  value: emp.id,
+                  label: emp.apellido_nombre,
+                  sublabel: emp.cargo ? `(${emp.cargo})` : undefined,
+                }))}
+                placeholder="Seleccione el colaborador al que se asigna la actividad"
+                required
+              />
+            </div>
+          )}
+
+          {/* Fila 2: Tipo de Registro y Fecha Libre */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Tipo de Registro */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1.5">
+                Tipo de Registro
+              </label>
+              <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setTipo("P")}
+                  className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                    tipo === "P" 
+                      ? "bg-white text-brand-primary shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Tipo P (Habitual)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipo("O")}
+                  className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                    tipo === "O" 
+                      ? "bg-white text-brand-primary shadow-sm" 
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Tipo O (Horas Extras)
+                </button>
+              </div>
+            </div>
+
+            {/* Fecha Libre y Editable */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1.5 flex items-center justify-between">
+                <span>Fecha de la Actividad</span>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  Libre / Cualquier Fecha
+                </span>
+              </label>
+              <div className="relative">
+                <Calendar className="w-4 h-4 text-brand-primary absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input 
+                  type="date" 
+                  name="fecha" 
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
+                  required 
+                  className="w-full rounded-xl border border-brand-dark/20 pl-10 pr-3.5 py-2 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-white text-xs font-semibold shadow-2xs" 
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Fila 3: Horarios Libres (Hora Inicio & Hora Fin) */}
+          <div className="p-4 bg-slate-50 rounded-2xl border border-brand-dark/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-brand-dark flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-brand-primary" />
+                Horarios de la Actividad (Campos Libres)
+              </span>
+              <span className="text-[10px] text-slate-500 font-semibold">
+                Formato 12 horas (AM/PM) o 24 horas
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Hora de Inicio
+                </label>
+                <TimePicker12
+                  value={horaInicio}
+                  onChange={(val) => setHoraInicio(val)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Hora de Fin
+                </label>
+                <TimePicker12
+                  value={horaFin}
+                  onChange={(val) => setHoraFin(val)}
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Fila 4: Proyecto & Actividad */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1">
+                Proyecto (Cédula o Nombre)
+              </label>
+              <SearchableSelect
+                name="proyecto"
+                value={selectedProyecto}
+                onChange={(val) => setSelectedProyecto(val)}
+                options={proyectos.map((p) => ({
+                  value: p.code,
+                  label: p.code,
+                  sublabel: p.nombre,
+                }))}
+                placeholder="Busque o seleccione una cédula de proyecto"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1">
+                Actividad
+              </label>
+              <SearchableSelect
+                name="actividad"
+                value={selectedActividad}
+                onChange={(val) => setSelectedActividad(val)}
+                options={actividades.map((a) => ({
+                  value: a.code,
+                  label: a.nombre,
+                  sublabel: a.area ? `(${a.area})` : undefined,
+                }))}
+                placeholder="Busque o seleccione una actividad"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Fila 5: Observación */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1">
+              Observación / Bitácora (Opcional)
+            </label>
+            <input
+              type="text"
+              placeholder="Detalles sobre este registro..."
+              value={observacionInput}
+              onChange={(e) => setObservacionInput(e.target.value)}
+              className="w-full rounded-xl border border-brand-dark/20 px-3.5 py-2.5 text-xs text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all font-medium"
+            />
+          </div>
+
+          {/* Intervalos Adicionales (Opcional para ingresar varias actividades) */}
+          {additionalIntervals.length > 0 && (
+            <div className="space-y-4 pt-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-brand-dark">
+                Intervalos Adicionales para esta Fecha ({additionalIntervals.length})
+              </h3>
+              {additionalIntervals.map((inv, idx) => (
+                <div key={inv.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 relative animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-brand-primary">
+                      Actividad Adicional #{idx + 2}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveIntervalRow(inv.id)}
+                      className="text-red-500 hover:text-red-700 text-xs font-bold p-1 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Quitar
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Hora Inicio</label>
+                      <TimePicker12
+                        value={inv.horaInicio}
+                        onChange={(val) => handleUpdateAdditionalInterval(inv.id, "horaInicio", val)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Hora Fin</label>
+                      <TimePicker12
+                        value={inv.horaFin}
+                        onChange={(val) => handleUpdateAdditionalInterval(inv.id, "horaFin", val)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <SearchableSelect
+                      name={`proj_${inv.id}`}
+                      value={inv.proyecto}
+                      onChange={(val) => handleUpdateAdditionalInterval(inv.id, "proyecto", val)}
+                      options={proyectos.map((p) => ({
+                        value: p.code,
+                        label: p.code,
+                        sublabel: p.nombre,
+                      }))}
+                      placeholder="Proyecto"
+                    />
+                    <SearchableSelect
+                      name={`act_${inv.id}`}
+                      value={inv.actividad}
+                      onChange={(val) => handleUpdateAdditionalInterval(inv.id, "actividad", val)}
+                      options={actividades.map((a) => ({
+                        value: a.code,
+                        label: a.nombre,
+                        sublabel: a.area ? `(${a.area})` : undefined,
+                      }))}
+                      placeholder="Actividad"
+                    />
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Observación..."
+                    value={inv.observacion}
+                    onChange={(e) => handleUpdateAdditionalInterval(inv.id, "observacion", e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Botones de Acción */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <button
+              type="button"
+              onClick={handleAddIntervalRow}
+              className="px-4 py-3 border-2 border-dashed border-brand-primary/40 hover:border-brand-primary text-brand-primary font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all active:scale-98 bg-orange-50/20 hover:bg-orange-50/50"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>+ Añadir otra actividad a esta fecha</span>
+            </button>
+
+            <button
+              type="submit"
+              disabled={loading || !selectedProyecto.trim() || !selectedActividad.trim()}
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 px-6 bg-brand-primary text-white font-bold rounded-xl shadow-md hover:bg-brand-primary/90 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm"
+            >
+              {loading ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Guardar Registro de Actividad</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // RENDER: STANDARD EMPLOYEE VIEW (REAL-TIME TIMER + GPS)
+  // =========================================================================
   return (
     <div className="w-full bg-white rounded-2xl shadow-md border border-brand-dark/10 p-6 md:p-8 hover:shadow-lg transition-shadow duration-300 space-y-6">
       
@@ -455,7 +935,7 @@ export function MinutaForm({
           </div>
           <div>
             <h2 className="text-xl font-extrabold text-brand-dark leading-tight">
-              Registro de Actividad
+              Registro de Actividad en Tiempo Real
             </h2>
             <p className="text-xs text-brand-dark/60">
               Captura y encadenamiento automático de actividades de campo.
@@ -479,7 +959,7 @@ export function MinutaForm({
         </div>
       )}
 
-      {/* 1. ACTIVIDAD EN CURSO (SI EXISTE) */}
+      {/* Actividad en Curso (si existe) */}
       {activeTask ? (
         <div className="relative overflow-hidden rounded-2xl border-2 border-brand-primary/30 bg-gradient-to-br from-white via-orange-50/30 to-white p-5 shadow-sm space-y-4 animate-fadeIn">
           <div className="flex items-center justify-between">
@@ -564,31 +1044,9 @@ export function MinutaForm({
         </div>
       )}
 
-      {/* 2. FORMULARIO PARA INICIAR / CAMBIAR ACTIVIDAD */}
+      {/* Formulario Estándar */}
       <form onSubmit={handleStartOrChangeActivity} className="space-y-5">
         
-        {/* Colaborador (Si es Auditor/Admin) */}
-        {canSelectEmpleado && empleados.length > 0 && (
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1.5 flex items-center gap-1.5">
-              <User className="w-4 h-4 text-brand-primary" />
-              Apellido - Nombre (Colaborador)
-            </label>
-            <SearchableSelect
-              name="empleado"
-              value={selectedEmpleado}
-              onChange={(val) => setSelectedEmpleado(val)}
-              options={empleados.map((emp) => ({
-                value: emp.id,
-                label: emp.apellido_nombre,
-                sublabel: emp.cargo ? `(${emp.cargo})` : undefined,
-              }))}
-              placeholder="Seleccione o busque un colaborador"
-              required
-            />
-          </div>
-        )}
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Tipo de Registro */}
           <div>
@@ -621,35 +1079,22 @@ export function MinutaForm({
             </div>
           </div>
 
-          {/* Fecha */}
+          {/* Fecha (Solo lectura hoy para estándar) */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1.5 flex items-center justify-between">
               <span>Fecha</span>
-              {!isAdmin && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                  <Lock className="w-3 h-3" /> Solo lectura (Hoy)
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                <Lock className="w-3 h-3" /> Solo lectura (Hoy)
+              </span>
             </label>
-            {isAdmin ? (
-              <input 
-                type="date" 
-                name="fecha" 
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
-                required 
-                className="w-full rounded-xl border border-brand-dark/20 px-3.5 py-2 text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all bg-white text-xs font-semibold" 
-              />
-            ) : (
-              <input 
-                type="date" 
-                name="fecha" 
-                value={getTodayLocal()}
-                readOnly
-                disabled
-                className="w-full rounded-xl border border-brand-dark/15 px-3.5 py-2 text-brand-dark/70 bg-slate-100 cursor-not-allowed text-xs font-semibold select-none" 
-              />
-            )}
+            <input 
+              type="date" 
+              name="fecha" 
+              value={getTodayLocal()}
+              readOnly
+              disabled
+              className="w-full rounded-xl border border-brand-dark/15 px-3.5 py-2 text-brand-dark/70 bg-slate-100 cursor-not-allowed text-xs font-semibold select-none" 
+            />
           </div>
         </div>
 

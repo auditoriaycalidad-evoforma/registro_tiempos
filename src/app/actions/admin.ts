@@ -68,10 +68,12 @@ export async function approveMinuta(id: number, decision: "SI" | "RE") {
 
 export async function cleanDatabaseRecords(beforeDate?: string) {
   const session = await getServerSession(authOptions);
-  const userEmail = session?.user?.email?.toLowerCase();
+  const userEmail = session?.user?.email?.toLowerCase()?.trim();
+  const allowedEmails = ["auditoriaycalidad@evoforma.net", "ia.evoforma@gmail.com"];
+  const isAdmin = session?.user?.rol === "ADMIN" || (userEmail && allowedEmails.includes(userEmail));
   
-  if (userEmail !== "auditoriaycalidad@evoforma.net") {
-    return { error: "No autorizado. Solo el administrador principal puede realizar esta acción." };
+  if (!isAdmin) {
+    return { error: "No autorizado. Solo los administradores pueden realizar esta acción." };
   }
 
   try {
