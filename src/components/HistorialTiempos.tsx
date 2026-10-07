@@ -13,6 +13,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { SearchableSelect } from "./SearchableSelect";
 import { TimePicker12 } from "./TimePicker12";
+import { filtrarActividadesPorCargo } from "@/lib/actividades";
 
 const DAYS_OF_WEEK = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
 const MONTHS = [
@@ -142,6 +143,17 @@ export function HistorialTiempos({
   const [deletingRecord, setDeletingRecord] = useState<TiempoRecord | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Cargo del registro en edición para filtrado dinámico de actividades
+  const editingCargo = useMemo(() => {
+    if (!editingRecord) return null;
+    return editingRecord.minuta_empleado?.cargo || empleados.find((e: any) => e.id === editForm.empleado)?.cargo || null;
+  }, [editingRecord, editForm.empleado, empleados]);
+
+  const editAvailableActividades = useMemo(() => {
+    if (!editingCargo) return filtrarActividadesPorCargo(actividades, null);
+    return filtrarActividadesPorCargo(actividades, editingCargo);
+  }, [actividades, editingCargo]);
 
   const sessionEmail = session?.user?.email?.toLowerCase()?.trim();
   const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
@@ -784,12 +796,14 @@ export function HistorialTiempos({
 
               {/* Actividad */}
               <div>
-                <label className="block text-xs font-semibold text-brand-dark/80 mb-1">Actividad</label>
+                <label className="block text-xs font-semibold text-brand-dark/80 mb-1">
+                  Actividad {editingCargo && <span className="text-brand-primary font-normal text-[11px]">({editingCargo} + TODAS)</span>}
+                </label>
                 <SearchableSelect
                   name="actividad"
                   value={editForm.actividad}
                   onChange={(val) => setEditForm({ ...editForm, actividad: val })}
-                  options={actividades.map((a: any) => ({
+                  options={editAvailableActividades.map((a: any) => ({
                     value: a.code,
                     label: a.nombre,
                     sublabel: a.area ? `(${a.area})` : undefined

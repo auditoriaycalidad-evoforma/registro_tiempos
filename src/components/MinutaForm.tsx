@@ -12,6 +12,7 @@ import { SearchableSelect } from "./SearchableSelect";
 import { TimePicker12 } from "./TimePicker12";
 import { getCurrentLocalTime24, addMinutesToTime } from "@/lib/formatTime";
 import { useGeolocation } from "@/lib/useGeolocation";
+import { filtrarActividadesPorCargo } from "@/lib/actividades";
 
 interface EmpleadoOption {
   id: string;
@@ -137,6 +138,44 @@ export function MinutaForm({
       setSelectedEmpleado(defaultEmpleadoId);
     }
   }, [defaultEmpleadoId, selectedEmpleado]);
+
+  // Identificación dinámica del colaborador y su cargo/área
+  const currentEmpleado = useMemo(() => {
+    if (canSelectEmpleado || isAdmin) {
+      return empleados.find((e) => e.id === selectedEmpleado) || null;
+    }
+    return empleados.find((e) => e.id === (defaultEmpleadoId || session?.user?.id)) || null;
+  }, [empleados, selectedEmpleado, canSelectEmpleado, isAdmin, defaultEmpleadoId, session?.user?.id]);
+
+  const currentCargo = currentEmpleado?.cargo;
+
+  // Filtrado cruzado de actividades:
+  // - Actividades que coincidan exactamente con el área o cargo del empleado.
+  // - Todas las actividades cuyo campo de área sea "todas" (case-insensitive).
+  const availableActividades = useMemo(() => {
+    if (canSelectEmpleado || isAdmin) {
+      if (!currentCargo) {
+        return filtrarActividadesPorCargo(actividades, null);
+      }
+      return filtrarActividadesPorCargo(actividades, currentCargo);
+    }
+    if (currentCargo) {
+      return filtrarActividadesPorCargo(actividades, currentCargo);
+    }
+    return actividades;
+  }, [actividades, currentCargo, canSelectEmpleado, isAdmin]);
+
+  // Resetear la actividad seleccionada si cambia el colaborador y la actividad no aplica a su nuevo cargo
+  useEffect(() => {
+    if (selectedActividad && availableActividades.length > 0) {
+      const match = availableActividades.find(
+        (a) => a.code.toLowerCase() === selectedActividad.trim().toLowerCase() || a.nombre.toLowerCase() === selectedActividad.trim().toLowerCase()
+      );
+      if (!match) {
+        setSelectedActividad("");
+      }
+    }
+  }, [availableActividades, selectedActividad]);
 
   // --- INITIAL LOAD & LOCAL STORAGE RESTORATION (FOR REAL-TIME TIMER) ---
   useEffect(() => {
@@ -834,23 +873,23 @@ export function MinutaForm({
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1">
-                Actividad
-              </label>
-              <SearchableSelect
-                name="actividad"
-                value={selectedActividad}
-                onChange={(val) => setSelectedActividad(val)}
-                options={actividades.map((a) => ({
-                  value: a.code,
-                  label: a.nombre,
-                  sublabel: a.area ? `(${a.area})` : undefined,
-                }))}
-                placeholder="Busque o seleccione una actividad"
-                required
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1">
+                  Actividad {currentCargo && <span className="text-brand-primary normal-case font-normal text-[11px]">({currentCargo} + TODAS)</span>}
+                </label>
+                <SearchableSelect
+                  name="actividad"
+                  value={selectedActividad}
+                  onChange={(val) => setSelectedActividad(val)}
+                  options={availableActividades.map((a) => ({
+                    value: a.code,
+                    label: a.nombre,
+                    sublabel: a.area ? `(${a.area})` : undefined,
+                  }))}
+                  placeholder="Busque o seleccione una actividad"
+                  required
+                />
+              </div>
           </div>
 
           {/* Fila 5: Observación */}
@@ -922,7 +961,7 @@ export function MinutaForm({
                       name={`act_${inv.id}`}
                       value={inv.actividad}
                       onChange={(val) => handleUpdateAdditionalInterval(inv.id, "actividad", val)}
-                      options={actividades.map((a) => ({
+                      options={availableActividades.map((a) => ({
                         value: a.code,
                         label: a.nombre,
                         sublabel: a.area ? `(${a.area})` : undefined,
@@ -1236,13 +1275,13 @@ export function MinutaForm({
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1">
-              Actividad
+              Actividad {currentCargo && <span className="text-brand-primary normal-case font-normal text-[11px]">({currentCargo} + TODAS)</span>}
             </label>
             <SearchableSelect
               name="actividad"
               value={selectedActividad}
               onChange={(val) => setSelectedActividad(val)}
-              options={actividades.map((a) => ({
+              options={availableActividades.map((a) => ({
                 value: a.code,
                 label: a.nombre,
                 sublabel: a.area ? `(${a.area})` : undefined,

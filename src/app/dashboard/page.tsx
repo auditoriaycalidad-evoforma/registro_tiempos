@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { MinutaForm } from "@/components/MinutaForm";
 import { DashboardPanels } from "@/components/DashboardPanels";
 import { Clock } from "lucide-react";
+import { getActividadesParaEmpleado } from "@/lib/actividades";
 
 export const dynamic = "force-dynamic";
 
@@ -31,11 +32,7 @@ export default async function DashboardPage() {
     ORDER BY cedula ASC
   `;
 
-  const actividades = await prisma.minuta_actividad.findMany({
-    orderBy: { nombre: 'asc' }
-  });
-
-  // Cargar empleado para validar si es líder
+  // Cargar empleado autenticado para obtener su cargo y validar roles
   const empleado = await prisma.minuta_empleado.findFirst({
     where: {
       OR: [
@@ -45,6 +42,15 @@ export default async function DashboardPage() {
     }
   });
   const esLiderN = empleado ? empleado.es_lider === "N" : session.user.rol === "EMPLEADO";
+
+  // Cargar actividades:
+  // - Para administradores: todas las actividades (para permitir selección y filtrado dinámico por colaborador en el formulario).
+  // - Para colaboradores estándar: filtrado cruzado por su cargo exacto + todas las configuradas como 'todas'.
+  const actividades = isAdmin
+    ? await prisma.minuta_actividad.findMany({
+        orderBy: { nombre: "asc" },
+      })
+    : await getActividadesParaEmpleado(empleado?.cargo);
 
   // Cargar lista de empleados activos
   const empleados = await prisma.minuta_empleado.findMany({
