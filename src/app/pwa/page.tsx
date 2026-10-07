@@ -3,6 +3,8 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { PwaContainer } from "./PwaContainer";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Evoforma - Registro de Actividades",
   description: "Registro rápido de actividades (PWA)",
@@ -42,11 +44,24 @@ export default async function PwaPage() {
     orderBy: { nombre: 'asc' }
   });
 
-  let initialHistory: any[] = [];
   const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
-  const userEmail = session?.user?.email?.toLowerCase();
-  const isAdmin = !!(userEmail && allowedEmails.includes(userEmail));
+  const userEmail = session?.user?.email?.toLowerCase()?.trim();
+  const isAdmin = session?.user?.rol === "ADMIN" || !!(userEmail && allowedEmails.includes(userEmail));
 
+  // Cargar empleado para validar si es líder
+  const empleado = session?.user?.id || session?.user?.email
+    ? await prisma.minuta_empleado.findFirst({
+        where: {
+          OR: [
+            { id: session.user.id },
+            { email: { equals: session.user.email ?? "", mode: "insensitive" } }
+          ]
+        }
+      })
+    : null;
+  const esLiderN = empleado ? empleado.es_lider === "N" : session?.user?.rol === "EMPLEADO";
+
+  // Cargar lista de empleados activos
   const empleados = await prisma.minuta_empleado.findMany({
     where: {
       OR: [
@@ -61,58 +76,31 @@ export default async function PwaPage() {
       cargo: true,
     }
   });
-  
-  if (session?.user?.id && isAdmin) {
-    const rawHistory = await prisma.minuta_registro_actividad.findMany({
-      orderBy: [
-        { fecha: "desc" },
-        { hora_inicio: "desc" },
-      ],
-      include: {
-        minuta_proyecto: true,
-        minuta_actividad: true,
-        minuta_empleado: true,
-      },
-      take: 100,
-    });
 
-    // Parsear fechas para evitar problemas de serialización en componentes cliente
-    initialHistory = rawHistory.map((item) => ({
-      id: item.id,
-      empleado: item.empleado,
-      fecha: item.fecha.toISOString().split('T')[0],
-      hora_inicio: item.hora_inicio.toISOString(),
-      hora_fin: item.hora_fin.toISOString(),
-      actividad: item.actividad,
-      proyecto: item.proyecto,
-      tipo_minuta: item.tipo_minuta,
-      aprobado: item.aprobado,
-      observacion: item.observacion,
-      minuta_empleado: item.minuta_empleado ? {
-        id: item.minuta_empleado.id,
-        apellido_nombre: item.minuta_empleado.apellido_nombre,
-        cargo: item.minuta_empleado.cargo,
-      } : null,
-      minuta_proyecto: item.minuta_proyecto ? {
-        code: item.minuta_proyecto.code,
-        nombre: item.minuta_proyecto.nombre
-      } : null,
-      minuta_actividad: item.minuta_actividad ? {
-        code: item.minuta_actividad.code,
-        nombre: item.minuta_actividad.nombre,
-        area: item.minuta_actividad.area,
-        descripcion: item.minuta_actividad.descripcion
-      } : null
-    }));
-  }
+  // Cargar registro de actividades para administración
+  const minutas = (session?.user?.id && isAdmin)
+    ? await prisma.minuta_registro_actividad.findMany({
+        orderBy: [
+          { fecha: 'desc' },
+          { hora_inicio: 'desc' }
+        ],
+        include: {
+          minuta_proyecto: true,
+          minuta_actividad: true,
+          minuta_empleado: true,
+        }
+      })
+    : [];
 
   return (
     <PwaContainer
       proyectos={proyectos}
       actividades={actividades}
       empleados={empleados}
-      initialHistory={initialHistory}
+      minutas={minutas}
       session={session}
+      isAdmin={isAdmin}
+      esLiderN={esLiderN}
     />
   );
 }

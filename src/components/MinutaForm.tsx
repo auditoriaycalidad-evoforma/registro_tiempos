@@ -143,7 +143,9 @@ export function MinutaForm({
     if (isAdmin) return; // Admins use open editable fields
 
     try {
-      const savedTask = localStorage.getItem("minuta_desktop_active_task");
+      const savedTask = localStorage.getItem("minuta_active_task") || 
+                        localStorage.getItem("minuta_desktop_active_task") || 
+                        localStorage.getItem("minuta_pwa_active_task");
       if (savedTask) {
         const parsed = JSON.parse(savedTask);
         if (parsed && parsed.actividad && parsed.horaInicio) {
@@ -158,7 +160,9 @@ export function MinutaForm({
         }
       }
 
-      const savedCompleted = localStorage.getItem("minuta_desktop_completed_tasks");
+      const savedCompleted = localStorage.getItem("minuta_completed_tasks") || 
+                              localStorage.getItem("minuta_desktop_completed_tasks") || 
+                              localStorage.getItem("minuta_pwa_completed_tasks");
       if (savedCompleted) {
         const parsedCompleted = JSON.parse(savedCompleted);
         if (Array.isArray(parsedCompleted)) {
@@ -166,9 +170,43 @@ export function MinutaForm({
         }
       }
     } catch (e) {
-      console.error("Error al restaurar actividad activa en dashboard:", e);
+      console.error("Error al restaurar actividad activa en dashboard/pwa:", e);
     }
   }, [isAdmin, canSelectEmpleado]);
+
+  // Sync active task to localStorage whenever it changes
+  useEffect(() => {
+    if (isAdmin) return;
+    try {
+      if (activeTask) {
+        const serialized = JSON.stringify(activeTask);
+        localStorage.setItem("minuta_active_task", serialized);
+        localStorage.setItem("minuta_desktop_active_task", serialized);
+        localStorage.setItem("minuta_pwa_active_task", serialized);
+      } else {
+        localStorage.removeItem("minuta_active_task");
+        localStorage.removeItem("minuta_desktop_active_task");
+        localStorage.removeItem("minuta_pwa_active_task");
+      }
+    } catch (e) {
+      console.error("Error al guardar activeTask en localStorage:", e);
+    }
+  }, [activeTask, isAdmin]);
+
+  // Sync completed tasks to localStorage
+  useEffect(() => {
+    if (isAdmin) return;
+    try {
+      if (completedTasks.length > 0) {
+        const serialized = JSON.stringify(completedTasks);
+        localStorage.setItem("minuta_completed_tasks", serialized);
+        localStorage.setItem("minuta_desktop_completed_tasks", serialized);
+        localStorage.setItem("minuta_pwa_completed_tasks", serialized);
+      }
+    } catch (e) {
+      console.error("Error al guardar completedTasks en localStorage:", e);
+    }
+  }, [completedTasks, isAdmin]);
 
   // Sync elapsed duration counter
   useEffect(() => {
@@ -204,17 +242,32 @@ export function MinutaForm({
       observacion: string;
     }[];
   }) => {
-    const res = await fetch("/api/minuta", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await fetch("/api/minuta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await res.json();
-    if (!res.ok || data?.error) {
-      throw new Error(data?.error || "Error al guardar el registro en el servidor.");
+      const data = await res.json();
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || "Error al guardar el registro en el servidor.");
+      }
+      return data;
+    } catch (err: any) {
+      if (typeof window !== "undefined" && (!navigator.onLine || err.message === "Failed to fetch")) {
+        try {
+          const rawQueue = localStorage.getItem("minuta_offline_queue");
+          const queue = rawQueue ? JSON.parse(rawQueue) : [];
+          queue.push(payload);
+          localStorage.setItem("minuta_offline_queue", JSON.stringify(queue));
+          return { offline: true };
+        } catch (queueErr) {
+          console.error("Error guardando en cola offline:", queueErr);
+        }
+      }
+      throw err;
     }
-    return data;
   };
 
   // Helper lookups
