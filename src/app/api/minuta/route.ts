@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isAuthorizedAuditor, deleteMinuta } from "@/app/actions/minuta";
-import { formatTime24 } from "@/lib/formatTime";
+import { formatTime24, isAllowedStandardUserDate } from "@/lib/formatTime";
 import { revalidatePath } from "next/cache";
 import { syncMinutasToSheets } from "@/app/actions/exportar";
 
@@ -97,16 +97,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validación condicional de fecha: Administradores pueden registrar cualquier fecha; usuarios estándar solo hoy.
+    // Validación condicional de fecha: Administradores pueden registrar cualquier fecha; usuarios estándar solo hoy/ayer (hora Colombia / UTC-5).
     if (!isAuditor) {
-      const hoy = new Date();
-      const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
-      const [year, month, day] = fecha.split("-").map(Number);
-      const fechaIngresada = new Date(year, month - 1, day);
-      const hoySolo = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-      const diffDays = Math.abs((fechaIngresada.getTime() - hoySolo.getTime()) / (1000 * 3600 * 24));
-
-      if (diffDays > 0.5 && fecha !== hoyStr) {
+      if (!isAllowedStandardUserDate(fecha)) {
         return NextResponse.json(
           { error: "Los usuarios estándar solo pueden registrar actividades en la fecha de hoy." },
           { status: 400 }

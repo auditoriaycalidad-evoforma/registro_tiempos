@@ -84,3 +84,59 @@ export function addMinutesToTime(time24: string, minutesToAdd: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/**
+ * Retorna la fecha en formato YYYY-MM-DD para la zona horaria de Colombia (America/Bogota, UTC-5).
+ */
+export function getColombiaDateString(d: Date = new Date()): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Bogota",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  } catch {
+    const utcTime = d.getTime();
+    const cotOffset = -5 * 60 * 60 * 1000;
+    const cotDate = new Date(utcTime + cotOffset);
+    const y = cotDate.getUTCFullYear();
+    const m = String(cotDate.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(cotDate.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+}
+
+/**
+ * Valida si la fecha enviada por un usuario estándar es válida.
+ * Permite registrar actividades de hoy y de ayer (en hora de Colombia / UTC-5)
+ * para garantizar soporte a turnos nocturnos, cierres de jornada después de las 7:00 p.m.
+ * y auto-finalización sin bloqueos de tareas del día previo.
+ */
+export function isAllowedStandardUserDate(fechaStr: string): boolean {
+  if (!fechaStr || !/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) return false;
+
+  const now = new Date();
+
+  // 1. Hoy en Colombia (America/Bogota, UTC-5)
+  const todayCol = getColombiaDateString(now);
+  if (fechaStr === todayCol) return true;
+
+  // 2. Ayer en Colombia (margen de cierre de turno y auto-finalización)
+  const yesterdayCol = getColombiaDateString(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+  if (fechaStr === yesterdayCol) return true;
+
+  // 3. Hoy y ayer en UTC / Servidor (para tolerancia de reloj de servidor)
+  const todayUtc = now.toISOString().split("T")[0];
+  if (fechaStr === todayUtc) return true;
+
+  const yesterdayUtc = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  if (fechaStr === yesterdayUtc) return true;
+
+  // 4. Mañana en Colombia (margen de desajuste leve de reloj del cliente)
+  const tomorrowCol = getColombiaDateString(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+  if (fechaStr === tomorrowCol) return true;
+
+  return false;
+}
+
+

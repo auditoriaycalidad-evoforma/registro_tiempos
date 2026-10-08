@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { syncMinutasToSheets } from "./exportar";
-import { formatTime24 } from "@/lib/formatTime";
+import { formatTime24, isAllowedStandardUserDate } from "@/lib/formatTime";
 
 import { isAuthorizedAuditor, deleteMinuta } from "./minuta";
 
@@ -62,16 +62,9 @@ export async function createMinutasPwa(data: {
     return { error: "Tipo de registro no permitido" };
   }
 
-  // Validación condicional de fecha: Administradores pueden registrar cualquier fecha; usuarios estándar solo hoy.
+  // Validación condicional de fecha: Administradores pueden registrar cualquier fecha; usuarios estándar solo hoy/ayer (hora Colombia / UTC-5).
   if (!isAuditor) {
-    const hoy = new Date();
-    const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
-    const [year, month, day] = fecha.split("-").map(Number);
-    const fechaIngresada = new Date(year, month - 1, day);
-    const hoySolo = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-    const diffDays = Math.abs((fechaIngresada.getTime() - hoySolo.getTime()) / (1000 * 3600 * 24));
-
-    if (diffDays > 0.5 && fecha !== hoyStr) {
+    if (!isAllowedStandardUserDate(fecha)) {
       return { error: "Los usuarios estándar solo pueden registrar actividades en la fecha de hoy." };
     }
   }

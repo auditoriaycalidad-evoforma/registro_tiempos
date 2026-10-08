@@ -10,7 +10,7 @@ import {
 import { useSession } from "next-auth/react";
 import { SearchableSelect } from "./SearchableSelect";
 import { TimePicker12 } from "./TimePicker12";
-import { getCurrentLocalTime24, addMinutesToTime } from "@/lib/formatTime";
+import { getCurrentLocalTime24, addMinutesToTime, getColombiaDateString } from "@/lib/formatTime";
 import { useGeolocation } from "@/lib/useGeolocation";
 import { filtrarActividadesPorCargo } from "@/lib/actividades";
 
@@ -91,11 +91,7 @@ export function MinutaForm({
   const isAdmin = propIsAdmin ?? (session?.user?.rol === "ADMIN" || (userEmail ? allowedAdminEmails.includes(userEmail) : false));
 
   const getTodayLocal = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return getColombiaDateString();
   };
 
   // Base Form states
@@ -321,6 +317,7 @@ export function MinutaForm({
   }, [activeTask, actividades]);
 
   // Auto finalize past day task
+  // Auto finalize past day task
   const autoFinalizeOldTask = async (oldTask: DesktopActiveTask) => {
     const safeEnd = addMinutesToTime(oldTask.horaInicio, 30);
     const taskUbicacion = oldTask.ubicacion || ubicacion;
@@ -345,7 +342,10 @@ export function MinutaForm({
     };
 
     setCompletedTasks((prev) => [completedItem, ...prev]);
+    setActiveTask(null);
+    localStorage.removeItem("minuta_active_task");
     localStorage.removeItem("minuta_desktop_active_task");
+    localStorage.removeItem("minuta_pwa_active_task");
 
     try {
       await dispatchRecordToServer({
@@ -362,7 +362,7 @@ export function MinutaForm({
       });
       completedItem.synced = true;
     } catch (e) {
-      console.error("Error auto-finalizando tarea anterior:", e);
+      console.warn("No se pudo sincronizar de inmediato la tarea previa auto-finalizada:", e);
     }
   };
 
@@ -576,20 +576,24 @@ export function MinutaForm({
 
         setCompletedTasks((prev) => [completedItem, ...prev]);
 
-        await dispatchRecordToServer({
-          empleado: defaultEmpleadoId || undefined,
-          fecha: activeTask.fecha,
-          tipo: activeTask.tipoMinuta,
-          intervals: [{
-            proyecto: activeTask.proyecto,
-            actividad: activeTask.actividad,
-            horaInicio: activeTask.horaInicio,
-            horaFin: closeTime,
-            observacion: formattedObs,
-          }],
-        });
+        try {
+          await dispatchRecordToServer({
+            empleado: defaultEmpleadoId || undefined,
+            fecha: activeTask.fecha,
+            tipo: activeTask.tipoMinuta,
+            intervals: [{
+              proyecto: activeTask.proyecto,
+              actividad: activeTask.actividad,
+              horaInicio: activeTask.horaInicio,
+              horaFin: closeTime,
+              observacion: formattedObs,
+            }],
+          });
 
-        completedItem.synced = true;
+          completedItem.synced = true;
+        } catch (dispatchErr: any) {
+          console.warn("No se pudo enviar la actividad previa al servidor inmediatamente:", dispatchErr);
+        }
       }
 
       // Iniciar nueva actividad con hora de inicio capturada automáticamente
@@ -656,6 +660,9 @@ export function MinutaForm({
 
     setCompletedTasks((prev) => [completedItem, ...prev]);
     setActiveTask(null);
+    localStorage.removeItem("minuta_active_task");
+    localStorage.removeItem("minuta_desktop_active_task");
+    localStorage.removeItem("minuta_pwa_active_task");
 
     try {
       await dispatchRecordToServer({
