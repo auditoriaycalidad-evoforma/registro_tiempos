@@ -158,19 +158,31 @@ function mergeMinutasWithSheetValues(
   // 1. Recorrer las filas existentes en la hoja de cálculo
   for (const existingRow of existingValues.slice(1)) {
     const rawId = existingRow[13]?.toString().trim();
+    const numId = Number(rawId);
+    const isAppRecordId = Boolean(rawId && !isNaN(numId) && numId > 0);
 
-    if (rawId && dbRowsMap.has(rawId)) {
-      // Registro originado en la App: sobreescribir con el estado oficial de la BD
-      const updatedRow = [...dbRowsMap.get(rawId)!];
-      // Preservar columnas manuales adicionales de Google Sheets (a la derecha de ID_REGISTRO)
-      if (existingRow.length > 14) {
-        updatedRow.push(...existingRow.slice(14));
+    if (isAppRecordId) {
+      if (dbRowsMap.has(rawId)) {
+        // Registro vigente originado en la App: sobreescribir con el estado oficial de la BD
+        const updatedRow = [...dbRowsMap.get(rawId)!];
+        // Preservar columnas manuales adicionales de Google Sheets (a la derecha de ID_REGISTRO)
+        if (existingRow.length > 14) {
+          updatedRow.push(...existingRow.slice(14));
+        }
+        resultRows.push(updatedRow);
+        processedDbIds.add(rawId);
       }
-      resultRows.push(updatedRow);
-      processedDbIds.add(rawId);
+      // Si isAppRecordId es true pero NO existe en dbRowsMap:
+      // El registro fue ELIMINADO en la aplicación o movido de cargo.
+      // NO se agrega a resultRows (se purga de Google Sheets).
     } else {
-      // Filas manuales en Sheets sin ID o cuyo ID no está en el lote actual -> conservar intactas
-      resultRows.push([...existingRow]);
+      // Filas manuales en Sheets sin ID de la aplicación: conservar si contienen datos
+      const hasContent = existingRow.some(
+        (cell) => cell !== undefined && cell !== null && cell.toString().trim() !== ""
+      );
+      if (hasContent) {
+        resultRows.push([...existingRow]);
+      }
     }
   }
 
@@ -185,7 +197,13 @@ function mergeMinutasWithSheetValues(
   return [HEADERS, ...resultRows];
 }
 
-export async function syncMinutasToSheets({ skipAuth = false } = {}) {
+export async function syncMinutasToSheets({
+  skipAuth = false,
+  targetCargos,
+}: {
+  skipAuth?: boolean;
+  targetCargos?: string[];
+} = {}) {
   if (!skipAuth) {
     await ensureCanExport();
   }
@@ -253,9 +271,22 @@ export async function syncMinutasToSheets({ skipAuth = false } = {}) {
     cargoGroups.get(cargo)!.push(minuta);
   });
 
-  for (const [cargo, cargoMinutas] of Array.from(cargoGroups.entries())) {
+  // Determinar cargos a sincronizar: todos los existentes o únicamente los indicados
+  const normalizedTargetCargos = targetCargos?.map((c) => c.trim().toLowerCase()).filter(Boolean);
+  const cargosToProcess = normalizedTargetCargos && normalizedTargetCargos.length > 0
+    ? Array.from(cargoGroups.keys())
+        .filter((c) => normalizedTargetCargos.includes(c.toLowerCase()))
+        .concat(
+          targetCargos!
+            .map((c) => c.trim())
+            .filter((c) => !Array.from(cargoGroups.keys()).some((k) => k.toLowerCase() === c.toLowerCase()))
+        )
+    : Array.from(cargoGroups.keys());
+
+  for (const cargo of cargosToProcess) {
     const cargoSheetTitle = sanitizeSheetTitle(cargo);
     if (!cargoSheetTitle) continue;
+    const cargoMinutas = cargoGroups.get(cargo) ?? [];
 
     try {
       await ensureSheetExists(targetSpreadsheetId, cargoSheetTitle);

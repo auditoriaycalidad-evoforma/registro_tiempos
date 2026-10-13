@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { syncMinutasToSheets } from "./exportar";
+import { sheetsSyncQueue } from "@/lib/syncQueue";
 
 export async function approveMinuta(id: number, decision: "SI" | "RE") {
   const session = await getServerSession(authOptions);
@@ -17,6 +18,7 @@ export async function approveMinuta(id: number, decision: "SI" | "RE") {
   try {
     const record = await prisma.minuta_registro_actividad.findUnique({
       where: { id },
+      include: { minuta_empleado: true },
     });
 
     if (!record) {
@@ -53,12 +55,9 @@ export async function approveMinuta(id: number, decision: "SI" | "RE") {
 
     revalidatePath("/admin");
 
-    // Sync to Google Sheets in background
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-      syncMinutasToSheets({ skipAuth: true }).catch((err) => {
-        console.error("Error updating Google Sheets in background:", err);
-      });
-    }
+    // Encolar sincronización transparente con Google Sheets
+    const cargo = record.minuta_empleado?.cargo?.trim();
+    sheetsSyncQueue.enqueue(cargo ? [cargo] : undefined);
 
     return { success: true };
   } catch (error) {

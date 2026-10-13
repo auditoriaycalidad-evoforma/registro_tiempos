@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { syncMinutasToSheets } from "./exportar";
+import { sheetsSyncQueue } from "@/lib/syncQueue";
 
 import { formatTime24, isAllowedStandardUserDate } from "@/lib/formatTime";
 
@@ -232,12 +233,19 @@ export async function createMinuta(formData: FormData) {
     revalidatePath("/dashboard");
     revalidatePath("/admin");
 
-    // Sincronizar en segundo plano
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-      syncMinutasToSheets({ skipAuth: true }).catch((err) => {
-        console.error("Error al actualizar Google Sheets en segundo plano:", err);
+    // Encolar sincronización transparente con Google Sheets sin retrasar la respuesta al usuario
+    prisma.minuta_empleado
+      .findUnique({
+        where: { id: targetEmpleadoId },
+        select: { cargo: true },
+      })
+      .then((emp) => {
+        const empCargo = emp?.cargo?.trim();
+        sheetsSyncQueue.enqueue(empCargo ? [empCargo] : undefined);
+      })
+      .catch(() => {
+        sheetsSyncQueue.enqueue();
       });
-    }
 
     return { success: true };
 
@@ -289,11 +297,15 @@ export async function updateMinutaHistory(
   try {
     const original = await prisma.minuta_registro_actividad.findUnique({
       where: { id },
+      include: { minuta_empleado: true },
     });
 
     if (!original) {
       return { error: "Registro no encontrado" };
     }
+
+    const origCargo = original.minuta_empleado?.cargo?.trim();
+    let newCargo = origCargo;
 
     // Validar y crear proyectos que no existan
     const proyectoExistente = await prisma.minuta_proyecto.findUnique({
@@ -358,6 +370,7 @@ export async function updateMinutaHistory(
         return { error: "El colaborador seleccionado no es válido o está inactivo." };
       }
       targetEmpleado = data.empleado;
+      newCargo = newEmp.cargo?.trim() || newCargo;
       auditoriaLogs.push({
         campo: "empleado",
         valor_anterior: original.empleado,
@@ -417,11 +430,9 @@ export async function updateMinutaHistory(
     revalidatePath("/dashboard");
     revalidatePath("/admin");
 
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-      syncMinutasToSheets({ skipAuth: true }).catch((err) => {
-        console.error("Error al actualizar Google Sheets en segundo plano tras editar:", err);
-      });
-    }
+    // Encolar sincronización transparente con Google Sheets
+    const affectedCargos = Array.from(new Set([origCargo, newCargo].filter(Boolean))) as string[];
+    sheetsSyncQueue.enqueue(affectedCargos.length > 0 ? affectedCargos : undefined);
 
     return { success: true };
   } catch (error) {
@@ -448,11 +459,14 @@ export async function deleteMinuta(id: number) {
   try {
     const record = await prisma.minuta_registro_actividad.findUnique({
       where: { id },
+      include: { minuta_empleado: true },
     });
 
     if (!record) {
       return { error: "Registro no encontrado." };
     }
+
+    const employeeCargo = record.minuta_empleado?.cargo?.trim();
 
     // Si no es admin, solo puede eliminar sus propios registros y no puede eliminar registros tipo O aprobados
     if (!isAdmin) {
@@ -478,12 +492,8 @@ export async function deleteMinuta(id: number) {
     revalidatePath("/admin");
     revalidatePath("/pwa");
 
-    // Sincronizar Google Sheets en segundo plano si está configurado
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-      syncMinutasToSheets({ skipAuth: true }).catch((err) => {
-        console.error("Error al actualizar Google Sheets en segundo plano tras eliminar:", err);
-      });
-    }
+    // Encolar sincronización transparente con Google Sheets sin retrasar al usuario
+    sheetsSyncQueue.enqueue(employeeCargo ? [employeeCargo] : undefined);
 
     return { success: true };
   } catch (error) {

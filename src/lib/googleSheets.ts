@@ -240,6 +240,15 @@ export async function replaceSheetValues(
   const config = getGoogleConfig();
   const accessToken = await requestAccessToken(config);
 
+  // 1. Limpiar completamente el rango existente de la pestaña para eliminar filas eliminadas/sobrantes
+  const clearRange = `'${sheetTitle}'!A:ZZ`;
+  await googleFetch(
+    `${SHEETS_URL}/${spreadsheetId}/values/${encodeURIComponent(clearRange)}:clear`,
+    accessToken,
+    { method: "POST", body: JSON.stringify({}) }
+  );
+
+  // 2. Escribir los valores actualizados
   const updateRange = `'${sheetTitle}'!A1`;
   const encodedUpdateRange = encodeURIComponent(updateRange);
 

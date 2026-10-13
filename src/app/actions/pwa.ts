@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { syncMinutasToSheets } from "./exportar";
+import { sheetsSyncQueue } from "@/lib/syncQueue";
 import { formatTime24, isAllowedStandardUserDate } from "@/lib/formatTime";
 
 import { isAuthorizedAuditor, deleteMinuta } from "./minuta";
@@ -202,12 +203,19 @@ export async function createMinutasPwa(data: {
     revalidatePath("/admin");
     revalidatePath("/pwa");
 
-    // Sincronizar Google Sheets en segundo plano si está configurado
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-      syncMinutasToSheets({ skipAuth: true }).catch((err) => {
-        console.error("Error al actualizar Google Sheets en segundo plano desde PWA:", err);
+    // Encolar sincronización transparente con Google Sheets sin retrasar al usuario de PWA
+    prisma.minuta_empleado
+      .findUnique({
+        where: { id: session.user.id },
+        select: { cargo: true },
+      })
+      .then((emp) => {
+        const empCargo = emp?.cargo?.trim();
+        sheetsSyncQueue.enqueue(empCargo ? [empCargo] : undefined);
+      })
+      .catch(() => {
+        sheetsSyncQueue.enqueue();
       });
-    }
 
     return { success: true };
 

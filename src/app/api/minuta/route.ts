@@ -6,6 +6,7 @@ import { isAuthorizedAuditor, deleteMinuta } from "@/app/actions/minuta";
 import { formatTime24, isAllowedStandardUserDate } from "@/lib/formatTime";
 import { revalidatePath } from "next/cache";
 import { syncMinutasToSheets } from "@/app/actions/exportar";
+import { sheetsSyncQueue } from "@/lib/syncQueue";
 
 export const dynamic = "force-dynamic";
 
@@ -250,12 +251,19 @@ export async function POST(request: Request) {
     revalidatePath("/admin");
     revalidatePath("/pwa");
 
-    // Sincronizar Google Sheets en segundo plano
-    if (process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-      syncMinutasToSheets({ skipAuth: true }).catch((err) => {
-        console.error("Error al actualizar Google Sheets en segundo plano desde endpoint API:", err);
+    // Encolar sincronización transparente con Google Sheets sin demorar la respuesta HTTP
+    prisma.minuta_empleado
+      .findUnique({
+        where: { id: targetEmpleadoId },
+        select: { cargo: true },
+      })
+      .then((emp) => {
+        const empCargo = emp?.cargo?.trim();
+        sheetsSyncQueue.enqueue(empCargo ? [empCargo] : undefined);
+      })
+      .catch(() => {
+        sheetsSyncQueue.enqueue();
       });
-    }
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
