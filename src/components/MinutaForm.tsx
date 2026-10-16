@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Plus, Calendar, AlertCircle, User, Lock, Play, 
@@ -10,7 +10,7 @@ import {
 import { useSession } from "next-auth/react";
 import { SearchableSelect } from "./SearchableSelect";
 import { TimePicker12 } from "./TimePicker12";
-import { getCurrentLocalTime24, addMinutesToTime, getColombiaDateString } from "@/lib/formatTime";
+import { getCurrentLocalTime24, addMinutesToTime, getColombiaDateString, formatTime12 } from "@/lib/formatTime";
 import { useGeolocation } from "@/lib/useGeolocation";
 import { filtrarActividadesPorCargo } from "@/lib/actividades";
 
@@ -114,6 +114,7 @@ export function MinutaForm({
   const [activeTask, setActiveTask] = useState<DesktopActiveTask | null>(null);
   const [completedTasks, setCompletedTasks] = useState<DesktopCompletedTask[]>([]);
   const [elapsedMinutes, setElapsedMinutes] = useState<number>(0);
+  const isHandlingMidnightRef = useRef<boolean>(false);
 
   // Geolocalización automática en tiempo real (Opcional para admin, requerida para empleados)
   const {
@@ -173,6 +174,179 @@ export function MinutaForm({
     }
   }, [availableActividades, selectedActividad]);
 
+  // Helper lookups
+  const activeProjectInfo = useMemo(() => {
+    if (!activeTask) return null;
+    return proyectos.find((p) => p.code === activeTask.proyecto);
+  }, [activeTask, proyectos]);
+
+  const activeActividadInfo = useMemo(() => {
+    if (!activeTask) return null;
+    return actividades.find((a) => a.code === activeTask.actividad);
+  }, [activeTask, actividades]);
+
+  // Server Dispatch
+  const dispatchRecordToServer = async (payload: {
+    empleado?: string;
+    fecha: string;
+    tipo: string;
+    intervals: {
+      proyecto: string;
+      actividad: string;
+      horaInicio: string;
+      horaFin: string;
+      observacion: string;
+    }[];
+  }) => {
+    try {
+      const res = await fetch("/api/minuta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || "Error al guardar el registro en el servidor.");
+      }
+      return data;
+    } catch (err: any) {
+      if (typeof window !== "undefined" && (!navigator.onLine || err.message === "Failed to fetch")) {
+        try {
+          const rawQueue = localStorage.getItem("minuta_offline_queue");
+          const queue = rawQueue ? JSON.parse(rawQueue) : [];
+          queue.push(payload);
+          localStorage.setItem("minuta_offline_queue", JSON.stringify(queue));
+          return { offline: true };
+        } catch (queueErr) {
+          console.error("Error guardando en cola offline:", queueErr);
+        }
+      }
+      throw err;
+    }
+  };
+
+  // --- REGLA DE CAMBIO DE DÍA (MEDIANOCHE) ---
+  // Finaliza automáticamente la actividad a las 11:59 p.m. del día que culmina
+  // y reinicia/crea una nueva actividad a las 12:00 a.m. para el nuevo día en curso.
+  const handleMidnightCross = async (currentTask: DesktopActiveTask, newTodayStr: string) => {
+    if (isHandlingMidnightRef.current) return;
+    isHandlingMidnightRef.current = true;
+
+    try {
+      const d1 = new Date(currentTask.fecha + "T00:00:00");
+      const d2 = new Date(newTodayStr + "T00:00:00");
+      const diffDays = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) return;
+
+      const taskUbicacion = currentTask.ubicacion || ubicacion;
+      let formattedObs = currentTask.observacion ? currentTask.observacion.trim() : "";
+      if (taskUbicacion && !formattedObs.includes(taskUbicacion)) {
+        formattedObs = formattedObs ? `${formattedObs} [📍 ${taskUbicacion}]` : `[📍 ${taskUbicacion}]`;
+      }
+
+      // Asegurar hora de inicio válida antes de 23:59 para el tramo del día 1
+      let day1Start = currentTask.horaInicio;
+      if (day1Start >= "23:59") {
+        day1Start = "23:58";
+      }
+
+      const completedDay1: DesktopCompletedTask = {
+        id: Math.random().toString(36).substring(2, 9),
+        proyecto: currentTask.proyecto,
+        actividad: currentTask.actividad,
+        horaInicio: day1Start,
+        horaFin: "23:59",
+        observacion: currentTask.observacion,
+        ubicacion: taskUbicacion,
+        fecha: currentTask.fecha,
+        tipoMinuta: currentTask.tipoMinuta,
+        empleado: currentTask.empleado,
+        synced: false,
+        completedAt: Date.now(),
+      };
+
+      setCompletedTasks((prev) => [completedDay1, ...prev]);
+
+      // Enviar cierre del día que finalizó a las 23:59 (11:59 p.m.)
+      try {
+        await dispatchRecordToServer({
+          empleado: canSelectEmpleado && currentTask.empleado ? currentTask.empleado : defaultEmpleadoId || undefined,
+          fecha: currentTask.fecha,
+          tipo: currentTask.tipoMinuta,
+          intervals: [{
+            proyecto: currentTask.proyecto,
+            actividad: currentTask.actividad,
+            horaInicio: day1Start,
+            horaFin: "23:59",
+            observacion: formattedObs,
+          }],
+        });
+        completedDay1.synced = true;
+      } catch (err: any) {
+        console.warn("No se pudo sincronizar de inmediato la actividad del día anterior a las 23:59:", err);
+      }
+
+      // Si es exactamente el día siguiente (cruce habitual de medianoche / 1 día):
+      if (diffDays === 1) {
+        // Timestamp a las 00:00 de hoy para que el contador de minutos transcurridos sea exacto
+        let midnightStamp = Date.now();
+        try {
+          midnightStamp = new Date(`${newTodayStr}T00:00:00-05:00`).getTime();
+          if (isNaN(midnightStamp)) {
+            const mDate = new Date();
+            mDate.setHours(0, 0, 0, 0);
+            midnightStamp = mDate.getTime();
+          }
+        } catch {
+          const mDate = new Date();
+          mDate.setHours(0, 0, 0, 0);
+          midnightStamp = mDate.getTime();
+        }
+
+        const continuationTask: DesktopActiveTask = {
+          proyecto: currentTask.proyecto,
+          actividad: currentTask.actividad,
+          horaInicio: "00:00",
+          startTimeStamp: midnightStamp,
+          observacion: currentTask.observacion || "",
+          fecha: newTodayStr,
+          tipoMinuta: currentTask.tipoMinuta,
+          empleado: currentTask.empleado,
+          ubicacion: taskUbicacion,
+        };
+
+        setActiveTask(continuationTask);
+        setFecha(newTodayStr);
+
+        const serialized = JSON.stringify(continuationTask);
+        localStorage.setItem("minuta_active_task", serialized);
+        localStorage.setItem("minuta_desktop_active_task", serialized);
+        localStorage.setItem("minuta_pwa_active_task", serialized);
+
+        setSuccess(
+          `Cruce de medianoche aplicado: Actividad anterior finalizada automáticamente a las 11:59 p.m. (${currentTask.fecha}) y nueva actividad reiniciada a las 12:00 a.m. (${newTodayStr}).`
+        );
+      } else {
+        // Pasaron varios días: solo cerramos la tarea de ese día a las 23:59
+        setActiveTask(null);
+        localStorage.removeItem("minuta_active_task");
+        localStorage.removeItem("minuta_desktop_active_task");
+        localStorage.removeItem("minuta_pwa_active_task");
+        setSuccess(`Actividad anterior del día ${currentTask.fecha} finalizada automáticamente a las 11:59 p.m.`);
+      }
+    } finally {
+      isHandlingMidnightRef.current = false;
+    }
+  };
+
+  // Compatibilidad hacia atrás
+  const autoFinalizeOldTask = async (oldTask: DesktopActiveTask) => {
+    const todayStr = getTodayLocal();
+    await handleMidnightCross(oldTask, todayStr);
+  };
+
   // --- INITIAL LOAD & LOCAL STORAGE RESTORATION (FOR REAL-TIME TIMER) ---
   useEffect(() => {
     if (isAdmin) return; // Admins use open editable fields
@@ -186,7 +360,7 @@ export function MinutaForm({
         if (parsed && parsed.actividad && parsed.horaInicio) {
           const todayStr = getTodayLocal();
           if (parsed.fecha && parsed.fecha !== todayStr) {
-            autoFinalizeOldTask(parsed);
+            handleMidnightCross(parsed, todayStr).catch(console.error);
           } else {
             setActiveTask(parsed);
             if (parsed.tipoMinuta) setTipo(parsed.tipoMinuta);
@@ -243,128 +417,30 @@ export function MinutaForm({
     }
   }, [completedTasks, isAdmin]);
 
-  // Sync elapsed duration counter
+  // Sync elapsed duration counter & Check midnight rollover in real-time
   useEffect(() => {
     if (!activeTask) {
       setElapsedMinutes(0);
       return;
     }
 
-    const calculateElapsed = () => {
-      if (!activeTask.startTimeStamp) return 0;
+    const checkMidnightAndSyncTimer = () => {
+      const todayStr = getTodayLocal();
+      if (activeTask.fecha && activeTask.fecha !== todayStr) {
+        handleMidnightCross(activeTask, todayStr).catch(console.error);
+        return;
+      }
+
+      if (!activeTask.startTimeStamp) return;
       const diffMs = Math.max(0, Date.now() - activeTask.startTimeStamp);
-      return Math.floor(diffMs / 60000);
+      setElapsedMinutes(Math.floor(diffMs / 60000));
     };
 
-    setElapsedMinutes(calculateElapsed());
-    const interval = setInterval(() => {
-      setElapsedMinutes(calculateElapsed());
-    }, 30000);
+    checkMidnightAndSyncTimer();
+    const interval = setInterval(checkMidnightAndSyncTimer, 15000); // Chequeo periódico cada 15s
 
     return () => clearInterval(interval);
   }, [activeTask]);
-
-  // Server Dispatch
-  const dispatchRecordToServer = async (payload: {
-    empleado?: string;
-    fecha: string;
-    tipo: string;
-    intervals: {
-      proyecto: string;
-      actividad: string;
-      horaInicio: string;
-      horaFin: string;
-      observacion: string;
-    }[];
-  }) => {
-    try {
-      const res = await fetch("/api/minuta", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok || data?.error) {
-        throw new Error(data?.error || "Error al guardar el registro en el servidor.");
-      }
-      return data;
-    } catch (err: any) {
-      if (typeof window !== "undefined" && (!navigator.onLine || err.message === "Failed to fetch")) {
-        try {
-          const rawQueue = localStorage.getItem("minuta_offline_queue");
-          const queue = rawQueue ? JSON.parse(rawQueue) : [];
-          queue.push(payload);
-          localStorage.setItem("minuta_offline_queue", JSON.stringify(queue));
-          return { offline: true };
-        } catch (queueErr) {
-          console.error("Error guardando en cola offline:", queueErr);
-        }
-      }
-      throw err;
-    }
-  };
-
-  // Helper lookups
-  const activeProjectInfo = useMemo(() => {
-    if (!activeTask) return null;
-    return proyectos.find((p) => p.code === activeTask.proyecto);
-  }, [activeTask, proyectos]);
-
-  const activeActividadInfo = useMemo(() => {
-    if (!activeTask) return null;
-    return actividades.find((a) => a.code === activeTask.actividad);
-  }, [activeTask, actividades]);
-
-  // Auto finalize past day task
-  // Auto finalize past day task
-  const autoFinalizeOldTask = async (oldTask: DesktopActiveTask) => {
-    const safeEnd = addMinutesToTime(oldTask.horaInicio, 30);
-    const taskUbicacion = oldTask.ubicacion || ubicacion;
-    let formattedObs = oldTask.observacion ? oldTask.observacion.trim() : "";
-    if (taskUbicacion && !formattedObs.includes(taskUbicacion)) {
-      formattedObs = formattedObs ? `${formattedObs} [📍 ${taskUbicacion}]` : `[📍 ${taskUbicacion}]`;
-    }
-
-    const completedItem: DesktopCompletedTask = {
-      id: Math.random().toString(36).substring(2, 9),
-      proyecto: oldTask.proyecto,
-      actividad: oldTask.actividad,
-      horaInicio: oldTask.horaInicio,
-      horaFin: safeEnd,
-      observacion: oldTask.observacion,
-      ubicacion: taskUbicacion,
-      fecha: oldTask.fecha,
-      tipoMinuta: oldTask.tipoMinuta,
-      empleado: oldTask.empleado,
-      synced: false,
-      completedAt: Date.now(),
-    };
-
-    setCompletedTasks((prev) => [completedItem, ...prev]);
-    setActiveTask(null);
-    localStorage.removeItem("minuta_active_task");
-    localStorage.removeItem("minuta_desktop_active_task");
-    localStorage.removeItem("minuta_pwa_active_task");
-
-    try {
-      await dispatchRecordToServer({
-        empleado: canSelectEmpleado && oldTask.empleado ? oldTask.empleado : defaultEmpleadoId || undefined,
-        fecha: oldTask.fecha,
-        tipo: oldTask.tipoMinuta,
-        intervals: [{
-          proyecto: oldTask.proyecto,
-          actividad: oldTask.actividad,
-          horaInicio: oldTask.horaInicio,
-          horaFin: safeEnd,
-          observacion: formattedObs,
-        }],
-      });
-      completedItem.synced = true;
-    } catch (e) {
-      console.warn("No se pudo sincronizar de inmediato la tarea previa auto-finalizada:", e);
-    }
-  };
 
   // ==========================================
   // 1. ADMIN DIRECT OPEN-FIELDS SUBMISSION
@@ -546,61 +622,121 @@ export function MinutaForm({
     setLoading(true);
 
     try {
+      let lastCloseTime: string | null = null;
+
       // Si ya hay una actividad activa -> Finalizarla automáticamente
       if (activeTask) {
-        let closeTime = nowTime;
-        if (activeTask.horaInicio && closeTime <= activeTask.horaInicio) {
-          closeTime = addMinutesToTime(activeTask.horaInicio, 1);
-        }
-
         const taskUbicacion = activeTask.ubicacion || ubicacion;
         let formattedObs = activeTask.observacion ? activeTask.observacion.trim() : "";
         if (taskUbicacion && !formattedObs.includes(taskUbicacion)) {
           formattedObs = formattedObs ? `${formattedObs} [📍 ${taskUbicacion}]` : `[📍 ${taskUbicacion}]`;
         }
 
-        const completedItem: DesktopCompletedTask = {
-          id: Math.random().toString(36).substring(2, 9),
-          proyecto: activeTask.proyecto,
-          actividad: activeTask.actividad,
-          horaInicio: activeTask.horaInicio,
-          horaFin: closeTime,
-          observacion: activeTask.observacion,
-          ubicacion: taskUbicacion,
-          fecha: activeTask.fecha,
-          tipoMinuta: activeTask.tipoMinuta,
-          empleado: activeTask.empleado,
-          synced: false,
-          completedAt: Date.now(),
-        };
+        // Si la actividad previa cruzó la medianoche
+        if (activeTask.fecha && activeTask.fecha !== finalFecha) {
+          let day1Start = activeTask.horaInicio;
+          if (day1Start >= "23:59") day1Start = "23:58";
 
-        setCompletedTasks((prev) => [completedItem, ...prev]);
+          try {
+            // Guardar tramo de ayer hasta 23:59
+            await dispatchRecordToServer({
+              empleado: canSelectEmpleado && activeTask.empleado ? activeTask.empleado : defaultEmpleadoId || undefined,
+              fecha: activeTask.fecha,
+              tipo: activeTask.tipoMinuta,
+              intervals: [{
+                proyecto: activeTask.proyecto,
+                actividad: activeTask.actividad,
+                horaInicio: day1Start,
+                horaFin: "23:59",
+                observacion: formattedObs,
+              }],
+            });
 
-        try {
-          await dispatchRecordToServer({
-            empleado: defaultEmpleadoId || undefined,
+            // Guardar tramo de hoy desde 00:00 hasta nowTime si han transcurrido minutos hoy
+            if (nowTime > "00:00") {
+              await dispatchRecordToServer({
+                empleado: canSelectEmpleado && activeTask.empleado ? activeTask.empleado : defaultEmpleadoId || undefined,
+                fecha: finalFecha,
+                tipo: activeTask.tipoMinuta,
+                intervals: [{
+                  proyecto: activeTask.proyecto,
+                  actividad: activeTask.actividad,
+                  horaInicio: "00:00",
+                  horaFin: nowTime,
+                  observacion: formattedObs,
+                }],
+              });
+              lastCloseTime = nowTime;
+            } else {
+              lastCloseTime = "00:00";
+            }
+          } catch (splitErr) {
+            console.warn("Error guardando tramos de actividad previa con cambio de fecha:", splitErr);
+          }
+        } else {
+          // Mismo día
+          let closeTime = nowTime;
+          if (activeTask.horaInicio && closeTime <= activeTask.horaInicio) {
+            closeTime = addMinutesToTime(activeTask.horaInicio, 1);
+          }
+          lastCloseTime = closeTime;
+
+          const completedItem: DesktopCompletedTask = {
+            id: Math.random().toString(36).substring(2, 9),
+            proyecto: activeTask.proyecto,
+            actividad: activeTask.actividad,
+            horaInicio: activeTask.horaInicio,
+            horaFin: closeTime,
+            observacion: activeTask.observacion,
+            ubicacion: taskUbicacion,
             fecha: activeTask.fecha,
-            tipo: activeTask.tipoMinuta,
-            intervals: [{
-              proyecto: activeTask.proyecto,
-              actividad: activeTask.actividad,
-              horaInicio: activeTask.horaInicio,
-              horaFin: closeTime,
-              observacion: formattedObs,
-            }],
-          });
+            tipoMinuta: activeTask.tipoMinuta,
+            empleado: activeTask.empleado,
+            synced: false,
+            completedAt: Date.now(),
+          };
 
-          completedItem.synced = true;
-        } catch (dispatchErr: any) {
-          console.warn("No se pudo enviar la actividad previa al servidor inmediatamente:", dispatchErr);
+          setCompletedTasks((prev) => [completedItem, ...prev]);
+
+          try {
+            await dispatchRecordToServer({
+              empleado: defaultEmpleadoId || undefined,
+              fecha: activeTask.fecha,
+              tipo: activeTask.tipoMinuta,
+              intervals: [{
+                proyecto: activeTask.proyecto,
+                actividad: activeTask.actividad,
+                horaInicio: activeTask.horaInicio,
+                horaFin: closeTime,
+                observacion: formattedObs,
+              }],
+            });
+
+            completedItem.synced = true;
+          } catch (dispatchErr: any) {
+            console.warn("No se pudo enviar la actividad previa al servidor inmediatamente:", dispatchErr);
+          }
+        }
+      } else {
+        // No había actividad activa: verificar si hay tareas completadas hoy para evitar solapamiento
+        const recentForToday = completedTasks.find((t) => t.fecha === finalFecha);
+        if (recentForToday && recentForToday.horaFin > nowTime) {
+          lastCloseTime = recentForToday.horaFin;
         }
       }
 
-      // Iniciar nueva actividad con hora de inicio capturada automáticamente
+      // Iniciar nueva actividad asegurando que horaInicio NUNCA sea menor a lastCloseTime
+      // (Previene solapamientos cuando una tarea previa se finalizó dentro del mismo minuto forzando un minuto adicional)
+      let effectiveStartTime = (lastCloseTime && lastCloseTime > nowTime) ? lastCloseTime : nowTime;
+      const recentForToday = completedTasks.find((t) => t.fecha === finalFecha);
+      if (recentForToday && recentForToday.horaFin > effectiveStartTime) {
+        effectiveStartTime = recentForToday.horaFin;
+      }
+
       const newTask: DesktopActiveTask = {
         proyecto: resolvedProject,
         actividad: resolvedActividad,
-        horaInicio: nowTime,
+        horaInicio: effectiveStartTime,
         startTimeStamp: Date.now(),
         observacion: observacionInput.trim(),
         fecha: finalFecha,
@@ -631,10 +767,79 @@ export function MinutaForm({
     setSuccess(null);
     setLoading(true);
 
+    const todayStr = getTodayLocal();
     const nowTime = getCurrentLocalTime24();
+
+    // Caso 1: Si la actividad activa cruzó la medianoche sin haber finalizado aún
+    if (activeTask.fecha && activeTask.fecha !== todayStr) {
+      const taskUbicacion = activeTask.ubicacion || ubicacion;
+      let formattedObs = activeTask.observacion ? activeTask.observacion.trim() : "";
+      if (taskUbicacion && !formattedObs.includes(taskUbicacion)) {
+        formattedObs = formattedObs ? `${formattedObs} [📍 ${taskUbicacion}]` : `[📍 ${taskUbicacion}]`;
+      }
+
+      let day1Start = activeTask.horaInicio;
+      if (day1Start >= "23:59") day1Start = "23:58";
+
+      let day2End = nowTime;
+      if (day2End <= "00:00") day2End = "00:01";
+
+      setActiveTask(null);
+      localStorage.removeItem("minuta_active_task");
+      localStorage.removeItem("minuta_desktop_active_task");
+      localStorage.removeItem("minuta_pwa_active_task");
+
+      try {
+        // Enviar tramo 1 (día anterior hasta 23:59)
+        await dispatchRecordToServer({
+          empleado: canSelectEmpleado && activeTask.empleado ? activeTask.empleado : defaultEmpleadoId || undefined,
+          fecha: activeTask.fecha,
+          tipo: activeTask.tipoMinuta,
+          intervals: [{
+            proyecto: activeTask.proyecto,
+            actividad: activeTask.actividad,
+            horaInicio: day1Start,
+            horaFin: "23:59",
+            observacion: formattedObs,
+          }],
+        });
+
+        // Enviar tramo 2 (nuevo día de 00:00 a nowTime)
+        await dispatchRecordToServer({
+          empleado: canSelectEmpleado && activeTask.empleado ? activeTask.empleado : defaultEmpleadoId || undefined,
+          fecha: todayStr,
+          tipo: activeTask.tipoMinuta,
+          intervals: [{
+            proyecto: activeTask.proyecto,
+            actividad: activeTask.actividad,
+            horaInicio: "00:00",
+            horaFin: day2End,
+            observacion: formattedObs,
+          }],
+        });
+
+        setSuccess(`Actividad finalizada con cruce de medianoche: se guardaron los tramos ${activeTask.fecha} (${day1Start} - 23:59) y ${todayStr} (00:00 - ${day2End}).`);
+        router.refresh();
+      } catch (err: any) {
+        setError(err?.message || "Error al registrar la finalización con cruce de día en el servidor.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Caso 2: Actividad dentro del mismo día
+    let startTime = activeTask.horaInicio;
     let closeTime = nowTime;
-    if (activeTask.horaInicio && closeTime <= activeTask.horaInicio) {
-      closeTime = addMinutesToTime(activeTask.horaInicio, 1);
+
+    // Prevención de solapamiento: si una tarea completada hoy terminó después de startTime (ej. 16:53 vs 16:52):
+    const recentCompletedToday = completedTasks.find((t) => t.fecha === activeTask.fecha);
+    if (recentCompletedToday && recentCompletedToday.horaFin > startTime && recentCompletedToday.horaFin < closeTime) {
+      startTime = recentCompletedToday.horaFin;
+    }
+
+    if (closeTime <= startTime) {
+      closeTime = addMinutesToTime(startTime, 1);
     }
 
     const taskUbicacion = activeTask.ubicacion || ubicacion;
@@ -647,7 +852,7 @@ export function MinutaForm({
       id: Math.random().toString(36).substring(2, 9),
       proyecto: activeTask.proyecto,
       actividad: activeTask.actividad,
-      horaInicio: activeTask.horaInicio,
+      horaInicio: startTime,
       horaFin: closeTime,
       observacion: activeTask.observacion,
       ubicacion: taskUbicacion,
@@ -672,7 +877,7 @@ export function MinutaForm({
         intervals: [{
           proyecto: activeTask.proyecto,
           actividad: activeTask.actividad,
-          horaInicio: activeTask.horaInicio,
+          horaInicio: startTime,
           horaFin: closeTime,
           observacion: formattedObs,
         }],
@@ -682,7 +887,36 @@ export function MinutaForm({
       setSuccess("Actividad finalizada y guardada exitosamente en el servidor.");
       router.refresh();
     } catch (err: any) {
-      setError(err?.message || "Error al registrar la finalización en el servidor.");
+      const errMsg = err?.message || "";
+      // Autocorrección de solapamiento si existe un registro previo guardado en BD (ej. 16:52 - 16:53)
+      const matchOverlap = errMsg.match(/se solapa con un registro guardado en la base de datos \((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+      if (matchOverlap) {
+        const conflictingEnd = matchOverlap[2];
+        if (conflictingEnd > startTime && conflictingEnd < closeTime) {
+          try {
+            await dispatchRecordToServer({
+              empleado: defaultEmpleadoId || undefined,
+              fecha: activeTask.fecha,
+              tipo: activeTask.tipoMinuta,
+              intervals: [{
+                proyecto: activeTask.proyecto,
+                actividad: activeTask.actividad,
+                horaInicio: conflictingEnd,
+                horaFin: closeTime,
+                observacion: formattedObs,
+              }],
+            });
+            completedItem.horaInicio = conflictingEnd;
+            completedItem.synced = true;
+            setSuccess(`Actividad finalizada y guardada (${conflictingEnd} - ${closeTime}). Se ajustó el inicio automáticamente para resolver el solapamiento con el registro previo.`);
+            router.refresh();
+            return;
+          } catch (retryErr: any) {
+            console.error("Fallo segundo intento tras ajustar solapamiento:", retryErr);
+          }
+        }
+      }
+      setError(errMsg || "Error al registrar la finalización en el servidor.");
     } finally {
       setLoading(false);
     }
@@ -1072,7 +1306,11 @@ export function MinutaForm({
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 flex items-center gap-1 border border-slate-200/60">
+                <Clock className="w-3.5 h-3.5 text-brand-primary" />
+                Inicio: {formatTime12(activeTask.horaInicio)} ({activeTask.fecha})
+              </span>
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
                 Tipo {activeTask.tipoMinuta}
               </span>
