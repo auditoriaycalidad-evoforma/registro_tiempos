@@ -95,6 +95,142 @@ export function saveActiveTaskToStorage(task: ActiveTaskData) {
   }
 }
 
+const BROADCAST_CHANNEL_NAME = "evo_active_task_sync_channel";
+
+/**
+ * Emite un cambio de tarea activa a todas las demás pestañas/ventanas de este navegador (Dashboard <-> PWA)
+ */
+export function broadcastActiveTaskChange(task: ActiveTaskData | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if ("BroadcastChannel" in window) {
+      const channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      channel.postMessage({ type: "ACTIVE_TASK_CHANGED", task, timestamp: Date.now() });
+      channel.close();
+    }
+  } catch (e) {
+    // Silently continue if BroadcastChannel is not supported or errors
+  }
+}
+
+/**
+ * Escucha cambios en tiempo real provenientes de otras pestañas o ventanas (Dashboard <-> PWA)
+ */
+export function subscribeToActiveTaskChanges(callback: (task: ActiveTaskData | null) => void): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  let channel: BroadcastChannel | null = null;
+  try {
+    if ("BroadcastChannel" in window) {
+      channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      channel.onmessage = (event) => {
+        if (event?.data?.type === "ACTIVE_TASK_CHANGED") {
+          callback(event.data.task);
+        }
+      };
+    }
+  } catch (e) {
+    // Fallback
+  }
+
+  // También escuchar eventos de storage como respaldo cruzado
+  const handleStorage = (event: StorageEvent) => {
+    if (STORAGE_KEYS.includes(event.key || "")) {
+      try {
+        const val = event.newValue ? JSON.parse(event.newValue) : null;
+        callback(val);
+      } catch {
+        callback(null);
+      }
+    }
+  };
+  window.addEventListener("storage", handleStorage);
+
+  return () => {
+    if (channel) {
+      channel.close();
+    }
+    window.removeEventListener("storage", handleStorage);
+  };
+}
+
+/**
+ * Sincroniza la tarea activa directamente con el servidor (POST /api/actividad-activa)
+ */
+export async function syncActiveTaskToServer(task: ActiveTaskData): Promise<boolean> {
+  if (typeof window === "undefined" || !task) return false;
+  try {
+    const res = await fetch("/api/actividad-activa", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(task),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn("Fallo temporal sincronizando actividad activa con servidor:", err);
+    return false;
+  }
+}
+
+/**
+ * Consulta la tarea activa guardada en el servidor (GET /api/actividad-activa)
+ */
+export async function fetchActiveTaskFromServer(empleadoId?: string): Promise<ActiveTaskData | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const url = empleadoId 
+      ? `/api/actividad-activa?empleadoId=${encodeURIComponent(empleadoId)}` 
+      : "/api/actividad-activa";
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { "Cache-Control": "no-cache" },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.activeTask || null;
+  } catch (err) {
+    console.warn("Error consultando actividad activa del servidor:", err);
+    return null;
+  }
+}
+
+/**
+ * Actualiza la observación de la actividad activa en el servidor
+ */
+export async function patchActiveTaskObservationOnServer(observacion: string, empleadoId?: string): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  try {
+    const res = await fetch("/api/actividad-activa", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ observacion, empleado: empleadoId }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn("Error actualizando observación en servidor:", err);
+    return false;
+  }
+}
+
+/**
+ * Elimina la tarea activa del servidor cuando el usuario pulsa explícitamente "Finalizar Actividad Actual"
+ */
+export async function deleteActiveTaskFromServer(empleadoId?: string): Promise<boolean> {
+  if (typeof window === "undefined") return false;
+  try {
+    const url = empleadoId 
+      ? `/api/actividad-activa?empleadoId=${encodeURIComponent(empleadoId)}` 
+      : "/api/actividad-activa";
+    const res = await fetch(url, {
+      method: "DELETE",
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn("Error eliminando actividad activa del servidor:", err);
+    return false;
+  }
+}
+
 /**
  * Guarda el borrador actual de campos ingresados en el formulario
  * Protege contra pérdidas al recargar, actualizar o desplegar la app
@@ -300,6 +436,8 @@ export async function finalizeAndSaveActiveTask(
     };
 
     clearActiveTaskFromStorage();
+    deleteActiveTaskFromServer(targetEmpleado).catch(() => {});
+    broadcastActiveTaskChange(null);
 
     await sendPayload(payloadDay1, useKeepAlive);
     await sendPayload(payloadDay2, useKeepAlive);
@@ -357,6 +495,8 @@ export async function finalizeAndSaveActiveTask(
   };
 
   clearActiveTaskFromStorage();
+  deleteActiveTaskFromServer(targetEmpleado).catch(() => {});
+  broadcastActiveTaskChange(null);
 
   await sendPayload(payload, useKeepAlive);
 

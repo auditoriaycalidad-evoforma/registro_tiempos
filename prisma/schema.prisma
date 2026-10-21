@@ -65,3 +65,16 @@ model minuta_auditoria {
   valor_nuevo    String?  @db.VarChar(2048)
 }
 
+model minuta_actividad_activa {
+  empleado_id     String  @id @db.VarChar(64)
+  proyecto        String  @db.VarChar(32)
+  actividad       String  @db.VarChar(32)
+  hora_inicio     String  @db.VarChar(10)
+  start_timestamp BigInt
+  observacion     String? @db.VarChar(2048)
+  fecha           String  @db.VarChar(10)
+  tipo_minuta     String  @default("P") @db.VarChar(1)
+  ubicacion       String? @db.VarChar(255)
+  updated_at      BigInt
+}
+

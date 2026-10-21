@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { DashboardPanels } from "@/components/DashboardPanels";
 import { MinutaForm } from "@/components/MinutaForm";
-import { finalizeAndSaveActiveTask } from "@/lib/activeTaskPersistence";
 
 interface Proyecto {
   code: string;
@@ -37,6 +36,7 @@ interface PwaContainerProps {
   session: any;
   isAdmin?: boolean;
   esLiderN?: boolean;
+  initialActiveTask?: any;
 }
 
 export function PwaContainer({ 
@@ -47,6 +47,7 @@ export function PwaContainer({
   session,
   isAdmin: propIsAdmin,
   esLiderN = false,
+  initialActiveTask = null,
 }: PwaContainerProps) {
   const allowedAuditorEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
   const userEmail = session?.user?.email?.toLowerCase()?.trim();
@@ -258,13 +259,8 @@ export function PwaContainer({
 
           {/* Logout */}
           <button 
-            onClick={async () => {
+            onClick={() => {
               if (window.confirm("¿Seguro que deseas cerrar sesión?")) {
-                try {
-                  await finalizeAndSaveActiveTask(null, { fallbackEmpleadoId: session?.user?.id });
-                } catch (err) {
-                  console.error("Error al finalizar actividad al salir en PWA:", err);
-                }
                 signOut({ callbackUrl: "/pwa" });
               }
             }}
@@ -326,6 +322,8 @@ export function PwaContainer({
               actividades={actividades} 
               canSelectEmpleado={false}
               isAdmin={false}
+              defaultEmpleadoId={session?.user?.id}
+              initialActiveTask={initialActiveTask}
             />
           </div>
         ) : (
@@ -336,6 +334,8 @@ export function PwaContainer({
                 actividades={actividades} 
                 canSelectEmpleado={false}
                 isAdmin={false}
+                defaultEmpleadoId={session?.user?.id}
+                initialActiveTask={initialActiveTask}
               />
             </div>
 

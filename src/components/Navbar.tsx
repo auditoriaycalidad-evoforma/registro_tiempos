@@ -4,7 +4,6 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { LogOut, LayoutDashboard, Clock, Shield, FileSpreadsheet, BarChart3 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { finalizeAndSaveActiveTask } from "@/lib/activeTaskPersistence";
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -87,13 +86,8 @@ export default function Navbar() {
                 </p>
               </div>
               <button
-                onClick={async () => {
+                onClick={() => {
                   if (window.confirm("¿Estás seguro de que deseas salir?")) {
-                    try {
-                      await finalizeAndSaveActiveTask(null, { fallbackEmpleadoId: session?.user?.id });
-                    } catch (err) {
-                      console.error("Error al finalizar actividad al salir:", err);
-                    }
                     signOut({ callbackUrl: "/login" });
                   }
                 }}

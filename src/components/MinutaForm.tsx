@@ -21,6 +21,12 @@ import {
   saveFormDraft,
   getFormDraft,
   clearFormDraft,
+  syncActiveTaskToServer,
+  fetchActiveTaskFromServer,
+  deleteActiveTaskFromServer,
+  patchActiveTaskObservationOnServer,
+  broadcastActiveTaskChange,
+  subscribeToActiveTaskChanges,
 } from "@/lib/activeTaskPersistence";
 
 interface EmpleadoOption {
@@ -84,6 +90,7 @@ export function MinutaForm({
   canSelectEmpleado = false,
   defaultEmpleadoId = "",
   isAdmin: propIsAdmin,
+  initialActiveTask = null,
 }: { 
   proyectos: ProyectoOption[]; 
   actividades: ActividadOption[];
@@ -91,6 +98,7 @@ export function MinutaForm({
   canSelectEmpleado?: boolean;
   defaultEmpleadoId?: string;
   isAdmin?: boolean;
+  initialActiveTask?: DesktopActiveTask | null;
 }) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -120,12 +128,36 @@ export function MinutaForm({
   const [showMultiIntervals, setShowMultiIntervals] = useState<boolean>(false);
 
   // In-Progress Active Task & Completed Log (For standard users using real-time)
-  const [activeTask, setActiveTask] = useState<DesktopActiveTask | null>(null);
+  const [activeTask, setActiveTask] = useState<DesktopActiveTask | null>(() => {
+    if (initialActiveTask && initialActiveTask.actividad && initialActiveTask.horaInicio) {
+      return {
+        ...initialActiveTask,
+        startTimeStamp: initialActiveTask.startTimeStamp || Date.now(),
+        observacion: initialActiveTask.observacion || "",
+      };
+    }
+    const saved = getActiveTaskFromStorage();
+    if (saved && saved.actividad && saved.horaInicio) {
+      return {
+        proyecto: saved.proyecto,
+        actividad: saved.actividad,
+        horaInicio: saved.horaInicio,
+        startTimeStamp: saved.startTimeStamp || Date.now(),
+        observacion: saved.observacion || "",
+        fecha: saved.fecha,
+        tipoMinuta: saved.tipoMinuta,
+        empleado: saved.empleado,
+        ubicacion: saved.ubicacion,
+      };
+    }
+    return null;
+  });
   const [completedTasks, setCompletedTasks] = useState<DesktopCompletedTask[]>([]);
   const [elapsedMinutes, setElapsedMinutes] = useState<number>(0);
   const isHandlingMidnightRef = useRef<boolean>(false);
   const activeTaskRef = useRef<DesktopActiveTask | null>(null);
   activeTaskRef.current = activeTask;
+  const obsDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Geolocalización automática en tiempo real (Opcional para admin, requerida para empleados)
   const {
@@ -359,12 +391,14 @@ export function MinutaForm({
     await handleMidnightCross(oldTask, todayStr);
   };
 
-  // --- CARGA INICIAL: RESTAURACIÓN Y RECUPERACIÓN ROBUSTA ANTE ACTUALIZACIONES / REINICIOS ---
+  // --- CARGA INICIAL Y SINCRONIZACIÓN EN TIEMPO REAL CON EL SERVIDOR Y OTRAS PESTAÑAS/PWA ---
   useEffect(() => {
     if (isAdmin) return; // Admins use open editable fields
 
+    const targetEmp = selectedEmpleado || defaultEmpleadoId || session?.user?.id;
+
+    // 1. Recuperar borrador de campos del formulario
     try {
-      // 1. Recuperar borrador de campos del formulario (si el usuario estaba redactando antes de la actualización)
       const draft = getFormDraft();
       if (draft) {
         if (draft.proyecto) setSelectedProyecto(draft.proyecto);
@@ -372,8 +406,16 @@ export function MinutaForm({
         if (draft.observacion) setObservacionInput(draft.observacion);
         if (draft.tipo) setTipo(draft.tipo);
       }
+    } catch (e) {
+      console.error("Error al restaurar borrador:", e);
+    }
 
-      // 2. Recuperar actividad activa en curso desde el respaldo local redundante (Evo / Minuta)
+    // 2. Si initialActiveTask vino por SSR, sincronizar con localStorage
+    if (initialActiveTask && initialActiveTask.actividad && initialActiveTask.horaInicio) {
+      setActiveTask(initialActiveTask);
+      saveActiveTaskToStorage(initialActiveTask);
+    } else {
+      // Intentar localStorage inicial
       const savedTask = getActiveTaskFromStorage();
       if (savedTask && savedTask.actividad && savedTask.horaInicio) {
         const todayStr = getTodayLocal();
@@ -395,12 +437,83 @@ export function MinutaForm({
           setActiveTask(normalizedTask);
           if (normalizedTask.tipoMinuta) setTipo(normalizedTask.tipoMinuta);
           if (normalizedTask.empleado && canSelectEmpleado) setSelectedEmpleado(normalizedTask.empleado);
-          setRecoveryNotice("Progreso de actividad recuperado de forma segura del respaldo local.");
-          setTimeout(() => setRecoveryNotice(null), 6000);
         }
       }
+    }
 
-      // 3. Restaurar historial de tareas completadas
+    // 3. Sincronización continua con el servidor (Dashboard <-> PWA bidireccional)
+    const syncWithServer = async () => {
+      try {
+        const serverTask = await fetchActiveTaskFromServer(targetEmp);
+        const todayStr = getTodayLocal();
+        if (serverTask && serverTask.actividad && serverTask.horaInicio) {
+          const normalizedTask: DesktopActiveTask = {
+            proyecto: serverTask.proyecto,
+            actividad: serverTask.actividad,
+            horaInicio: serverTask.horaInicio,
+            startTimeStamp: serverTask.startTimeStamp || Date.now(),
+            observacion: serverTask.observacion || "",
+            fecha: serverTask.fecha || todayStr,
+            tipoMinuta: serverTask.tipoMinuta || "P",
+            empleado: serverTask.empleado,
+            ubicacion: serverTask.ubicacion,
+          };
+
+          if (normalizedTask.fecha !== todayStr) {
+            handleMidnightCross(normalizedTask, todayStr).catch(console.error);
+          } else {
+            const current = activeTaskRef.current;
+            const hasChanged = !current || 
+              current.proyecto !== normalizedTask.proyecto ||
+              current.actividad !== normalizedTask.actividad ||
+              current.horaInicio !== normalizedTask.horaInicio ||
+              (normalizedTask.observacion !== undefined && current.observacion !== normalizedTask.observacion);
+
+            if (hasChanged) {
+              setActiveTask(normalizedTask);
+              saveActiveTaskToStorage(normalizedTask);
+              if (normalizedTask.tipoMinuta) setTipo(normalizedTask.tipoMinuta);
+            }
+          }
+        } else if (activeTaskRef.current) {
+          // Si el servidor indica que no hay tarea activa (se finalizó en otro dispositivo/pestaña)
+          clearActiveTaskFromStorage();
+          setActiveTask(null);
+        }
+      } catch (e) {
+        console.warn("Fallo sincronizando actividad activa con servidor:", e);
+      }
+    };
+
+    syncWithServer();
+
+    // 4. Suscribirse a cambios instantáneos entre pestañas / PWA en el mismo dispositivo
+    const unsubscribeBroadcast = subscribeToActiveTaskChanges((incomingTask) => {
+      if (incomingTask && incomingTask.actividad && incomingTask.horaInicio) {
+        setActiveTask(incomingTask as DesktopActiveTask);
+        saveActiveTaskToStorage(incomingTask);
+      } else {
+        clearActiveTaskFromStorage();
+        setActiveTask(null);
+      }
+    });
+
+    // 5. Polling periódico cada 8s para sincronización cruzada entre dispositivos (Dashboard <-> PWA)
+    const pollInterval = setInterval(() => {
+      syncWithServer();
+    }, 8000);
+
+    // 6. Sincronización inmediata al enfocar la pestaña o regresar a la app
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        syncWithServer();
+      }
+    };
+    window.addEventListener("focus", syncWithServer);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // 7. Restaurar historial de tareas completadas
+    try {
       const savedCompleted = localStorage.getItem("evo_completed_tasks") ||
                               localStorage.getItem("minuta_completed_tasks") || 
                               localStorage.getItem("minuta_desktop_completed_tasks") || 
@@ -412,9 +525,16 @@ export function MinutaForm({
         }
       }
     } catch (e) {
-      console.error("Error al restaurar respaldo local en dashboard/pwa:", e);
+      console.error("Error al restaurar completedTasks:", e);
     }
-  }, [isAdmin, canSelectEmpleado]);
+
+    return () => {
+      unsubscribeBroadcast();
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", syncWithServer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [isAdmin, canSelectEmpleado, selectedEmpleado, defaultEmpleadoId, session?.user?.id, initialActiveTask]);
 
   // Guardado automático del borrador de campos ingresados (protege contra pérdidas por recarga/actualización/despliegue)
   useEffect(() => {
@@ -794,6 +914,8 @@ export function MinutaForm({
       clearFormDraft();
       saveActiveTaskToStorage(newTask);
       setActiveTask(newTask);
+      syncActiveTaskToServer(newTask).catch(console.error);
+      broadcastActiveTaskChange(newTask);
       setSelectedProyecto("");
       setSelectedActividad("");
       setObservacionInput("");
@@ -837,6 +959,9 @@ export function MinutaForm({
       clearActiveTaskFromStorage();
       clearFormDraft();
       setActiveTask(null);
+      const targetEmp = (canSelectEmpleado && activeTask.empleado) || defaultEmpleadoId || session?.user?.id;
+      deleteActiveTaskFromServer(targetEmp).catch(console.error);
+      broadcastActiveTaskChange(null);
 
       try {
         // Enviar tramo 1 (día anterior hasta 23:59)
@@ -916,6 +1041,9 @@ export function MinutaForm({
     clearActiveTaskFromStorage();
     clearFormDraft();
     setActiveTask(null);
+    const targetEmp = (canSelectEmpleado && activeTask.empleado) || defaultEmpleadoId || session?.user?.id;
+    deleteActiveTaskFromServer(targetEmp).catch(console.error);
+    broadcastActiveTaskChange(null);
 
     try {
       await dispatchRecordToServer({
@@ -971,7 +1099,21 @@ export function MinutaForm({
   };
 
   const handleUpdateActiveObservation = (newObs: string) => {
-    setActiveTask((prev) => (prev ? { ...prev, observacion: newObs } : null));
+    setActiveTask((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, observacion: newObs };
+      saveActiveTaskToStorage(updated);
+      return updated;
+    });
+
+    if (obsDebounceRef.current) {
+      clearTimeout(obsDebounceRef.current);
+    }
+    obsDebounceRef.current = setTimeout(() => {
+      const currentEmp = (canSelectEmpleado && activeTaskRef.current?.empleado) || defaultEmpleadoId || session?.user?.id;
+      patchActiveTaskObservationOnServer(newObs, currentEmp).catch(console.error);
+      broadcastActiveTaskChange(activeTaskRef.current);
+    }, 500);
   };
 
   // =========================================================================

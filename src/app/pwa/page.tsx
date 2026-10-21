@@ -98,6 +98,32 @@ export default async function PwaPage() {
       })
     : [];
 
+  // Cargar actividad activa en curso del usuario para sincronización inmediata
+  let initialActiveTask: any = null;
+  if (session?.user?.id) {
+    try {
+      const activeRow = await prisma.minuta_actividad_activa.findUnique({
+        where: { empleado_id: session.user.id },
+      });
+      if (activeRow) {
+        initialActiveTask = {
+          proyecto: activeRow.proyecto,
+          actividad: activeRow.actividad,
+          horaInicio: activeRow.hora_inicio,
+          startTimeStamp: Number(activeRow.start_timestamp),
+          observacion: activeRow.observacion || "",
+          fecha: activeRow.fecha,
+          tipoMinuta: activeRow.tipo_minuta || "P",
+          ubicacion: activeRow.ubicacion || undefined,
+          empleado: activeRow.empleado_id,
+          updatedAt: Number(activeRow.updated_at),
+        };
+      }
+    } catch (e) {
+      console.error("Error cargando initialActiveTask en PWA:", e);
+    }
+  }
+
   return (
     <PwaContainer
       proyectos={proyectos}
@@ -107,6 +133,7 @@ export default async function PwaPage() {
       session={session}
       isAdmin={isAdmin}
       esLiderN={esLiderN}
+      initialActiveTask={initialActiveTask}
     />
   );
 }
