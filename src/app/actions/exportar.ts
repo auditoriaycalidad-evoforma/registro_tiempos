@@ -109,25 +109,108 @@ async function ensureCanExport() {
   }
 }
 
+// Mutex en memoria para evitar condiciones de carrera entre sincronizaciones concurrentes
+let currentSyncLock = Promise.resolve<any>(null);
+
+async function runWithSyncLock<T>(fn: () => Promise<T>): Promise<T> {
+  const previousLock = currentSyncLock;
+  let release: () => void;
+  const newLock = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  currentSyncLock = newLock;
+
+  try {
+    await previousLock.catch(() => {});
+    return await fn();
+  } finally {
+    release!();
+  }
+}
+
 /**
  * Sincronización unidireccional (PostgreSQL -> Google Sheets).
- * Actualiza las filas existentes con los datos oficiales de la Base de Datos,
- * preserva columnas manuales a la derecha (índice >= 14) y filas manuales sin ID,
- * y agrega los nuevos registros provenientes de PostgreSQL.
- * NUNCA modifica la base de datos PostgreSQL.
+ * La aplicación / PostgreSQL es la ÚNICA FUENTE DE LA VERDAD.
+ * - Cada registro de la BD aparece EXACTAMENTE UNA VEZ en la hoja de cálculo.
+ * - Elimina de raíz cualquier duplicado previo (mismo ID o mismo contenido).
+ * - Purga registros eliminados de la BD.
+ * - Preserva columnas manuales a la derecha de ID_REGISTRO (índice >= 14).
+ * - Preserva filas manuales legítimas sin ID agregadas externamente.
+ * - Ordena cronológicamente (Fecha asc, Hora Inicio asc, ID asc).
  */
 function mergeMinutasWithSheetValues(
   dbMinutas: any[],
   existingValues: (string | number)[][]
 ): (string | number)[][] {
-  const dbRowsMap = new Map<string, (string | number)[]>();
+  // Ordenar los registros de BD cronológicamente
+  const sortedDb = [...dbMinutas].sort((a, b) => {
+    const dDiff = a.fecha.getTime() - b.fecha.getTime();
+    if (dDiff !== 0) return dDiff;
+    const hDiff = a.hora_inicio.getTime() - b.hora_inicio.getTime();
+    if (hDiff !== 0) return hDiff;
+    return a.id - b.id;
+  });
 
-  dbMinutas.forEach((minuta) => {
+  const manualColsByDbId = new Map<string, (string | number)[]>();
+  const manualRowsWithoutDbId: (string | number)[][] = [];
+
+  if (existingValues && existingValues.length > 1) {
+    for (const existingRow of existingValues.slice(1)) {
+      const rawId = existingRow[13]?.toString().trim();
+      const numId = Number(rawId);
+      const isAppRecordId = Boolean(rawId && !isNaN(numId) && numId > 0);
+
+      if (isAppRecordId) {
+        // Preservar columnas manuales adicionales de Google Sheets (a la derecha de ID_REGISTRO)
+        if (existingRow.length > 14 && !manualColsByDbId.has(rawId)) {
+          const extraCols = existingRow.slice(14);
+          if (extraCols.some(c => c !== undefined && c !== null && c.toString().trim() !== "")) {
+            manualColsByDbId.set(rawId, extraCols);
+          }
+        }
+      } else {
+        // Fila sin ID: verificar si no es un registro duplicado de la BD sin ID
+        const hasContent = existingRow.some(
+          (cell) => cell !== undefined && cell !== null && cell.toString().trim() !== ""
+        );
+        if (hasContent) {
+          const rowFecha = existingRow[3]?.toString().trim();
+          const rowInicio = existingRow[6]?.toString().trim();
+          const rowFin = existingRow[7]?.toString().trim();
+          const rowEmpleado = existingRow[9]?.toString().trim().toUpperCase();
+          const rowProyecto = existingRow[4]?.toString().trim().toUpperCase();
+
+          const matchesDb = sortedDb.some(m => {
+            const mFecha = formatDate(m.fecha);
+            const mInicio = formatTime24(m.hora_inicio);
+            const mFin = formatTime24(m.hora_fin);
+            const mEmpleado = (m.minuta_empleado?.apellido_nombre ?? m.empleado ?? "").toUpperCase();
+            const mProyecto = (m.minuta_proyecto?.code ?? m.proyecto ?? "").toUpperCase();
+            return mFecha === rowFecha && mInicio === rowInicio && mFin === rowFin && mEmpleado === rowEmpleado && mProyecto === rowProyecto;
+          });
+
+          if (!matchesDb) {
+            manualRowsWithoutDbId.push([...existingRow]);
+          }
+        }
+      }
+    }
+  }
+
+  const resultRows: (string | number)[][] = [];
+  const processedIds = new Set<string>();
+
+  for (const minuta of sortedDb) {
+    const idStr = minuta.id.toString();
+    // GARANTÍA ANTI-DUPLICADOS: Nunca insertar el mismo ID más de una vez
+    if (processedIds.has(idStr)) continue;
+    processedIds.add(idStr);
+
     const actName = minuta.minuta_actividad?.nombre ?? minuta.actividad ?? "";
     const empCargo = minuta.minuta_empleado?.cargo ?? "";
     const actividadCargo = actName && empCargo ? `${actName} - ${empCargo}` : (actName || empCargo || "");
 
-    const row = [
+    const row: (string | number)[] = [
       DAYS_OF_WEEK[minuta.fecha.getUTCDay()],
       `Tipo ${minuta.tipo_minuta === 'A' ? 'P' : minuta.tipo_minuta}`,
       MONTHS[minuta.fecha.getUTCMonth()],
@@ -144,55 +227,17 @@ function mergeMinutasWithSheetValues(
       minuta.id,
     ];
 
-    dbRowsMap.set(minuta.id.toString(), row);
-  });
+    if (manualColsByDbId.has(idStr)) {
+      row.push(...manualColsByDbId.get(idStr)!);
+    }
 
-  // Si la hoja está vacía o solo tiene encabezado
-  if (!existingValues || existingValues.length <= 1) {
-    return [HEADERS, ...Array.from(dbRowsMap.values())];
+    resultRows.push(row);
   }
 
-  const resultRows: (string | number)[][] = [];
-  const processedDbIds = new Set<string>();
-
-  // 1. Recorrer las filas existentes en la hoja de cálculo
-  for (const existingRow of existingValues.slice(1)) {
-    const rawId = existingRow[13]?.toString().trim();
-    const numId = Number(rawId);
-    const isAppRecordId = Boolean(rawId && !isNaN(numId) && numId > 0);
-
-    if (isAppRecordId) {
-      if (dbRowsMap.has(rawId)) {
-        // Registro vigente originado en la App: sobreescribir con el estado oficial de la BD
-        const updatedRow = [...dbRowsMap.get(rawId)!];
-        // Preservar columnas manuales adicionales de Google Sheets (a la derecha de ID_REGISTRO)
-        if (existingRow.length > 14) {
-          updatedRow.push(...existingRow.slice(14));
-        }
-        resultRows.push(updatedRow);
-        processedDbIds.add(rawId);
-      }
-      // Si isAppRecordId es true pero NO existe en dbRowsMap:
-      // El registro fue ELIMINADO en la aplicación o movido de cargo.
-      // NO se agrega a resultRows (se purga de Google Sheets).
-    } else {
-      // Filas manuales en Sheets sin ID de la aplicación: conservar si contienen datos
-      const hasContent = existingRow.some(
-        (cell) => cell !== undefined && cell !== null && cell.toString().trim() !== ""
-      );
-      if (hasContent) {
-        resultRows.push([...existingRow]);
-      }
-    }
+  // Conservar filas manuales legítimas al final
+  if (manualRowsWithoutDbId.length > 0) {
+    resultRows.push(...manualRowsWithoutDbId);
   }
-
-  // 2. Agregar los nuevos registros de la BD que aún no estaban en la hoja
-  dbMinutas.forEach((minuta) => {
-    const idStr = minuta.id.toString();
-    if (!processedDbIds.has(idStr)) {
-      resultRows.push(dbRowsMap.get(idStr)!);
-    }
-  });
 
   return [HEADERS, ...resultRows];
 }
@@ -207,6 +252,8 @@ export async function syncMinutasToSheets({
   if (!skipAuth) {
     await ensureCanExport();
   }
+
+  return runWithSyncLock(async () => {
 
   const { year, start, end } = getCurrentYearRange();
 
@@ -325,11 +372,13 @@ export async function syncMinutasToSheets({
     // Ignore when executed outside Next.js request context
   }
 
-  return {
-    success: true,
-    year,
-    totalRows: results[0]?.rows || 0,
-    files: results,
-    syncedAt: new Date().toISOString(),
-  };
+    return {
+      success: true,
+      year,
+      totalRows: results[0]?.rows || 0,
+      files: results,
+      syncedAt: new Date().toISOString(),
+    };
+  });
 }
+
