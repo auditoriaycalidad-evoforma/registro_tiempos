@@ -13,6 +13,15 @@ import { TimePicker12 } from "./TimePicker12";
 import { getCurrentLocalTime24, addMinutesToTime, getColombiaDateString, formatTime12 } from "@/lib/formatTime";
 import { useGeolocation } from "@/lib/useGeolocation";
 import { filtrarActividadesPorCargo } from "@/lib/actividades";
+import { 
+  finalizeAndSaveActiveTask, 
+  saveActiveTaskToStorage, 
+  getActiveTaskFromStorage, 
+  clearActiveTaskFromStorage,
+  saveFormDraft,
+  getFormDraft,
+  clearFormDraft,
+} from "@/lib/activeTaskPersistence";
 
 interface EmpleadoOption {
   id: string;
@@ -115,6 +124,8 @@ export function MinutaForm({
   const [completedTasks, setCompletedTasks] = useState<DesktopCompletedTask[]>([]);
   const [elapsedMinutes, setElapsedMinutes] = useState<number>(0);
   const isHandlingMidnightRef = useRef<boolean>(false);
+  const activeTaskRef = useRef<DesktopActiveTask | null>(null);
+  activeTaskRef.current = activeTask;
 
   // Geolocalización automática en tiempo real (Opcional para admin, requerida para empleados)
   const {
@@ -127,6 +138,7 @@ export function MinutaForm({
   // Status & Feedback
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Update default employee if provided
@@ -347,29 +359,50 @@ export function MinutaForm({
     await handleMidnightCross(oldTask, todayStr);
   };
 
-  // --- INITIAL LOAD & LOCAL STORAGE RESTORATION (FOR REAL-TIME TIMER) ---
+  // --- CARGA INICIAL: RESTAURACIÓN Y RECUPERACIÓN ROBUSTA ANTE ACTUALIZACIONES / REINICIOS ---
   useEffect(() => {
     if (isAdmin) return; // Admins use open editable fields
 
     try {
-      const savedTask = localStorage.getItem("minuta_active_task") || 
-                        localStorage.getItem("minuta_desktop_active_task") || 
-                        localStorage.getItem("minuta_pwa_active_task");
-      if (savedTask) {
-        const parsed = JSON.parse(savedTask);
-        if (parsed && parsed.actividad && parsed.horaInicio) {
-          const todayStr = getTodayLocal();
-          if (parsed.fecha && parsed.fecha !== todayStr) {
-            handleMidnightCross(parsed, todayStr).catch(console.error);
-          } else {
-            setActiveTask(parsed);
-            if (parsed.tipoMinuta) setTipo(parsed.tipoMinuta);
-            if (parsed.empleado && canSelectEmpleado) setSelectedEmpleado(parsed.empleado);
-          }
+      // 1. Recuperar borrador de campos del formulario (si el usuario estaba redactando antes de la actualización)
+      const draft = getFormDraft();
+      if (draft) {
+        if (draft.proyecto) setSelectedProyecto(draft.proyecto);
+        if (draft.actividad) setSelectedActividad(draft.actividad);
+        if (draft.observacion) setObservacionInput(draft.observacion);
+        if (draft.tipo) setTipo(draft.tipo);
+      }
+
+      // 2. Recuperar actividad activa en curso desde el respaldo local redundante (Evo / Minuta)
+      const savedTask = getActiveTaskFromStorage();
+      if (savedTask && savedTask.actividad && savedTask.horaInicio) {
+        const todayStr = getTodayLocal();
+        const normalizedTask: DesktopActiveTask = {
+          proyecto: savedTask.proyecto,
+          actividad: savedTask.actividad,
+          horaInicio: savedTask.horaInicio,
+          startTimeStamp: savedTask.startTimeStamp || Date.now(),
+          observacion: savedTask.observacion || "",
+          fecha: savedTask.fecha || todayStr,
+          tipoMinuta: savedTask.tipoMinuta || "P",
+          empleado: savedTask.empleado,
+          ubicacion: savedTask.ubicacion,
+        };
+
+        if (normalizedTask.fecha !== todayStr) {
+          handleMidnightCross(normalizedTask, todayStr).catch(console.error);
+        } else {
+          setActiveTask(normalizedTask);
+          if (normalizedTask.tipoMinuta) setTipo(normalizedTask.tipoMinuta);
+          if (normalizedTask.empleado && canSelectEmpleado) setSelectedEmpleado(normalizedTask.empleado);
+          setRecoveryNotice("Progreso de actividad recuperado de forma segura del respaldo local.");
+          setTimeout(() => setRecoveryNotice(null), 6000);
         }
       }
 
-      const savedCompleted = localStorage.getItem("minuta_completed_tasks") || 
+      // 3. Restaurar historial de tareas completadas
+      const savedCompleted = localStorage.getItem("evo_completed_tasks") ||
+                              localStorage.getItem("minuta_completed_tasks") || 
                               localStorage.getItem("minuta_desktop_completed_tasks") || 
                               localStorage.getItem("minuta_pwa_completed_tasks");
       if (savedCompleted) {
@@ -379,26 +412,34 @@ export function MinutaForm({
         }
       }
     } catch (e) {
-      console.error("Error al restaurar actividad activa en dashboard/pwa:", e);
+      console.error("Error al restaurar respaldo local en dashboard/pwa:", e);
     }
   }, [isAdmin, canSelectEmpleado]);
 
-  // Sync active task to localStorage whenever it changes
+  // Guardado automático del borrador de campos ingresados (protege contra pérdidas por recarga/actualización/despliegue)
+  useEffect(() => {
+    if (isAdmin || activeTask) return;
+    if (selectedProyecto || selectedActividad || observacionInput) {
+      saveFormDraft({
+        proyecto: selectedProyecto,
+        actividad: selectedActividad,
+        observacion: observacionInput,
+        tipo,
+      });
+    }
+  }, [selectedProyecto, selectedActividad, observacionInput, tipo, isAdmin, activeTask]);
+
+  // Respaldo continuo de la tarea activa en localStorage
   useEffect(() => {
     if (isAdmin) return;
     try {
       if (activeTask) {
-        const serialized = JSON.stringify(activeTask);
-        localStorage.setItem("minuta_active_task", serialized);
-        localStorage.setItem("minuta_desktop_active_task", serialized);
-        localStorage.setItem("minuta_pwa_active_task", serialized);
+        saveActiveTaskToStorage(activeTask);
       } else {
-        localStorage.removeItem("minuta_active_task");
-        localStorage.removeItem("minuta_desktop_active_task");
-        localStorage.removeItem("minuta_pwa_active_task");
+        clearActiveTaskFromStorage();
       }
     } catch (e) {
-      console.error("Error al guardar activeTask en localStorage:", e);
+      console.error("Error al respaldar activeTask en localStorage:", e);
     }
   }, [activeTask, isAdmin]);
 
@@ -408,6 +449,7 @@ export function MinutaForm({
     try {
       if (completedTasks.length > 0) {
         const serialized = JSON.stringify(completedTasks);
+        localStorage.setItem("evo_completed_tasks", serialized);
         localStorage.setItem("minuta_completed_tasks", serialized);
         localStorage.setItem("minuta_desktop_completed_tasks", serialized);
         localStorage.setItem("minuta_pwa_completed_tasks", serialized);
@@ -434,6 +476,9 @@ export function MinutaForm({
       if (!activeTask.startTimeStamp) return;
       const diffMs = Math.max(0, Date.now() - activeTask.startTimeStamp);
       setElapsedMinutes(Math.floor(diffMs / 60000));
+
+      // Respaldo periódico redundante en storage (heartbeat cada 15s)
+      saveActiveTaskToStorage(activeTask);
     };
 
     checkMidnightAndSyncTimer();
@@ -548,6 +593,7 @@ export function MinutaForm({
       });
 
       setSuccess(`¡${intervalsToSubmit.length} registro(s) de actividad guardado(s) exitosamente!`);
+      clearFormDraft();
       setObservacionInput("");
       setAdditionalIntervals([]);
       setShowMultiIntervals(false);
@@ -745,7 +791,11 @@ export function MinutaForm({
         ubicacion: ubicacion || undefined,
       };
 
+      clearFormDraft();
+      saveActiveTaskToStorage(newTask);
       setActiveTask(newTask);
+      setSelectedProyecto("");
+      setSelectedActividad("");
       setObservacionInput("");
       setSuccess(
         activeTask 
@@ -784,10 +834,9 @@ export function MinutaForm({
       let day2End = nowTime;
       if (day2End <= "00:00") day2End = "00:01";
 
+      clearActiveTaskFromStorage();
+      clearFormDraft();
       setActiveTask(null);
-      localStorage.removeItem("minuta_active_task");
-      localStorage.removeItem("minuta_desktop_active_task");
-      localStorage.removeItem("minuta_pwa_active_task");
 
       try {
         // Enviar tramo 1 (día anterior hasta 23:59)
@@ -864,10 +913,9 @@ export function MinutaForm({
     };
 
     setCompletedTasks((prev) => [completedItem, ...prev]);
+    clearActiveTaskFromStorage();
+    clearFormDraft();
     setActiveTask(null);
-    localStorage.removeItem("minuta_active_task");
-    localStorage.removeItem("minuta_desktop_active_task");
-    localStorage.removeItem("minuta_pwa_active_task");
 
     try {
       await dispatchRecordToServer({
@@ -1278,6 +1326,21 @@ export function MinutaForm({
       </div>
 
       {/* Notificaciones */}
+      {recoveryNotice && (
+        <div className="p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-700 rounded-r-xl text-xs flex items-center justify-between gap-2.5 animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-blue-600" />
+            <span className="font-semibold">{recoveryNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRecoveryNotice(null)}
+            className="text-blue-500 hover:text-blue-700 text-xs font-bold px-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {error && (
         <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-xl text-sm flex items-start gap-2.5 animate-fadeIn">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -1308,8 +1371,17 @@ export function MinutaForm({
 
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 flex items-center gap-1 border border-slate-200/60">
-                <Clock className="w-3.5 h-3.5 text-brand-primary" />
-                Inicio: {formatTime12(activeTask.horaInicio)} ({activeTask.fecha})
+                {isAdmin ? (
+                  <>
+                    <Clock className="w-3.5 h-3.5 text-brand-primary" />
+                    Inicio: {formatTime12(activeTask.horaInicio)} ({activeTask.fecha})
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="w-3.5 h-3.5 text-brand-primary" />
+                    {activeTask.fecha}
+                  </>
+                )}
               </span>
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
                 Tipo {activeTask.tipoMinuta}

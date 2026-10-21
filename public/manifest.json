@@ -1,6 +1,6 @@
 {
   "name": "Evoforma - Registro de Actividades",
-  "short_name": "EvoMinuta",
+  "short_name": "Evo",
   "description": "Registro ágil y móvil de actividades para técnicos y personal de campo.",
   "start_url": "/pwa",
   "display": "standalone",

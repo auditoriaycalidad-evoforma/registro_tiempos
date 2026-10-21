@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { DashboardPanels } from "@/components/DashboardPanels";
 import { MinutaForm } from "@/components/MinutaForm";
+import { finalizeAndSaveActiveTask } from "@/lib/activeTaskPersistence";
 
 interface Proyecto {
   code: string;
@@ -215,7 +216,7 @@ export function PwaContainer({
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              <span className="font-black text-base tracking-tight text-brand-primary">EvoMinuta</span>
+              <span className="font-black text-base tracking-tight text-brand-primary">Evo</span>
               {isAdmin ? (
                 <span className="text-[9px] uppercase font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 px-1.5 py-0.5 rounded-md">
                   Administración
@@ -257,8 +258,13 @@ export function PwaContainer({
 
           {/* Logout */}
           <button 
-            onClick={() => {
+            onClick={async () => {
               if (window.confirm("¿Seguro que deseas cerrar sesión?")) {
+                try {
+                  await finalizeAndSaveActiveTask(null, { fallbackEmpleadoId: session?.user?.id });
+                } catch (err) {
+                  console.error("Error al finalizar actividad al salir en PWA:", err);
+                }
                 signOut({ callbackUrl: "/pwa" });
               }
             }}

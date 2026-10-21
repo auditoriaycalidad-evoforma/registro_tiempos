@@ -4,6 +4,7 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { LogOut, LayoutDashboard, Clock, Shield, FileSpreadsheet, BarChart3 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { finalizeAndSaveActiveTask } from "@/lib/activeTaskPersistence";
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -23,7 +24,7 @@ export default function Navbar() {
           <div className="flex px-2 lg:px-0">
             <div className="flex-shrink-0 flex items-center">
               <Clock className="h-8 w-8 text-brand-primary mr-2" />
-              <span className="font-bold text-xl text-brand-light tracking-tight">Minuta</span>
+              <span className="font-bold text-xl text-brand-light tracking-tight">Evo</span>
             </div>
             <div className="hidden lg:ml-8 lg:flex lg:space-x-4">
               <Link
@@ -86,8 +87,13 @@ export default function Navbar() {
                 </p>
               </div>
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (window.confirm("¿Estás seguro de que deseas salir?")) {
+                    try {
+                      await finalizeAndSaveActiveTask(null, { fallbackEmpleadoId: session?.user?.id });
+                    } catch (err) {
+                      console.error("Error al finalizar actividad al salir:", err);
+                    }
                     signOut({ callbackUrl: "/login" });
                   }
                 }}
