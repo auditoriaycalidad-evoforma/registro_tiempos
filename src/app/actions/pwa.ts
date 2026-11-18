@@ -183,6 +183,10 @@ export async function createMinutasPwa(data: {
         const horaInicioDate = new Date(`1970-01-01T${inv.horaInicio}:00.000Z`);
         const horaFinDate = new Date(`1970-01-01T${inv.horaFin}:00.000Z`);
 
+        const recordTipo = (isAuditor && (inv as any).tipo && ((inv as any).tipo === "P" || (inv as any).tipo === "O"))
+          ? (inv as any).tipo
+          : tipo;
+
         return prisma.minuta_registro_actividad.create({
           data: {
             empleado: targetEmpleadoId,
@@ -191,8 +195,8 @@ export async function createMinutasPwa(data: {
             hora_fin: horaFinDate,
             proyecto: inv.proyecto,
             actividad: inv.actividad,
-            tipo_minuta: tipo,
-            aprobado: tipo === "O" ? "PE" : "SI",
+            tipo_minuta: recordTipo,
+            aprobado: recordTipo === "O" ? "PE" : "SI",
             observacion: inv.observacion,
           },
         });

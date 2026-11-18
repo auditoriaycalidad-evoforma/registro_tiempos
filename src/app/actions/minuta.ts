@@ -81,6 +81,7 @@ export async function createMinuta(formData: FormData) {
     horaInicio: string; 
     horaFin: string; 
     observacion: string; 
+    tipo?: string;
   }[] = [];
   
   const keys = Array.from(formData.keys());
@@ -95,6 +96,7 @@ export async function createMinuta(formData: FormData) {
     const proyecto = formData.get(`proyecto_${idx}`) as string;
     const actividad = formData.get(`actividad_${idx}`) as string;
     const observacion = (formData.get(`observacion_${idx}`) as string) || "";
+    const intervalTipo = (formData.get(`tipo_${idx}`) as string) || data.tipo;
     
     if (!start || !end || !proyecto || !actividad) {
       return { error: `Debe completar Cédula, Actividad, Hora de Inicio y Hora de Fin para el rango #${parseInt(idx) + 1}.` };
@@ -116,7 +118,8 @@ export async function createMinuta(formData: FormData) {
       actividad: actividad.trim(), 
       horaInicio: trimmedStart, 
       horaFin: trimmedEnd,
-      observacion: observacion.trim()
+      observacion: observacion.trim(),
+      tipo: intervalTipo,
     });
   }
 
@@ -222,8 +225,8 @@ export async function createMinuta(formData: FormData) {
             hora_fin: horaFinDate,
             proyecto: interval.proyecto,
             actividad: interval.actividad,
-            tipo_minuta: data.tipo,
-            aprobado: data.tipo === "O" ? "PE" : "SI",
+            tipo_minuta: (isAuditor && interval.tipo && (interval.tipo === "P" || interval.tipo === "O")) ? interval.tipo : data.tipo,
+            aprobado: ((isAuditor && interval.tipo && (interval.tipo === "P" || interval.tipo === "O")) ? interval.tipo : data.tipo) === "O" ? "PE" : "SI",
             observacion: interval.observacion,
           },
         });

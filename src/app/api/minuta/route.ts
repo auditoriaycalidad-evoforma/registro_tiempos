@@ -16,6 +16,7 @@ export interface MinutaInterval {
   horaInicio: string;
   horaFin: string;
   observacion?: string;
+  tipo?: string;
 }
 
 export interface MinutaPayload {
@@ -225,11 +226,19 @@ export async function POST(request: Request) {
       }
     }
 
+    const userEmail = session.user.email?.toLowerCase().trim();
+    const allowedAdminEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
+    const isSpecialAdmin = Boolean(userEmail && allowedAdminEmails.includes(userEmail));
+
     // Insertar registros en transacción atómica
     await prisma.$transaction(
       intervals.map((inv) => {
         const horaInicioDate = new Date(`1970-01-01T${inv.horaInicio.trim()}:00.000Z`);
         const horaFinDate = new Date(`1970-01-01T${inv.horaFin.trim()}:00.000Z`);
+
+        // Priorizar el tipo individual del intervalo para administradores autorizados
+        const rawTipo = (inv.tipo && (inv.tipo === "P" || inv.tipo === "O")) ? inv.tipo : tipo;
+        const recordTipo = (isSpecialAdmin || isAuditor) ? rawTipo : (tipo === "O" ? "O" : "P");
 
         return prisma.minuta_registro_actividad.create({
           data: {
@@ -239,8 +248,8 @@ export async function POST(request: Request) {
             hora_fin: horaFinDate,
             proyecto: inv.proyecto.trim(),
             actividad: inv.actividad.trim(),
-            tipo_minuta: tipo,
-            aprobado: tipo === "O" ? "PE" : "SI",
+            tipo_minuta: recordTipo,
+            aprobado: recordTipo === "O" ? "PE" : "SI",
             observacion: inv.observacion?.trim() || "",
           },
         });

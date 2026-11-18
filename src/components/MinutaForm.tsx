@@ -81,6 +81,7 @@ export interface ManualInterval {
   horaInicio: string;
   horaFin: string;
   observacion: string;
+  tipo?: string;
 }
 
 export function MinutaForm({ 
@@ -105,7 +106,8 @@ export function MinutaForm({
 
   const userEmail = session?.user?.email?.toLowerCase().trim();
   const allowedAdminEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
-  const isAdmin = propIsAdmin ?? (session?.user?.rol === "ADMIN" || (userEmail ? allowedAdminEmails.includes(userEmail) : false));
+  const isAuthorizedAdmin = Boolean(userEmail && allowedAdminEmails.includes(userEmail));
+  const isAdmin = propIsAdmin ?? (session?.user?.rol === "ADMIN" || isAuthorizedAdmin);
 
   const getTodayLocal = () => {
     return getColombiaDateString();
@@ -240,6 +242,7 @@ export function MinutaForm({
       horaInicio: string;
       horaFin: string;
       observacion: string;
+      tipo?: string;
     }[];
   }) => {
     try {
@@ -636,6 +639,7 @@ export function MinutaForm({
       horaInicio: string;
       horaFin: string;
       observacion: string;
+      tipo?: string;
     }[] = [];
 
     // Main interval
@@ -672,6 +676,7 @@ export function MinutaForm({
       horaInicio: horaInicio.trim(),
       horaFin: horaFin.trim(),
       observacion: observacionInput.trim(),
+      tipo: tipo,
     });
 
     // Additional intervals if present
@@ -699,6 +704,7 @@ export function MinutaForm({
         horaInicio: inv.horaInicio.trim(),
         horaFin: inv.horaFin.trim(),
         observacion: inv.observacion.trim(),
+        tipo: inv.tipo || tipo || "P",
       });
     }
 
@@ -742,6 +748,7 @@ export function MinutaForm({
         horaInicio: lastEnd,
         horaFin: newEnd,
         observacion: "",
+        tipo: tipo === "O" ? "O" : "P",
       },
     ]);
     setShowMultiIntervals(true);
@@ -1196,30 +1203,37 @@ export function MinutaForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Tipo de Registro */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1.5">
-                Tipo de Registro
+              <label className="block text-xs font-bold uppercase tracking-wider text-brand-dark/80 mb-1.5 flex items-center justify-between">
+                <span>Tipo de Registro</span>
+                {isAuthorizedAdmin && (
+                  <span className="text-[10px] font-bold text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-md">
+                    Admin Autorizado
+                  </span>
+                )}
               </label>
-              <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl">
+              <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
                 <button
                   type="button"
                   onClick={() => setTipo("P")}
-                  className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                  className={`py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     tipo === "P" 
-                      ? "bg-white text-brand-primary shadow-sm" 
+                      ? "bg-white text-brand-primary shadow-sm border border-brand-primary/20" 
                       : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
+                  <span className={`w-2 h-2 rounded-full ${tipo === "P" ? "bg-brand-primary" : "bg-slate-300"}`} />
                   Tipo P (Habitual)
                 </button>
                 <button
                   type="button"
                   onClick={() => setTipo("O")}
-                  className={`py-2 rounded-lg text-xs font-bold transition-all ${
+                  className={`py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     tipo === "O" 
-                      ? "bg-white text-brand-primary shadow-sm" 
+                      ? "bg-white text-amber-600 shadow-sm border border-amber-300" 
                       : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
+                  <span className={`w-2 h-2 rounded-full ${tipo === "O" ? "bg-amber-500" : "bg-slate-300"}`} />
                   Tipo O (Horas Extras)
                 </button>
               </div>
@@ -1345,18 +1359,47 @@ export function MinutaForm({
               </h3>
               {additionalIntervals.map((inv, idx) => (
                 <div key={inv.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 relative animate-fadeIn">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200">
                     <span className="text-xs font-extrabold text-brand-primary">
                       Actividad Adicional #{idx + 2}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveIntervalRow(inv.id)}
-                      className="text-red-500 hover:text-red-700 text-xs font-bold p-1 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Quitar
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <div className="inline-flex p-0.5 bg-slate-200/80 rounded-lg border border-slate-300">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateAdditionalInterval(inv.id, "tipo", "P")}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 ${
+                            (inv.tipo || "P") === "P"
+                              ? "bg-white text-brand-primary shadow-sm"
+                              : "text-slate-500 hover:text-slate-700"
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${(inv.tipo || "P") === "P" ? "bg-brand-primary" : "bg-slate-300"}`} />
+                          Tipo P
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateAdditionalInterval(inv.id, "tipo", "O")}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 ${
+                            inv.tipo === "O"
+                              ? "bg-white text-amber-600 shadow-sm"
+                              : "text-slate-500 hover:text-slate-700"
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${inv.tipo === "O" ? "bg-amber-500" : "bg-slate-300"}`} />
+                          Tipo O
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveIntervalRow(inv.id)}
+                        className="text-red-500 hover:text-red-700 text-xs font-bold p-1.5 rounded-lg hover:bg-red-50 transition-colors flex items-center gap-1"
+                        title="Quitar intervalo"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Quitar</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
