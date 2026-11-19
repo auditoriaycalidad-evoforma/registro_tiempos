@@ -106,6 +106,8 @@ export default async function DashboardPage() {
           ubicacion: activeRow.ubicacion || undefined,
           empleado: activeRow.empleado_id,
           updatedAt: Number(activeRow.updated_at),
+          generadoAutomaticamente: Boolean(activeRow.generado_automaticamente),
+          registroOrigenId: activeRow.registro_origen_id ?? null,
         };
       }
     } catch (e) {

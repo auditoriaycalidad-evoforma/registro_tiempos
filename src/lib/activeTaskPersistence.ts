@@ -11,6 +11,8 @@ export interface ActiveTaskData {
   empleado?: string;
   ubicacion?: string;
   updatedAt?: number;
+  generadoAutomaticamente?: boolean;
+  registroOrigenId?: number | null;
 }
 
 export interface FormDraftData {
@@ -415,6 +417,8 @@ export async function finalizeAndSaveActiveTask(
           horaInicio: day1Start,
           horaFin: "23:59",
           observacion: formattedObs,
+          generadoAutomaticamente: Boolean(task.generadoAutomaticamente),
+          registroOrigenId: task.registroOrigenId ?? null,
         },
       ],
     };
@@ -430,6 +434,8 @@ export async function finalizeAndSaveActiveTask(
           horaInicio: "00:00",
           horaFin: day2End,
           observacion: formattedObs,
+          generadoAutomaticamente: Boolean(task.generadoAutomaticamente),
+          registroOrigenId: task.registroOrigenId ?? null,
         },
       ],
     };
@@ -489,6 +495,8 @@ export async function finalizeAndSaveActiveTask(
         horaInicio: startTime,
         horaFin: closeTime,
         observacion: formattedObs,
+        generadoAutomaticamente: Boolean(task.generadoAutomaticamente),
+        registroOrigenId: task.registroOrigenId ?? null,
       },
     ],
   };

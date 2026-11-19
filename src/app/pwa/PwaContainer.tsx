@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { DashboardPanels } from "@/components/DashboardPanels";
 import { MinutaForm } from "@/components/MinutaForm";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 import { canSelectIndependentIntervalType } from "@/lib/permissions";
 
 interface Proyecto {
@@ -251,6 +252,9 @@ export function PwaContainer({
             {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
             <span className="hidden sm:inline">{isOnline ? "En línea" : "Offline"}</span>
           </div>
+
+          {/* Push notifications toggle */}
+          <PushNotificationToggle variant="pwa" />
 
           {/* Theme switcher */}
           <button 

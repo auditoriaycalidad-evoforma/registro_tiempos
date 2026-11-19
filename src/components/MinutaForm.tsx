@@ -58,6 +58,8 @@ export interface DesktopActiveTask {
   tipoMinuta: string;
   empleado?: string;
   ubicacion?: string;
+  generadoAutomaticamente?: boolean;
+  registroOrigenId?: number | null;
 }
 
 export interface DesktopCompletedTask {
@@ -198,6 +200,8 @@ export function MinutaForm({
         tipoMinuta: saved.tipoMinuta,
         empleado: saved.empleado,
         ubicacion: saved.ubicacion,
+        generadoAutomaticamente: Boolean(saved.generadoAutomaticamente),
+        registroOrigenId: saved.registroOrigenId ?? null,
       };
     }
     return null;
@@ -292,6 +296,8 @@ export function MinutaForm({
       observacion: string;
       tipo?: string;
       tipo_registro?: string;
+      generadoAutomaticamente?: boolean;
+      registroOrigenId?: number | null;
     }[];
   }) => {
     try {
@@ -490,6 +496,8 @@ export function MinutaForm({
           tipoMinuta: savedTask.tipoMinuta || "P",
           empleado: savedTask.empleado,
           ubicacion: savedTask.ubicacion,
+          generadoAutomaticamente: Boolean(savedTask.generadoAutomaticamente),
+          registroOrigenId: savedTask.registroOrigenId ?? null,
         };
 
         if (normalizedTask.fecha !== todayStr) {
@@ -518,6 +526,8 @@ export function MinutaForm({
             tipoMinuta: serverTask.tipoMinuta || "P",
             empleado: serverTask.empleado,
             ubicacion: serverTask.ubicacion,
+            generadoAutomaticamente: Boolean(serverTask.generadoAutomaticamente),
+            registroOrigenId: serverTask.registroOrigenId ?? null,
           };
 
           if (normalizedTask.fecha !== todayStr) {
@@ -528,12 +538,24 @@ export function MinutaForm({
               current.proyecto !== normalizedTask.proyecto ||
               current.actividad !== normalizedTask.actividad ||
               current.horaInicio !== normalizedTask.horaInicio ||
+              current.tipoMinuta !== normalizedTask.tipoMinuta ||
+              current.startTimeStamp !== normalizedTask.startTimeStamp ||
+              Boolean(current.generadoAutomaticamente) !== Boolean(normalizedTask.generadoAutomaticamente) ||
+              (current.registroOrigenId ?? null) !== (normalizedTask.registroOrigenId ?? null) ||
               (normalizedTask.observacion !== undefined && current.observacion !== normalizedTask.observacion);
 
             if (hasChanged) {
+              const transitionedToAutoO =
+                Boolean(normalizedTask.generadoAutomaticamente) &&
+                !Boolean(current?.generadoAutomaticamente);
               setActiveTask(normalizedTask);
               saveActiveTaskToStorage(normalizedTask);
               if (normalizedTask.tipoMinuta) setTipo(normalizedTask.tipoMinuta);
+              if (transitionedToAutoO) {
+                setRecoveryNotice(
+                  `Tu actividad habitual se cerró automáticamente a las ${formatTime12(normalizedTask.horaInicio)} y se inició una nueva actividad Tipo O en curso. Recuerda finalizarla manualmente al terminar.`
+                );
+              }
             }
           }
         } else if (activeTaskRef.current) {
@@ -891,6 +913,8 @@ export function MinutaForm({
                 horaInicio: day1Start,
                 horaFin: "23:59",
                 observacion: formattedObs,
+                generadoAutomaticamente: Boolean(activeTask.generadoAutomaticamente),
+                registroOrigenId: activeTask.registroOrigenId ?? null,
               }],
             });
 
@@ -906,6 +930,8 @@ export function MinutaForm({
                   horaInicio: "00:00",
                   horaFin: nowTime,
                   observacion: formattedObs,
+                  generadoAutomaticamente: Boolean(activeTask.generadoAutomaticamente),
+                  registroOrigenId: activeTask.registroOrigenId ?? null,
                 }],
               });
               lastCloseTime = nowTime;
@@ -951,6 +977,8 @@ export function MinutaForm({
                 horaInicio: activeTask.horaInicio,
                 horaFin: closeTime,
                 observacion: formattedObs,
+                generadoAutomaticamente: Boolean(activeTask.generadoAutomaticamente),
+                registroOrigenId: activeTask.registroOrigenId ?? null,
               }],
             });
 
@@ -1051,6 +1079,8 @@ export function MinutaForm({
             horaInicio: day1Start,
             horaFin: "23:59",
             observacion: formattedObs,
+            generadoAutomaticamente: Boolean(activeTask.generadoAutomaticamente),
+            registroOrigenId: activeTask.registroOrigenId ?? null,
           }],
         });
 
@@ -1065,6 +1095,8 @@ export function MinutaForm({
             horaInicio: "00:00",
             horaFin: day2End,
             observacion: formattedObs,
+            generadoAutomaticamente: Boolean(activeTask.generadoAutomaticamente),
+            registroOrigenId: activeTask.registroOrigenId ?? null,
           }],
         });
 
@@ -1132,6 +1164,8 @@ export function MinutaForm({
           horaInicio: startTime,
           horaFin: closeTime,
           observacion: formattedObs,
+          generadoAutomaticamente: Boolean(activeTask.generadoAutomaticamente),
+          registroOrigenId: activeTask.registroOrigenId ?? null,
         }],
       });
 
@@ -1156,6 +1190,8 @@ export function MinutaForm({
                 horaInicio: conflictingEnd,
                 horaFin: closeTime,
                 observacion: formattedObs,
+                generadoAutomaticamente: Boolean(activeTask.generadoAutomaticamente),
+                registroOrigenId: activeTask.registroOrigenId ?? null,
               }],
             });
             completedItem.horaInicio = conflictingEnd;
@@ -1596,9 +1632,25 @@ export function MinutaForm({
                   </>
                 )}
               </span>
-              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary">
+              <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                activeTask.tipoMinuta === "O"
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-brand-primary/10 text-brand-primary"
+              }`}>
                 Tipo {activeTask.tipoMinuta}
               </span>
+              {activeTask.generadoAutomaticamente && (
+                <span
+                  className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200"
+                  title={
+                    activeTask.registroOrigenId
+                      ? `Generada automáticamente al cierre de jornada (origen #${activeTask.registroOrigenId})`
+                      : "Generada automáticamente al cierre de jornada"
+                  }
+                >
+                  Generada automáticamente ({formatTime12(activeTask.horaInicio)})
+                </span>
+              )}
               {elapsedMinutes > 0 && (
                 <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
                   {elapsedMinutes} min transcurridos

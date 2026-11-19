@@ -22,6 +22,8 @@ function formatActiveTaskResponse(row: any) {
     ubicacion: row.ubicacion || undefined,
     empleado: row.empleado_id,
     updatedAt: Number(row.updated_at),
+    generadoAutomaticamente: Boolean(row.generado_automaticamente),
+    registroOrigenId: row.registro_origen_id ?? null,
   };
 }
 
@@ -125,6 +127,8 @@ export async function POST(request: Request) {
         tipo_minuta: String(tipoMinuta || "P").trim(),
         ubicacion: ubicacion ? String(ubicacion).trim() : null,
         updated_at: finalUpdatedAt,
+        generado_automaticamente: false,
+        registro_origen_id: null,
       },
       update: {
         proyecto: String(proyecto).trim(),
@@ -136,6 +140,8 @@ export async function POST(request: Request) {
         tipo_minuta: String(tipoMinuta || "P").trim(),
         ubicacion: ubicacion ? String(ubicacion).trim() : null,
         updated_at: finalUpdatedAt,
+        generado_automaticamente: false,
+        registro_origen_id: null,
       },
     });
 

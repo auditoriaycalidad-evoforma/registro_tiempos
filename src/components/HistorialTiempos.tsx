@@ -57,6 +57,9 @@ interface TiempoRecord {
   tipo_minuta: string;
   aprobado: string | null;
   observacion?: string | null;
+  cierre_automatico?: boolean;
+  generado_automaticamente?: boolean;
+  registro_origen_id?: number | null;
   minuta_proyecto?: {
     code: string;
     nombre: string;
@@ -618,9 +621,24 @@ export function HistorialTiempos({
                   <tr key={t.id} className="hover:bg-slate-50/80 transition-colors duration-150">
                     <td className="px-3 py-3 whitespace-nowrap font-medium text-xs text-brand-dark/80">{getUTCDayName(t.fecha)}</td>
                     <td className="px-2.5 py-3 text-center whitespace-nowrap">
-                      <span className={`px-2 py-0.5 text-xs font-extrabold rounded-md ${t.tipo_minuta === 'O' ? 'bg-amber-100 text-amber-800' : 'bg-brand-primary/10 text-brand-primary'}`}>
-                        Tipo {t.tipo_minuta === 'A' ? 'P' : t.tipo_minuta}
-                      </span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className={`px-2 py-0.5 text-xs font-extrabold rounded-md ${t.tipo_minuta === 'O' ? 'bg-amber-100 text-amber-800' : 'bg-brand-primary/10 text-brand-primary'}`}>
+                          Tipo {t.tipo_minuta === 'A' ? 'P' : t.tipo_minuta}
+                        </span>
+                        {t.cierre_automatico && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-slate-100 text-slate-600" title="Cerrada automáticamente al finalizar horario habitual">
+                            Cierre auto
+                          </span>
+                        )}
+                        {t.generado_automaticamente && (
+                          <span
+                            className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-50 text-amber-700 border border-amber-200"
+                            title={t.registro_origen_id ? `Generada automáticamente desde registro #${t.registro_origen_id}` : "Generada automáticamente"}
+                          >
+                            Auto {t.registro_origen_id ? `#${t.registro_origen_id}` : ""}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap font-medium text-xs text-brand-dark/80">{getUTCMonthName(t.fecha)}</td>
                     <td className="px-3 py-3 whitespace-nowrap font-semibold text-xs text-brand-dark">{getUTCDateString(t.fecha)}</td>

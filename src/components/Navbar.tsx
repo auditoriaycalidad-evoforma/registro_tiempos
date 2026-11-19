@@ -4,6 +4,7 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { LogOut, LayoutDashboard, Clock, Shield, FileSpreadsheet, BarChart3 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -79,6 +80,7 @@ export default function Navbar() {
           </div>
           <div className="flex items-center">
             <div className="flex items-center gap-4">
+              <PushNotificationToggle variant="navbar" />
               <div className="text-sm">
                 <p className="text-brand-light font-medium">{session.user.name}</p>
                 <p className="text-brand-light/70 text-xs hidden sm:block">

@@ -31,6 +31,7 @@ model minuta_empleado {
   es_lider                  String?                     @db.VarChar(1)
   area_lider                String[]                    @db.VarChar(64)
   minuta_registro_actividad minuta_registro_actividad[]
+  minuta_push_suscripcion   minuta_push_suscripcion[]
 }
 
 model minuta_proyecto {
@@ -40,19 +41,27 @@ model minuta_proyecto {
 }
 
 model minuta_registro_actividad {
-  id               Int               @id @default(autoincrement())
-  empleado         String            @db.VarChar(64)
-  fecha            DateTime          @db.Date
-  hora_inicio      DateTime          @db.Time(6)
-  hora_fin         DateTime          @db.Time(6)
-  actividad        String?           @db.VarChar(32)
-  proyecto         String?           @db.VarChar(32)
-  tipo_minuta      String            @db.VarChar(1)
-  aprobado         String?           @default("NO") @db.VarChar(2)
-  observacion      String?           @db.VarChar(2048)
-  minuta_actividad minuta_actividad? @relation(fields: [actividad], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "fk_registro_actividad")
-  minuta_empleado  minuta_empleado   @relation(fields: [empleado], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_registro_empleado")
-  minuta_proyecto  minuta_proyecto?  @relation(fields: [proyecto], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "fk_registro_proyecto")
+  id                               Int                            @id @default(autoincrement())
+  empleado                         String                         @db.VarChar(64)
+  fecha                            DateTime                       @db.Date
+  hora_inicio                      DateTime                       @db.Time(6)
+  hora_fin                         DateTime                       @db.Time(6)
+  actividad                        String?                        @db.VarChar(32)
+  proyecto                         String?                        @db.VarChar(32)
+  tipo_minuta                      String                         @db.VarChar(1)
+  aprobado                         String?                        @default("NO") @db.VarChar(2)
+  observacion                      String?                        @db.VarChar(2048)
+  cierre_automatico                Boolean                        @default(false)
+  generado_automaticamente         Boolean                        @default(false)
+  registro_origen_id               Int?
+  minuta_actividad                 minuta_actividad?              @relation(fields: [actividad], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "fk_registro_actividad")
+  minuta_empleado                  minuta_empleado                @relation(fields: [empleado], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_registro_empleado")
+  minuta_proyecto                  minuta_proyecto?               @relation(fields: [proyecto], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "fk_registro_proyecto")
+  registro_origen                  minuta_registro_actividad?     @relation("RegistroOrigenRelacion", fields: [registro_origen_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_registro_origen")
+  registros_derivados              minuta_registro_actividad[]    @relation("RegistroOrigenRelacion")
+  actividades_activas_derivadas    minuta_actividad_activa[]
+  cierres_automaticos_como_cerrado minuta_cierre_automatico_log[] @relation("CierreAutoRegistroCerrado")
+  cierres_automaticos_como_nuevo   minuta_cierre_automatico_log[] @relation("CierreAutoRegistroNuevo")
 }
 
 model minuta_auditoria {
@@ -66,15 +75,70 @@ model minuta_auditoria {
 }
 
 model minuta_actividad_activa {
-  empleado_id     String  @id @db.VarChar(64)
-  proyecto        String  @db.VarChar(32)
-  actividad       String  @db.VarChar(32)
-  hora_inicio     String  @db.VarChar(10)
-  start_timestamp BigInt
-  observacion     String? @db.VarChar(2048)
-  fecha           String  @db.VarChar(10)
-  tipo_minuta     String  @default("P") @db.VarChar(1)
-  ubicacion       String? @db.VarChar(255)
-  updated_at      BigInt
+  empleado_id              String                     @id @db.VarChar(64)
+  proyecto                 String                     @db.VarChar(32)
+  actividad                String                     @db.VarChar(32)
+  hora_inicio              String                     @db.VarChar(10)
+  start_timestamp          BigInt
+  observacion              String?                    @db.VarChar(2048)
+  fecha                    String                     @db.VarChar(10)
+  tipo_minuta              String                     @default("P") @db.VarChar(1)
+  ubicacion                String?                    @db.VarChar(255)
+  updated_at               BigInt
+  generado_automaticamente Boolean                    @default(false)
+  registro_origen_id       Int?
+  registro_origen          minuta_registro_actividad? @relation(fields: [registro_origen_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_actividad_activa_registro_origen")
+}
+
+model minuta_push_suscripcion {
+  id              Int             @id @default(autoincrement())
+  empleado_id     String          @db.VarChar(64)
+  endpoint        String          @unique
+  p256dh          String
+  auth            String
+  user_agent      String?         @db.VarChar(512)
+  activa          Boolean         @default(true)
+  last_error      String?
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime        @default(now()) @db.Timestamptz(6)
+  minuta_empleado minuta_empleado @relation(fields: [empleado_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_push_suscripcion_empleado")
+
+  @@index([empleado_id, activa], map: "idx_push_suscripcion_empleado_activa")
+}
+
+model minuta_notificacion_log {
+  id                       Int      @id @default(autoincrement())
+  empleado_id              String   @db.VarChar(64)
+  fecha                    DateTime @db.Date
+  tipo_evento              String   @db.VarChar(20)
+  hora_programada          DateTime @db.Time(6)
+  mensaje                  String
+  estado                   String   @db.VarChar(20)
+  suscripciones_intentadas Int      @default(0)
+  suscripciones_exitosas   Int      @default(0)
+  error_detalle            String?
+  created_at               DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([empleado_id, fecha, tipo_evento, hora_programada], map: "uq_notificacion_idempotencia")
+  @@index([fecha, created_at], map: "idx_notificacion_log_fecha_estado")
+}
+
+model minuta_cierre_automatico_log {
+  id                  Int                        @id @default(autoincrement())
+  empleado_id         String                     @db.VarChar(64)
+  fecha               DateTime                   @db.Date
+  hora_fin_programada DateTime                   @db.Time(6)
+  registro_cerrado_id Int?
+  registro_nuevo_id   Int?
+  tipo_original       String                     @db.VarChar(1)
+  estado              String                     @db.VarChar(30)
+  detalle             String?
+  created_at          DateTime                   @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime                   @default(now()) @db.Timestamptz(6)
+  registro_cerrado    minuta_registro_actividad? @relation("CierreAutoRegistroCerrado", fields: [registro_cerrado_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_cierre_auto_registro_cerrado")
+  registro_nuevo      minuta_registro_actividad? @relation("CierreAutoRegistroNuevo", fields: [registro_nuevo_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_cierre_auto_registro_nuevo")
+
+  @@unique([empleado_id, fecha, hora_fin_programada], map: "uq_cierre_auto_idempotencia")
+  @@index([fecha, created_at], map: "idx_cierre_auto_log_fecha")
 }
 
