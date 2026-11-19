@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { DashboardPanels } from "@/components/DashboardPanels";
 import { MinutaForm } from "@/components/MinutaForm";
+import { canSelectIndependentIntervalType } from "@/lib/permissions";
 
 interface Proyecto {
   code: string;
@@ -35,6 +36,7 @@ interface PwaContainerProps {
   minutas?: any[];
   session: any;
   isAdmin?: boolean;
+  canSelectIntervalTipo?: boolean;
   esLiderN?: boolean;
   initialActiveTask?: any;
 }
@@ -46,12 +48,14 @@ export function PwaContainer({
   minutas = [], 
   session,
   isAdmin: propIsAdmin,
+  canSelectIntervalTipo: propCanSelectIntervalTipo,
   esLiderN = false,
   initialActiveTask = null,
 }: PwaContainerProps) {
   const allowedAuditorEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
   const userEmail = session?.user?.email?.toLowerCase()?.trim();
   const isAdmin = propIsAdmin ?? (session?.user?.rol === "ADMIN" || !!(userEmail && allowedAuditorEmails.includes(userEmail)));
+  const canSelectIntervalTipo = propCanSelectIntervalTipo ?? canSelectIndependentIntervalType(session?.user);
 
   // --- STATE ---
   const [darkMode, setDarkMode] = useState<boolean>(false);
@@ -314,6 +318,7 @@ export function PwaContainer({
             empleados={empleados}
             defaultEmpleadoId={session.user.id}
             minutas={minutas}
+            canSelectIntervalTipo={canSelectIntervalTipo}
           />
         ) : esLiderN ? (
           <div className="max-w-3xl mx-auto w-full">

@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { syncMinutasToSheets } from "./exportar";
 import { sheetsSyncQueue } from "@/lib/syncQueue";
 import { formatTime24, isAllowedStandardUserDate } from "@/lib/formatTime";
+import { canSelectIndependentIntervalType } from "@/lib/permissions";
 
 import { isAuthorizedAuditor, deleteMinuta } from "./minuta";
 
@@ -17,6 +18,8 @@ export interface PwaInterval {
   horaInicio: string;
   horaFin: string;
   observacion: string;
+  tipo?: string;
+  tipo_registro?: string;
 }
 
 export async function createMinutasPwa(data: {
@@ -177,15 +180,19 @@ export async function createMinutasPwa(data: {
       }
     }
 
+    const canUsePerIntervalTipo = canSelectIndependentIntervalType(session.user);
+
     // Insertar registros en transacción atómica
     await prisma.$transaction(
       intervals.map((inv) => {
         const horaInicioDate = new Date(`1970-01-01T${inv.horaInicio}:00.000Z`);
         const horaFinDate = new Date(`1970-01-01T${inv.horaFin}:00.000Z`);
 
-        const recordTipo = (isAuditor && (inv as any).tipo && ((inv as any).tipo === "P" || (inv as any).tipo === "O"))
-          ? (inv as any).tipo
-          : tipo;
+        const requestedIntervalTipo = inv.tipo_registro ?? inv.tipo;
+        const recordTipo =
+          canUsePerIntervalTipo && (requestedIntervalTipo === "P" || requestedIntervalTipo === "O")
+            ? requestedIntervalTipo
+            : tipo;
 
         return prisma.minuta_registro_actividad.create({
           data: {

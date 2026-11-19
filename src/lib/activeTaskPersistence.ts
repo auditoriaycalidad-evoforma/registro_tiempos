@@ -173,25 +173,24 @@ export async function syncActiveTaskToServer(task: ActiveTaskData): Promise<bool
 }
 
 /**
- * Consulta la tarea activa guardada en el servidor (GET /api/actividad-activa)
+ * Consulta la tarea activa guardada en el servidor (GET /api/actividad-activa).
+ * Lanza error ante fallos de red o respuestas no-OK (ej. 502/503 durante un despliegue)
+ * para evitar borrar la tarea activa local por una interrupción momentánea.
  */
 export async function fetchActiveTaskFromServer(empleadoId?: string): Promise<ActiveTaskData | null> {
   if (typeof window === "undefined") return null;
-  try {
-    const url = empleadoId 
-      ? `/api/actividad-activa?empleadoId=${encodeURIComponent(empleadoId)}` 
-      : "/api/actividad-activa";
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { "Cache-Control": "no-cache" },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.activeTask || null;
-  } catch (err) {
-    console.warn("Error consultando actividad activa del servidor:", err);
-    return null;
+  const url = empleadoId 
+    ? `/api/actividad-activa?empleadoId=${encodeURIComponent(empleadoId)}` 
+    : "/api/actividad-activa";
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { "Cache-Control": "no-cache" },
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} al consultar actividad activa`);
   }
+  const data = await res.json();
+  return data?.activeTask || null;
 }
 
 /**

@@ -5,6 +5,7 @@ import { MinutaForm } from "@/components/MinutaForm";
 import { DashboardPanels } from "@/components/DashboardPanels";
 import { Clock } from "lucide-react";
 import { getActividadesParaEmpleado } from "@/lib/actividades";
+import { canSelectIndependentIntervalType } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function DashboardPage() {
   const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
   const userEmail = session.user.email?.toLowerCase();
   const isAdmin = session.user.rol === "ADMIN" || (userEmail && allowedEmails.includes(userEmail));
+  const canSelectIntervalTipo = canSelectIndependentIntervalType(session.user);
 
   type ProyectoOption = {
     code: string;
@@ -129,6 +131,7 @@ export default async function DashboardPage() {
           empleados={empleados}
           defaultEmpleadoId={session.user.id}
           minutas={minutas}
+          canSelectIntervalTipo={canSelectIntervalTipo}
         />
       ) : esLiderN ? (
         <div className="max-w-3xl mx-auto w-full">

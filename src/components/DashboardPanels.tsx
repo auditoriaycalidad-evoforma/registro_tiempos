@@ -11,6 +11,7 @@ interface DashboardPanelsProps {
   empleados: any[];
   defaultEmpleadoId: string;
   minutas: any[];
+  canSelectIntervalTipo?: boolean;
 }
 
 export function DashboardPanels({
@@ -19,6 +20,7 @@ export function DashboardPanels({
   empleados,
   defaultEmpleadoId,
   minutas,
+  canSelectIntervalTipo,
 }: DashboardPanelsProps) {
   const [activeTab, setActiveTab] = useState<"registro" | "historial">("historial");
 
@@ -90,6 +92,7 @@ export function DashboardPanels({
               canSelectEmpleado={true}
               defaultEmpleadoId={defaultEmpleadoId}
               isAdmin={true}
+              canSelectIntervalTipo={canSelectIntervalTipo}
             />
           </div>
         ) : (

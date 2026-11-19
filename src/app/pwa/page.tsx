@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { PwaContainer } from "./PwaContainer";
 import { getActividadesParaEmpleado } from "@/lib/actividades";
+import { canSelectIndependentIntervalType } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function PwaPage() {
   const allowedEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
   const userEmail = session?.user?.email?.toLowerCase()?.trim();
   const isAdmin = session?.user?.rol === "ADMIN" || !!(userEmail && allowedEmails.includes(userEmail));
+  const canSelectIntervalTipo = canSelectIndependentIntervalType(session?.user);
 
   // Cargar empleado autenticado para obtener su cargo exacto
   const empleado = session?.user?.id || session?.user?.email
@@ -132,6 +134,7 @@ export default async function PwaPage() {
       minutas={minutas}
       session={session}
       isAdmin={isAdmin}
+      canSelectIntervalTipo={canSelectIntervalTipo}
       esLiderN={esLiderN}
       initialActiveTask={initialActiveTask}
     />

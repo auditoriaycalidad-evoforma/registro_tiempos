@@ -8,6 +8,7 @@ import { syncMinutasToSheets } from "./exportar";
 import { sheetsSyncQueue } from "@/lib/syncQueue";
 
 import { formatTime24, isAllowedStandardUserDate } from "@/lib/formatTime";
+import { canSelectIndependentIntervalType } from "@/lib/permissions";
 
 const AUTHORIZED_AUDITOR_EMAILS = [
   "ia.evoforma@gmail.com",
@@ -96,7 +97,10 @@ export async function createMinuta(formData: FormData) {
     const proyecto = formData.get(`proyecto_${idx}`) as string;
     const actividad = formData.get(`actividad_${idx}`) as string;
     const observacion = (formData.get(`observacion_${idx}`) as string) || "";
-    const intervalTipo = (formData.get(`tipo_${idx}`) as string) || data.tipo;
+    const intervalTipo =
+      (formData.get(`tipo_registro_${idx}`) as string) ||
+      (formData.get(`tipo_${idx}`) as string) ||
+      undefined;
     
     if (!start || !end || !proyecto || !actividad) {
       return { error: `Debe completar Cédula, Actividad, Hora de Inicio y Hora de Fin para el rango #${parseInt(idx) + 1}.` };
@@ -211,11 +215,17 @@ export async function createMinuta(formData: FormData) {
       }
     }
 
+    const canUsePerIntervalTipo = canSelectIndependentIntervalType(session.user);
+
     // Guardar en la base de datos de manera atómica
     await prisma.$transaction(
       intervals.map((interval) => {
         const horaInicioDate = new Date(`1970-01-01T${interval.horaInicio}:00.000Z`);
         const horaFinDate = new Date(`1970-01-01T${interval.horaFin}:00.000Z`);
+        const recordTipo =
+          canUsePerIntervalTipo && (interval.tipo === "P" || interval.tipo === "O")
+            ? interval.tipo
+            : data.tipo;
         
         return prisma.minuta_registro_actividad.create({
           data: {
@@ -225,8 +235,8 @@ export async function createMinuta(formData: FormData) {
             hora_fin: horaFinDate,
             proyecto: interval.proyecto,
             actividad: interval.actividad,
-            tipo_minuta: (isAuditor && interval.tipo && (interval.tipo === "P" || interval.tipo === "O")) ? interval.tipo : data.tipo,
-            aprobado: ((isAuditor && interval.tipo && (interval.tipo === "P" || interval.tipo === "O")) ? interval.tipo : data.tipo) === "O" ? "PE" : "SI",
+            tipo_minuta: recordTipo,
+            aprobado: recordTipo === "O" ? "PE" : "SI",
             observacion: interval.observacion,
           },
         });
@@ -235,6 +245,7 @@ export async function createMinuta(formData: FormData) {
 
     revalidatePath("/dashboard");
     revalidatePath("/admin");
+    revalidatePath("/pwa");
 
     // Encolar sincronización transparente con Google Sheets sin retrasar la respuesta al usuario
     prisma.minuta_empleado

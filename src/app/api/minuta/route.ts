@@ -7,6 +7,7 @@ import { formatTime24, isAllowedStandardUserDate } from "@/lib/formatTime";
 import { revalidatePath } from "next/cache";
 import { syncMinutasToSheets } from "@/app/actions/exportar";
 import { sheetsSyncQueue } from "@/lib/syncQueue";
+import { canSelectIndependentIntervalType } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export interface MinutaInterval {
   horaFin: string;
   observacion?: string;
   tipo?: string;
+  tipo_registro?: string;
 }
 
 export interface MinutaPayload {
@@ -111,6 +113,8 @@ export async function POST(request: Request) {
 
     const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+    const canUsePerIntervalTipo = canSelectIndependentIntervalType(session.user);
+
     // Validaciones de intervalos individuales
     for (let i = 0; i < intervals.length; i++) {
       const inv = intervals[i];
@@ -119,6 +123,16 @@ export async function POST(request: Request) {
           { error: `Debe completar Cédula, Actividad y Horarios para el rango #${i + 1}.` },
           { status: 400 }
         );
+      }
+
+      if (canUsePerIntervalTipo) {
+        const requestedTipo = inv.tipo_registro ?? inv.tipo;
+        if (requestedTipo !== undefined && requestedTipo !== "P" && requestedTipo !== "O") {
+          return NextResponse.json(
+            { error: `Tipo de registro no permitido en el rango #${i + 1}.` },
+            { status: 400 }
+          );
+        }
       }
 
       const start = inv.horaInicio.trim();
@@ -226,19 +240,18 @@ export async function POST(request: Request) {
       }
     }
 
-    const userEmail = session.user.email?.toLowerCase().trim();
-    const allowedAdminEmails = ["ia.evoforma@gmail.com", "auditoriaycalidad@evoforma.net"];
-    const isSpecialAdmin = Boolean(userEmail && allowedAdminEmails.includes(userEmail));
-
     // Insertar registros en transacción atómica
     await prisma.$transaction(
       intervals.map((inv) => {
         const horaInicioDate = new Date(`1970-01-01T${inv.horaInicio.trim()}:00.000Z`);
         const horaFinDate = new Date(`1970-01-01T${inv.horaFin.trim()}:00.000Z`);
 
-        // Priorizar el tipo individual del intervalo para administradores autorizados
-        const rawTipo = (inv.tipo && (inv.tipo === "P" || inv.tipo === "O")) ? inv.tipo : tipo;
-        const recordTipo = (isSpecialAdmin || isAuditor) ? rawTipo : (tipo === "O" ? "O" : "P");
+        // Priorizar el tipo_registro individual únicamente para administradores estrictamente autorizados
+        const requestedIntervalTipo = inv.tipo_registro ?? inv.tipo;
+        const recordTipo =
+          canUsePerIntervalTipo && (requestedIntervalTipo === "P" || requestedIntervalTipo === "O")
+            ? requestedIntervalTipo
+            : tipo;
 
         return prisma.minuta_registro_actividad.create({
           data: {
