@@ -1,6 +1,6 @@
-import * as webpush from "web-push";
 import prisma from "@/lib/prisma";
 import {
+  bogotaDateAndTimeToTimestamp,
   getBogotaNowParts,
   getHorariosActivosParaDia,
   HorarioEmpleadoActivo,
@@ -17,7 +17,7 @@ export interface PushPayload {
   body: string;
   tag: string;
   url: string;
-  tipoEvento: TipoEventoNotificacion;
+  tipoEvento: TipoEventoNotificacion | "PRUEBA";
   empleadoId: string;
   fecha: string;
   horaObjetivo: string;
@@ -38,6 +38,8 @@ export interface NotificacionProcesoResultado {
     empleadoId: string;
     tipoEvento: TipoEventoNotificacion;
     horaProgramada: string;
+    fechaHoraProgramada: string;
+    claveIdempotencia: string;
     estado: string;
     mensaje: string;
     error?: string;
@@ -49,7 +51,21 @@ export type PushSenderFn = (
   payload: string
 ) => Promise<void>;
 
-let vapidInitialized = false;
+type WebPushModule = typeof import("web-push");
+
+let webPushModulePromise: Promise<WebPushModule> | null = null;
+let lastVapidSignature = "";
+
+/**
+ * Carga dinámica compatible con Node 20+ (web-push v4 es ESM puro).
+ * Evita ERR_REQUIRE_ESM en contenedores Node 20 cuando Next.js externaliza web-push.
+ */
+export async function loadWebPushModule(): Promise<WebPushModule> {
+  if (!webPushModulePromise) {
+    webPushModulePromise = import("web-push");
+  }
+  return webPushModulePromise;
+}
 
 export function getVapidConfig() {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim() || "";
@@ -65,14 +81,26 @@ export function getVapidConfig() {
   };
 }
 
-function ensureVapidConfigured(): boolean {
+export async function ensureVapidConfigured(): Promise<boolean> {
   const cfg = getVapidConfig();
   if (!cfg.configured) return false;
-  if (!vapidInitialized) {
+
+  const signature = `${cfg.subject}|${cfg.publicKey}|${cfg.privateKey}`;
+  if (signature !== lastVapidSignature) {
+    const webpush = await loadWebPushModule();
     webpush.setVapidDetails(cfg.subject, cfg.publicKey, cfg.privateKey);
-    vapidInitialized = true;
+    lastVapidSignature = signature;
   }
   return true;
+}
+
+export function buildIdempotencyKey(
+  empleadoId: string,
+  fecha: string,
+  tipoEvento: TipoEventoNotificacion,
+  horaProgramadaHHMM: string
+): string {
+  return `${empleadoId.trim()}|${fecha}|${tipoEvento}|${horaProgramadaHHMM}`;
 }
 
 export function buildNotificationMessage(
@@ -117,17 +145,31 @@ async function enviarEventoIndividual(
   tipoEvento: TipoEventoNotificacion,
   horaProgramadaHHMM: string,
   horaObjetivoHHMM: string,
+  vapidConfigurado: boolean,
   sender: PushSenderFn
 ): Promise<{
   status: "ENVIADA" | "SIN_SUSCRIPCION" | "ERROR" | "DUPLICADA";
   mensaje: string;
+  fechaHoraProgramadaIso: string;
+  claveIdempotencia: string;
   error?: string;
 }> {
   const { title, body } = buildNotificationMessage(tipoEvento, horario.nombreSaludo);
   const fechaDate = toPrismaDate(fecha);
   const horaProgramadaDate = toPrismaTime(horaProgramadaHHMM);
+  const fechaHoraProgramadaDate = new Date(
+    bogotaDateAndTimeToTimestamp(fecha, horaProgramadaHHMM)
+  );
+  const fechaHoraProgramadaIso = fechaHoraProgramadaDate.toISOString();
+  const claveIdempotencia = buildIdempotencyKey(
+    horario.empleadoId,
+    fecha,
+    tipoEvento,
+    horaProgramadaHHMM
+  );
 
   // Reserva atómica de idempotencia mediante UNIQUE(empleado_id, fecha, tipo_evento, hora_programada)
+  // Garantiza cero duplicados incluso ante reintentos o ejecuciones concurrentes entre procesos/contenedores.
   let logRecordId: number;
   try {
     const created = await prisma.minuta_notificacion_log.create({
@@ -136,22 +178,52 @@ async function enviarEventoIndividual(
         fecha: fechaDate,
         tipo_evento: tipoEvento,
         hora_programada: horaProgramadaDate,
+        fecha_hora_programada: fechaHoraProgramadaDate,
+        clave_idempotencia: claveIdempotencia,
         mensaje: body,
         estado: "PROCESANDO",
         suscripciones_intentadas: 0,
         suscripciones_exitosas: 0,
+        ejecutado_en: new Date(),
       },
       select: { id: true },
     });
     logRecordId = created.id;
   } catch (err: any) {
     if (err?.code === "P2002") {
-      return { status: "DUPLICADA", mensaje: body };
+      return {
+        status: "DUPLICADA",
+        mensaje: body,
+        fechaHoraProgramadaIso,
+        claveIdempotencia,
+      };
     }
     throw err;
   }
 
   try {
+    if (!vapidConfigurado) {
+      const vapidErr =
+        "Claves VAPID no configuradas en el servidor (NEXT_PUBLIC_VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY).";
+      await prisma.minuta_notificacion_log.update({
+        where: { id: logRecordId },
+        data: {
+          estado: "ERROR",
+          suscripciones_intentadas: 0,
+          suscripciones_exitosas: 0,
+          error_detalle: vapidErr,
+          ejecutado_en: new Date(),
+        },
+      });
+      return {
+        status: "ERROR",
+        mensaje: body,
+        fechaHoraProgramadaIso,
+        claveIdempotencia,
+        error: vapidErr,
+      };
+    }
+
     // Revalidar estrictamente que el empleado siga con activo = 'SI' por su documento
     const emp = await prisma.minuta_empleado.findUnique({
       where: { id: horario.empleadoId },
@@ -164,9 +236,15 @@ async function enviarEventoIndividual(
         data: {
           estado: "OMITIDA",
           error_detalle: "Empleado inactivo al momento del envío.",
+          ejecutado_en: new Date(),
         },
       });
-      return { status: "DUPLICADA", mensaje: body };
+      return {
+        status: "DUPLICADA",
+        mensaje: body,
+        fechaHoraProgramadaIso,
+        claveIdempotencia,
+      };
     }
 
     const suscripciones = await prisma.minuta_push_suscripcion.findMany({
@@ -184,15 +262,21 @@ async function enviarEventoIndividual(
           suscripciones_intentadas: 0,
           suscripciones_exitosas: 0,
           error_detalle: "El empleado no tiene suscripciones Web Push activas.",
+          ejecutado_en: new Date(),
         },
       });
-      return { status: "SIN_SUSCRIPCION", mensaje: body };
+      return {
+        status: "SIN_SUSCRIPCION",
+        mensaje: body,
+        fechaHoraProgramadaIso,
+        claveIdempotencia,
+      };
     }
 
     const payload: PushPayload = {
       title,
       body,
-      tag: `evo-${tipoEvento.toLowerCase()}-${horario.empleadoId}-${fecha}`,
+      tag: `evo-${tipoEvento.toLowerCase()}-${horario.empleadoId}-${fecha}-${horaProgramadaHHMM.replace(":", "")}`,
       url: "/pwa",
       tipoEvento,
       empleadoId: horario.empleadoId,
@@ -256,12 +340,15 @@ async function enviarEventoIndividual(
         suscripciones_intentadas: suscripciones.length,
         suscripciones_exitosas: exitosas,
         error_detalle: errorDetalle,
+        ejecutado_en: new Date(),
       },
     });
 
     return {
       status: estadoFinal,
       mensaje: body,
+      fechaHoraProgramadaIso,
+      claveIdempotencia,
       error: errorDetalle || undefined,
     };
   } catch (fatalErr: any) {
@@ -272,6 +359,7 @@ async function enviarEventoIndividual(
         data: {
           estado: "ERROR",
           error_detalle: errText.slice(0, 2000),
+          ejecutado_en: new Date(),
         },
       })
       .catch(() => {});
@@ -279,6 +367,8 @@ async function enviarEventoIndividual(
     return {
       status: "ERROR",
       mensaje: body,
+      fechaHoraProgramadaIso,
+      claveIdempotencia,
       error: errText,
     };
   }
@@ -292,13 +382,19 @@ export async function procesarNotificacionesHorarios(options?: {
   referenceDate?: Date;
   customSender?: PushSenderFn;
   onlyEmpleadoIds?: string[];
+  forceVapidUnconfigured?: boolean;
 }): Promise<NotificacionProcesoResultado> {
   const nowParts = getBogotaNowParts(options?.referenceDate);
-  const vapidConfigurado = options?.customSender ? true : ensureVapidConfigured();
+  const vapidConfigurado = options?.forceVapidUnconfigured
+    ? false
+    : options?.customSender
+      ? true
+      : await ensureVapidConfigured();
 
   const sender: PushSenderFn =
     options?.customSender ||
     (async (subscription, payload) => {
+      const webpush = await loadWebPushModule();
       await webpush.sendNotification(subscription, payload, {
         TTL: 60 * 15, // 15 minutos
         urgency: "high",
@@ -327,9 +423,8 @@ export async function procesarNotificacionesHorarios(options?: {
 
   if (!vapidConfigurado) {
     console.warn(
-      "[PushNotifications] Claves VAPID no configuradas (NEXT_PUBLIC_VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY). Omitiendo envíos."
+      "[PushNotifications] Claves VAPID no configuradas (NEXT_PUBLIC_VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY)."
     );
-    return result;
   }
 
   for (const horario of filteredHorarios) {
@@ -361,6 +456,7 @@ export async function procesarNotificacionesHorarios(options?: {
         ev.tipo,
         horaProgramadaHHMM,
         ev.objetivoHHMM,
+        vapidConfigurado,
         sender
       );
 
@@ -373,6 +469,8 @@ export async function procesarNotificacionesHorarios(options?: {
         empleadoId: horario.empleadoId,
         tipoEvento: ev.tipo,
         horaProgramada: horaProgramadaHHMM,
+        fechaHoraProgramada: outcome.fechaHoraProgramadaIso,
+        claveIdempotencia: outcome.claveIdempotencia,
         estado: outcome.status,
         mensaje: outcome.mensaje,
         error: outcome.error,
@@ -381,4 +479,100 @@ export async function procesarNotificacionesHorarios(options?: {
   }
 
   return result;
+}
+
+/**
+ * Envía una notificación Web Push de prueba inmediata a las suscripciones activas
+ * de un empleado específico (útil para verificar entrega con navegador cerrado).
+ */
+export async function enviarNotificacionPruebaUsuario(
+  empleadoId: string,
+  customSender?: PushSenderFn
+): Promise<{
+  ok: boolean;
+  intentadas: number;
+  exitosas: number;
+  errores: string[];
+}> {
+  const vapidOk = customSender ? true : await ensureVapidConfigured();
+  if (!vapidOk) {
+    return {
+      ok: false,
+      intentadas: 0,
+      exitosas: 0,
+      errores: ["Claves VAPID no configuradas en el servidor."],
+    };
+  }
+
+  const suscripciones = await prisma.minuta_push_suscripcion.findMany({
+    where: { empleado_id: empleadoId.trim(), activa: true },
+  });
+
+  if (suscripciones.length === 0) {
+    return {
+      ok: false,
+      intentadas: 0,
+      exitosas: 0,
+      errores: ["No tienes dispositivos suscritos a notificaciones push."],
+    };
+  }
+
+  const nowParts = getBogotaNowParts();
+  const sender: PushSenderFn =
+    customSender ||
+    (async (subscription, payload) => {
+      const webpush = await loadWebPushModule();
+      await webpush.sendNotification(subscription, payload, {
+        TTL: 60 * 5,
+        urgency: "high",
+      });
+    });
+
+  const payload: PushPayload = {
+    title: "Evoforma - Prueba de notificación push",
+    body: `Notificación de prueba enviada desde el backend (${nowParts.fecha} ${nowParts.hhmm} COT). Tus avisos de jornada están activos.`,
+    tag: `evo-test-${empleadoId}-${Date.now()}`,
+    url: "/pwa",
+    tipoEvento: "PRUEBA",
+    empleadoId,
+    fecha: nowParts.fecha,
+    horaObjetivo: nowParts.hhmm,
+  };
+  const serialized = JSON.stringify(payload);
+
+  let exitosas = 0;
+  const errores: string[] = [];
+
+  for (const sub of suscripciones) {
+    try {
+      await sender(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        serialized
+      );
+      exitosas++;
+    } catch (pushErr: any) {
+      const statusCode = pushErr?.statusCode ?? pushErr?.status;
+      const errMsg = pushErr?.body || pushErr?.message || String(pushErr);
+      errores.push(`[sub#${sub.id} HTTP ${statusCode ?? "ERR"}] ${errMsg}`);
+      if (statusCode === 404 || statusCode === 410) {
+        await prisma.minuta_push_suscripcion
+          .update({
+            where: { id: sub.id },
+            data: {
+              activa: false,
+              last_error: `HTTP ${statusCode}: ${String(errMsg).slice(0, 400)}`,
+              updated_at: new Date(),
+            },
+          })
+          .catch(() => {});
+      }
+    }
+  }
+
+  return {
+    ok: exitosas > 0,
+    intentadas: suscripciones.length,
+    exitosas,
+    errores,
+  };
 }

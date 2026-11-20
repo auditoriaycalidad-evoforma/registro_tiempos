@@ -4,4 +4,6 @@ services:
     ports:
       - "21900:21900"
     env_file: .env
+    environment:
+      - PUSH_SCHEDULER_ENABLED=true
     restart: unless-stopped

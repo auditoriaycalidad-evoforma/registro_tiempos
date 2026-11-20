@@ -30,25 +30,36 @@ async function isAuthorizedCronRequest(request: Request): Promise<boolean> {
   return false;
 }
 
-/**
- * POST /api/cron/horarios
- * Permite disparar manualmente o desde un cron externo el ciclo de:
- *  - Notificaciones push (5 min antes de inicio/fin de jornada, America/Bogota)
- *  - Cierre automático de actividades abiertas + creación de Tipo O abierta
- */
-export async function POST(request: Request) {
+async function handleCron(request: Request) {
   if (!(await isAuthorizedCronRequest(request))) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   try {
-    const result = await ejecutarCicloHorarios();
+    const result = await ejecutarCicloHorarios({
+      runPush: true,
+      runAutoClose: true,
+    });
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    console.error("Error en POST /api/cron/horarios:", error);
+    console.error("Error en /api/cron/horarios:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Error ejecutando ciclo de horarios." },
       { status: 500 }
     );
   }
+}
+
+/**
+ * GET / POST /api/cron/horarios
+ * Permite disparar manualmente o desde un cron externo el ciclo completo de:
+ *  - Notificaciones push (5 min antes de inicio/fin de jornada, America/Bogota)
+ *  - Cierre automático de actividades abiertas + creación de Tipo O abierta
+ */
+export async function GET(request: Request) {
+  return handleCron(request);
+}
+
+export async function POST(request: Request) {
+  return handleCron(request);
 }

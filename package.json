@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "worker:push": "tsx scripts/push-worker.ts",
+    "cron:push-once": "tsx scripts/push-worker.ts --once",
+    "test:horarios-push": "tsx scripts/test-horarios-auto-push.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

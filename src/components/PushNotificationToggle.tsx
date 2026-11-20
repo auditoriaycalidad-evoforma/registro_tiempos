@@ -23,6 +23,25 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+function uint8ArraysEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function hasMatchingApplicationServerKey(
+  sub: PushSubscription,
+  vapidPublicKey: string
+): boolean {
+  const existingKey = sub.options?.applicationServerKey;
+  if (!existingKey) return true;
+  const expected = urlBase64ToUint8Array(vapidPublicKey);
+  const actual = new Uint8Array(existingKey);
+  return uint8ArraysEqual(actual, expected);
+}
+
 export function PushNotificationToggle({
   variant = "navbar",
 }: {
@@ -112,8 +131,17 @@ export function PushNotificationToggle({
           return;
         }
 
-        const existingSub = await registration.pushManager.getSubscription();
+        let existingSub = await registration.pushManager.getSubscription();
         if (existingSub && Notification.permission === "granted") {
+          // Si la clave VAPID cambió, renovar suscripción automáticamente para evitar errores 401/403
+          if (!hasMatchingApplicationServerKey(existingSub, vapidData.publicKey)) {
+            await existingSub.unsubscribe().catch(() => {});
+            existingSub = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(vapidData.publicKey) as BufferSource,
+            });
+          }
+
           // Resincronizar silenciosamente con el backend para mantener el endpoint vigente
           const synced = await syncSubscriptionWithServer(existingSub).catch(() => ({
             ok: false,
@@ -185,6 +213,10 @@ export function PushNotificationToggle({
       }
 
       let sub = await registration.pushManager.getSubscription();
+      if (sub && !hasMatchingApplicationServerKey(sub, vapidPublicKey)) {
+        await sub.unsubscribe().catch(() => {});
+        sub = null;
+      }
       if (!sub) {
         sub = await registration.pushManager.subscribe({
           userVisibleOnly: true,

@@ -30,10 +30,13 @@ import {
   toPrismaDate,
 } from "../src/lib/horarios";
 import {
+  buildIdempotencyKey,
   buildNotificationMessage,
   isWithinFiveMinuteNoticeWindow,
+  loadWebPushModule,
   procesarNotificacionesHorarios,
 } from "../src/lib/pushNotifications";
+import { computeNextMinuteTickDelayMs } from "../src/lib/scheduler";
 import { procesarCierresAutomaticos } from "../src/lib/autoCloseActivities";
 
 const TEST_IDS = {
@@ -118,7 +121,19 @@ async function runTests() {
   assert.strictEqual(isWithinFiveMinuteNoticeWindow(7 * 60 + 55, 8 * 60).match, true);
   assert.strictEqual(isWithinFiveMinuteNoticeWindow(7 * 60 + 57, 8 * 60).match, true);
   assert.strictEqual(isWithinFiveMinuteNoticeWindow(8 * 60, 8 * 60).match, false);
-  console.log("  OK: Zona horaria, normalización y textos exactos verificados.");
+
+  // Verificar que el scheduler nunca se salta el minuto siguiente aunque termine en :58 o :59
+  const at075459 = Date.parse("2030-05-15T07:54:59-05:00");
+  const lastMin0754 = Math.floor(at075459 / 60_000);
+  const nextTick = computeNextMinuteTickDelayMs(at075459, lastMin0754);
+  assert.strictEqual(nextTick.targetMinuteEpoch, lastMin0754 + 1, "Debe programar 07:55 sin saltarse el minuto");
+  assert.strictEqual(nextTick.delayMs, 3_000, "Debe esperar exactamente 3s hasta 07:55:02");
+
+  // Verificar carga dinámica ESM de web-push
+  const wp = await loadWebPushModule();
+  assert.strictEqual(typeof wp.setVapidDetails, "function");
+  assert.strictEqual(typeof wp.sendNotification, "function");
+  console.log("  OK: Zona horaria, scheduler sin saltos, web-push ESM, normalización y textos verificados.");
 
   // Limpiar residuos previos si existieran
   await cleanup();
@@ -249,20 +264,63 @@ async function runTests() {
     assert.strictEqual(res0754.enviadas, 0);
     assert.strictEqual(delivered.length, 0);
 
-    // 07:55 -> ventana de inicio (ACTIVO_P enviada, ACTIVO_O error 410, POST/HIST sin suscripción, INACTIVO excluido)
-    const res0755 = await procesarNotificacionesHorarios({
-      referenceDate: new Date(`${TEST_FECHA}T07:55:00-05:00`),
-      customSender: mockSender,
-      onlyEmpleadoIds: ALL_TEST_IDS,
-    });
-    assert.strictEqual(res0755.enviadas, 1);
-    assert.strictEqual(res0755.errores, 1);
-    assert.strictEqual(res0755.sinSuscripcion, 2);
+    // 07:55 -> ejecución CONCURRENTE (5 invocaciones simultáneas) para demostrar 0 duplicados ante concurrencia
+    const concurrent0755 = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        procesarNotificacionesHorarios({
+          referenceDate: new Date(`${TEST_FECHA}T07:55:00-05:00`),
+          customSender: mockSender,
+          onlyEmpleadoIds: ALL_TEST_IDS,
+        })
+      )
+    );
+    const totalEnviadas0755 = concurrent0755.reduce((acc, r) => acc + r.enviadas, 0);
+    const totalErrores0755 = concurrent0755.reduce((acc, r) => acc + r.errores, 0);
+    const totalSinSub0755 = concurrent0755.reduce((acc, r) => acc + r.sinSuscripcion, 0);
+    const totalDuplicadas0755 = concurrent0755.reduce((acc, r) => acc + r.omitidasDuplicadas, 0);
+
+    assert.strictEqual(totalEnviadas0755, 1, "Exactamente 1 notificación enviada entre 5 ejecuciones concurrentes");
+    assert.strictEqual(totalErrores0755, 1, "Exactamente 1 error registrado para suscripción expirada 410");
+    assert.strictEqual(totalSinSub0755, 2, "Exactamente 2 empleados sin suscripción");
+    assert.strictEqual(totalDuplicadas0755, 16, "Las 4 ejecuciones restantes x 4 activos deben ser bloqueadas por idempotencia");
     assert.strictEqual(delivered.length, 1);
     assert.strictEqual(
       delivered[0].payload.body,
       "Hola Prueba Activo Tipo P, en 5 minutos inicia tu jornada. Recuerda registrar tu actividad"
     );
+
+    // Verificar trazabilidad completa en public.minuta_notificacion_log (exitosos y errores)
+    const logs0755 = await prisma.minuta_notificacion_log.findMany({
+      where: {
+        empleado_id: { in: ALL_TEST_IDS },
+        fecha: toPrismaDate(TEST_FECHA),
+        tipo_evento: "INICIO_JORNADA",
+      },
+    });
+    assert.strictEqual(logs0755.length, 4, "Debe existir 1 log por cada empleado activo evaluado");
+
+    const logOk = logs0755.find((l) => l.empleado_id === TEST_IDS.ACTIVO_P);
+    assert(logOk, "Debe existir log para envío exitoso");
+    assert.strictEqual(logOk.estado, "ENVIADA");
+    assert.strictEqual(logOk.suscripciones_intentadas, 1);
+    assert.strictEqual(logOk.suscripciones_exitosas, 1);
+    assert.strictEqual(logOk.error_detalle, null);
+    assert.strictEqual(
+      logOk.clave_idempotencia,
+      buildIdempotencyKey(TEST_IDS.ACTIVO_P, TEST_FECHA, "INICIO_JORNADA", "07:55")
+    );
+    assert.strictEqual(
+      logOk.fecha_hora_programada?.getTime(),
+      bogotaDateAndTimeToTimestamp(TEST_FECHA, "07:55"),
+      "fecha_hora_programada debe coincidir exactamente con 07:55 America/Bogota"
+    );
+    assert(logOk.ejecutado_en instanceof Date, "Debe registrar timestamp de ejecución");
+
+    const logErr = logs0755.find((l) => l.empleado_id === TEST_IDS.ACTIVO_O);
+    assert(logErr, "Debe existir log para envío fallido");
+    assert.strictEqual(logErr.estado, "ERROR");
+    assert(logErr.error_detalle && logErr.error_detalle.includes("410"), "Debe guardar detalle del error HTTP 410");
+    assert(logErr.ejecutado_en instanceof Date, "Debe registrar timestamp de ejecución en error");
 
     // Verificar que la suscripción 410 se desactivó automáticamente
     const expiredSub = await prisma.minuta_push_suscripcion.findUnique({
@@ -280,25 +338,45 @@ async function runTests() {
     assert.strictEqual(res0756.omitidasDuplicadas, 4);
     assert.strictEqual(delivered.length, 1, "No deben enviarse notificaciones duplicadas");
 
-    // 16:55 -> ventana de salida (5 min antes de 17:00)
-    const res1655 = await procesarNotificacionesHorarios({
-      referenceDate: new Date(`${TEST_FECHA}T16:55:00-05:00`),
-      customSender: mockSender,
-      onlyEmpleadoIds: ALL_TEST_IDS,
-    });
-    assert.strictEqual(res1655.enviadas, 1);
+    // 16:55 -> ventana de salida (5 min antes de 17:00), también con concurrencia simultánea (3x)
+    const concurrent1655 = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        procesarNotificacionesHorarios({
+          referenceDate: new Date(`${TEST_FECHA}T16:55:00-05:00`),
+          customSender: mockSender,
+          onlyEmpleadoIds: ALL_TEST_IDS,
+        })
+      )
+    );
+    const totalEnviadas1655 = concurrent1655.reduce((acc, r) => acc + r.enviadas, 0);
+    assert.strictEqual(totalEnviadas1655, 1, "Exactamente 1 notificación de salida enviada entre 3 ejecuciones concurrentes");
     assert.strictEqual(delivered.length, 2);
     assert.strictEqual(
       delivered[1].payload.body,
       "Hola Prueba Activo Tipo P, tu horario habitual finaliza en 5 minutos. Recuerda registrar el cierre de tu actividad"
     );
+
+    const logSalidaOk = await prisma.minuta_notificacion_log.findFirst({
+      where: {
+        empleado_id: TEST_IDS.ACTIVO_P,
+        fecha: toPrismaDate(TEST_FECHA),
+        tipo_evento: "FIN_JORNADA",
+      },
+    });
+    assert(logSalidaOk && logSalidaOk.estado === "ENVIADA", "Debe registrar log de salida ENVIADA");
+    assert.strictEqual(
+      logSalidaOk.fecha_hora_programada?.getTime(),
+      bogotaDateAndTimeToTimestamp(TEST_FECHA, "16:55"),
+      "fecha_hora_programada de salida debe ser 16:55 America/Bogota"
+    );
+
     // Verificar que el inactivo jamás recibió nada
     assert.strictEqual(
       delivered.some((d) => d.endpoint.includes("inactivo")),
       false,
       "Empleado inactivo jamás debe recibir notificaciones push"
     );
-    console.log("  OK: Push 5 min antes (inicio/salida), deduplicación, desactivación 410 y exclusión de inactivos verificados.");
+    console.log("  OK: Push 5 min antes (inicio/salida), concurrencia 5x/3x sin duplicados, logs exitosos/errores, desactivación 410 y exclusión de inactivos verificados.");
 
     // 4. Probar cierre automático transaccional e idempotente + apertura de Tipo O
     console.log("[4/6] Probando cierre automático transaccional, preservación de P/O, vínculo y apertura de Tipo O...");

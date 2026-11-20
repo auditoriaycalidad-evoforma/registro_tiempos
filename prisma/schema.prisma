@@ -107,20 +107,24 @@ model minuta_push_suscripcion {
 }
 
 model minuta_notificacion_log {
-  id                       Int      @id @default(autoincrement())
-  empleado_id              String   @db.VarChar(64)
-  fecha                    DateTime @db.Date
-  tipo_evento              String   @db.VarChar(20)
-  hora_programada          DateTime @db.Time(6)
+  id                       Int       @id @default(autoincrement())
+  empleado_id              String    @db.VarChar(64)
+  fecha                    DateTime  @db.Date
+  tipo_evento              String    @db.VarChar(20)
+  hora_programada          DateTime  @db.Time(6)
+  fecha_hora_programada    DateTime? @db.Timestamptz(6)
+  clave_idempotencia       String?   @db.VarChar(160)
   mensaje                  String
-  estado                   String   @db.VarChar(20)
-  suscripciones_intentadas Int      @default(0)
-  suscripciones_exitosas   Int      @default(0)
+  estado                   String    @db.VarChar(20)
+  suscripciones_intentadas Int       @default(0)
+  suscripciones_exitosas   Int       @default(0)
   error_detalle            String?
-  created_at               DateTime @default(now()) @db.Timestamptz(6)
+  ejecutado_en             DateTime  @default(now()) @db.Timestamptz(6)
+  created_at               DateTime  @default(now()) @db.Timestamptz(6)
 
   @@unique([empleado_id, fecha, tipo_evento, hora_programada], map: "uq_notificacion_idempotencia")
   @@index([fecha, created_at], map: "idx_notificacion_log_fecha_estado")
+  @@index([estado, ejecutado_en], map: "idx_notificacion_log_estado_ejecutado")
 }
 
 model minuta_cierre_automatico_log {

@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  * Reporte de solo lectura para administradores:
  *  - Inconsistencias entre public.horarios y public.minuta_empleado (sin alterar registros)
  *  - Estado del scheduler en backend y configuración VAPID
- *  - Últimos registros de envíos push y cierres automáticos
+ *  - Resumen y últimos registros de envíos push (exitosos y errores) y cierres automáticos
  */
 export async function GET() {
   try {
@@ -26,13 +26,18 @@ export async function GET() {
     const [
       diagnostico,
       ultimasNotificaciones,
+      resumenNotificaciones,
       ultimosCierres,
       suscripcionesActivas,
     ] = await Promise.all([
       detectarInconsistenciasHorarios(),
       prisma.minuta_notificacion_log.findMany({
         orderBy: { created_at: "desc" },
-        take: 50,
+        take: 100,
+      }),
+      prisma.minuta_notificacion_log.groupBy({
+        by: ["estado"],
+        _count: { _all: true },
       }),
       prisma.minuta_cierre_automatico_log.findMany({
         orderBy: { created_at: "desc" },
@@ -43,6 +48,30 @@ export async function GET() {
         select: { empleado_id: true },
       }),
     ]);
+
+    const notifEmpIds = Array.from(
+      new Set(ultimasNotificaciones.map((n) => n.empleado_id))
+    );
+    const empleadosMap = new Map<string, string>();
+    if (notifEmpIds.length > 0) {
+      const emps = await prisma.minuta_empleado.findMany({
+        where: { id: { in: notifEmpIds } },
+        select: { id: true, apellido_nombre: true },
+      });
+      for (const e of emps) {
+        empleadosMap.set(e.id, e.apellido_nombre);
+      }
+    }
+
+    const notificacionesEnriquecidas = ultimasNotificaciones.map((n) => ({
+      ...n,
+      empleado_nombre: empleadosMap.get(n.empleado_id) || null,
+    }));
+
+    const resumenEstadosNotificaciones: Record<string, number> = {};
+    for (const row of resumenNotificaciones) {
+      resumenEstadosNotificaciones[row.estado] = row._count._all;
+    }
 
     const empleadosSuscritosUnicos = new Set(
       suscripcionesActivas.map((s) => s.empleado_id)
@@ -56,8 +85,9 @@ export async function GET() {
         totalActivas: suscripcionesActivas.length,
         empleadosUnicosSuscritos: empleadosSuscritosUnicos,
       },
+      resumenEstadosNotificaciones,
       diagnosticoHorarios: diagnostico,
-      ultimasNotificaciones,
+      ultimasNotificaciones: notificacionesEnriquecidas,
       ultimosCierresAutomaticos: ultimosCierres,
     });
   } catch (error) {

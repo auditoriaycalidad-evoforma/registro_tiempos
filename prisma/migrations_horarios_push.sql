@@ -78,18 +78,30 @@ CREATE TABLE IF NOT EXISTS public.minuta_notificacion_log (
   fecha DATE NOT NULL,
   tipo_evento VARCHAR(20) NOT NULL,
   hora_programada TIME NOT NULL,
+  fecha_hora_programada TIMESTAMPTZ NULL,
+  clave_idempotencia VARCHAR(160) NULL,
   mensaje TEXT NOT NULL,
   estado VARCHAR(20) NOT NULL,
   suscripciones_intentadas INTEGER NOT NULL DEFAULT 0,
   suscripciones_exitosas INTEGER NOT NULL DEFAULT 0,
   error_detalle TEXT NULL,
+  ejecutado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT uq_notificacion_idempotencia
     UNIQUE (empleado_id, fecha, tipo_evento, hora_programada)
 );
 
+-- Columnas aditivas para instalaciones previas de minuta_notificacion_log
+ALTER TABLE public.minuta_notificacion_log
+  ADD COLUMN IF NOT EXISTS fecha_hora_programada TIMESTAMPTZ NULL,
+  ADD COLUMN IF NOT EXISTS clave_idempotencia VARCHAR(160) NULL,
+  ADD COLUMN IF NOT EXISTS ejecutado_en TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 CREATE INDEX IF NOT EXISTS idx_notificacion_log_fecha_estado
   ON public.minuta_notificacion_log (fecha DESC, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_notificacion_log_estado_ejecutado
+  ON public.minuta_notificacion_log (estado, ejecutado_en DESC);
 
 -- 5. Tabla de log de cierres automáticos (idempotencia por empleado + fecha + hora_fin_programada)
 CREATE TABLE IF NOT EXISTS public.minuta_cierre_automatico_log (
